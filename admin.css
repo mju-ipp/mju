@@ -252,3 +252,96 @@ body.adm .att-chip button:focus-visible{outline:2px solid var(--v-cobalt)}
 body.adm .nv-dup{margin:-8px 0 16px; padding:10px 12px; border-radius:6px; background:var(--v-warn-bg); color:var(--v-warn); font-size:13px; line-height:1.55}
 body.adm .pl-miss{display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; padding:10px 0; border-bottom:1px solid var(--v-line); font-size:13px}
 body.adm .pl-miss:empty{display:none}
+
+/* =====================================================================
+ * 18. 디자인 재정리(10/15 "밤티" 피드백) — 시안(관리자_시안.html) 구조에 맞춤
+ *   머리는 얇은 밝은 띠, 왼쪽 메뉴는 선으로 나눈 기둥, 오늘은 먹색 결론 띠 + 처리할 일 목록.
+ *   모든 묶음은 같은 틀(제목 17/700 + 숫자 회색 + 한 줄 안내 + 1px 선 목록).
+ * ===================================================================== */
+body.adm .adm-header{background:var(--v-bg); color:var(--v-ink); border-bottom:1px solid var(--v-line); padding:0 24px}
+body.adm .adm-header-inner{min-height:52px; padding:6px 0}
+body.adm .adm-header .lk{display:none}
+body.adm .adm-header .ttl{color:var(--v-ink); font-size:15px}
+body.adm .adm-center{color:var(--v-mute); border-color:var(--v-line)}
+body.adm .adm-header .mail{color:var(--v-mute)}
+body.adm .mju-btn--onNavy{--_bg:var(--v-paper); --_fg:var(--v-ink); --_bd:var(--v-line); --_bgh:var(--v-paper)}
+
+body.adm .adm-shell{max-width:none; margin:0; padding:0; grid-template-columns:200px minmax(0,1fr); gap:0; min-height:calc(100vh - 53px)}
+body.adm .adm-nav{border-right:1px solid var(--v-line); padding:24px 0; position:sticky; top:0; align-self:start; min-height:calc(100vh - 53px)}
+body.adm .adm-nav-item{padding-left:24px}
+body.adm .adm-nav-item.act::before{left:12px}
+body.adm .adm-main{padding:32px 40px 72px; max-width:1200px}
+body.adm .adm-h2{font-size:24px; margin:0 0 4px}
+
+/* 오늘 — 먹색 결론 띠: 메뉴 선부터 오른쪽 끝까지 */
+body.adm .dash-hero{background:var(--v-ink); color:#fff; margin:-32px -40px 8px; padding:28px 40px 24px}
+body.adm .dash-hero .when{font-size:13px; color:var(--v-mute-on-ink)}
+body.adm .dash-hero .hero-h{margin:6px 0 0; font-size:24px; font-weight:700; letter-spacing:-.01em; display:flex; align-items:baseline; gap:12px; color:#fff}
+body.adm .dash-hero .big{font-size:56px; font-weight:300; line-height:1; color:var(--v-cobalt-l)}
+body.adm .dash-hero .unit{font-size:17px; font-weight:400; color:var(--v-mute-on-ink)}
+body.adm .dash-hero .meta{margin-top:14px; display:flex; flex-wrap:wrap; gap:4px 20px; font-size:13px; color:var(--v-mute-on-ink); white-space:pre}
+
+/* 묶음 공통 틀 */
+body.adm .dsec{padding:28px 0 0}
+body.adm .dsec[hidden]{display:none}
+body.adm .dsec-h{display:flex; align-items:baseline; gap:10px; margin:0 0 4px; font-size:17px; font-weight:700; letter-spacing:-.01em}
+body.adm .dsec-h .n{font-size:15px; font-weight:400; color:var(--v-mute)}
+body.adm .dsec-h .dsec-act{margin-left:auto}
+body.adm .dsec-lede{margin:0 0 8px; font-size:13px; color:var(--v-mute)}
+body.adm .dsec-lede:empty{display:none}
+body.adm .dsec .short-row:first-child,body.adm #d-short-list{border-top:1px solid var(--v-line)}
+body.adm #d-short-list .short-row:first-child{border-top:0}
+body.adm .drow{display:flex; align-items:center; gap:16px; min-height:52px; padding:8px 0; border-top:1px solid var(--v-line); border-bottom:1px solid var(--v-line)}
+body.adm .drow .dl{flex:1; min-width:0; font-size:14px}
+body.adm .dquiet{margin:20px 0 0; padding:14px 0; border-top:1px solid var(--v-line); border-bottom:1px solid var(--v-line); font-size:13px; color:var(--v-mute)}
+body.adm .dquiet[hidden]{display:none}
+/* 이번 달 마감(확인 업무) — 묶음 안 항목 사이 선 */
+body.adm #d-tp-list > div{border-top:1px solid var(--v-line); border-bottom:0 !important; padding:12px 0 !important}
+body.adm #d-tp-list > div:last-child{border-bottom:1px solid var(--v-line) !important}
+/* 자료 갱신 — 한 줄짜리 도구 */
+body.adm .dtools .trow{display:flex; align-items:center; gap:12px; min-height:52px; padding:8px 0; border-top:1px solid var(--v-line)}
+body.adm .dtools .trow:last-of-type{border-bottom:1px solid var(--v-line)}
+body.adm .dtools .tl{flex:1; min-width:0; display:flex; align-items:baseline; gap:12px; flex-wrap:wrap}
+body.adm .dtools .tl b{font-weight:500; font-size:14px; min-width:84px}
+body.adm .dtools .tl .note{margin:0}
+body.adm .file-btn{position:relative; overflow:hidden}
+body.adm .file-btn input{position:absolute; inset:0; opacity:0; cursor:pointer}
+body.adm .file-btn:focus-within{outline:2px solid var(--v-cobalt); outline-offset:2px}
+/* 최근 활동 — 인라인 스타일 행을 선 목록으로 */
+body.adm #d-logs > div{border-bottom-color:var(--v-line) !important; padding:10px 0 !important}
+
+/* 꺼진 버튼 — 색 바랜 코발트 대신 회색 선 */
+body.adm .mju-btn[disabled],body.adm .mju-btn:disabled{--_bg:var(--v-paper); --_fg:#a3a5ad; --_bd:var(--v-line); opacity:1}
+
+/* 탭 공통: 상자 안 2단(보내기·자료·일정)도 선 목록으로 — 열 사이 간격만 */
+body.adm .adm-2col{gap:40px}
+body.adm .adm-2col > .card,body.adm .adm-2col > div > .card{padding-top:20px}
+
+@media (max-width:980px){
+  body.adm .adm-shell{grid-template-columns:minmax(0,1fr)}
+  body.adm .adm-nav{border-right:0; min-height:0; padding:0}
+  body.adm .adm-nav-item{padding:0 14px}
+  body.adm .adm-main{padding:16px 16px 48px}
+  body.adm .dash-hero{margin:-16px -16px 8px; padding:20px 16px}
+  body.adm .dash-hero .big{font-size:44px}
+  body.adm .dtools .trow{flex-wrap:wrap}
+}
+body.adm .stat-row[hidden]{display:none}
+body.adm .adm-main{max-width:none}
+body.adm .adm-main > .adm-subnav,body.adm .adm-main > .tabsec > :not(.dash-hero){max-width:1120px}
+body.adm div:has(> #login[style*="none"]):has(> #noperm[style*="none"]){margin:0 !important; padding:0 !important}   /* 로그인 뒤 빈 로그인 틀의 위 여백 44px 제거 */
+
+/* 재정리 — 테두리 알약 배지·상자 라디오·표 안 상자 버튼이 화면을 시끄럽게 하던 것 */
+body.adm .mju-badge,body.adm .mju-badge--neutral,body.adm .mju-badge--success,body.adm .mju-badge--sky,body.adm .mju-badge--navy,body.adm .mju-badge--gold{
+  border:0; background:transparent; padding:0; font-size:12px; font-weight:500; color:var(--v-mute)}
+body.adm .mju-badge--coral{border:0; background:transparent; padding:0; font-weight:700; color:var(--v-warn)}
+body.adm .mju-badge--gold,body.adm .mju-badge--sky{color:var(--v-cobalt)}
+body.adm .mju-badge + .mju-badge{margin-left:6px}
+body.adm .role-card{background:var(--v-paper); border:1px solid var(--v-line); border-radius:6px; padding:10px 12px; min-height:52px}
+body.adm .role-card.sel{background:var(--v-paper); border-color:var(--v-ink); box-shadow:inset 0 0 0 1px var(--v-ink)}
+body.adm .role-card.sel .rc-dot{border-color:var(--v-ink)}
+body.adm .role-card.sel .rc-dot i{background:var(--v-ink)}
+body.adm .mtbl .phone-btn{border-color:transparent; background:transparent; min-height:32px; padding:0 8px}
+body.adm .mtbl .phone-btn:hover{border-color:var(--v-line); background:var(--v-paper)}
+body.adm .mtbl .phone-btn.phone-btn--danger{border-color:transparent}
+body.adm .mtbl .phone-btn.phone-btn--danger:hover{border-color:var(--v-warn)}

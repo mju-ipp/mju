@@ -86,63 +86,66 @@
       <div class="adm-subnav" id="subnav" role="tablist" aria-label="하위 화면" hidden></div>
       <!-- 전담인력(운영팀) 요약 -->
       <div class="tabsec" id="sec-dash">
-        <h2 class="adm-h2">오늘 <span class="hint" id="d-health"></span></h2>
-        <div class="stat-row">
-          <button type="button" class="stat-cell" data-go="members" title="학생 명단으로"><div class="sk">학생 매칭</div><div class="sv" id="d-matched">–</div></button>
-          <button type="button" class="stat-cell" data-go="consult" title="상담으로"><div class="sk">미답변 상담</div><div class="sv" id="d-consult">–</div></button>
-          <button type="button" class="stat-cell" id="d-due3-cell" data-go="calendar" title="설정 › 일정으로"><div class="sk">마감 임박 일정 (D-3 이내)</div><div class="sv" id="d-due3">–</div></button>
-          <button type="button" class="stat-cell" data-go="notice" title="보내기 › 발송 기록으로"><div class="sk">오늘 발송</div><div class="sv" id="d-sent">–</div></button>
+        <!-- [디자인 재정리 10/15] 오늘 = 먹색 머리(결론 문장 + 큰 숫자) + 처리할 일 목록. 0건 항목은 회색 한 줄로 접고, 자료 갱신 도구는 맨 아래 -->
+        <div class="dash-hero">
+          <div class="when" id="d-when"></div>
+          <h2 class="hero-h">오늘 처리할 일 <span class="big" id="d-todo">–</span><span class="unit">건</span></h2>
+          <div class="meta"><span id="d-meta-fetch"></span><span id="d-health"></span></div>
         </div>
-        <!-- 노션 「OJT 월별 — 학생」 실적 → 앱 '내 출석 진도' 카드(sql/42) 반영 — 서버 함수 sync-attendance -->
+        <!-- 옛 숫자 줄 — 값은 JS가 계속 채움(다른 곳 참조용), 화면에는 숨김 -->
+        <div class="stat-row" hidden>
+          <button type="button" class="stat-cell" data-go="members"><div class="sk">학생 매칭</div><div class="sv" id="d-matched">–</div></button>
+          <button type="button" class="stat-cell" data-go="consult"><div class="sk">미답변 상담</div><div class="sv" id="d-consult">–</div></button>
+          <button type="button" class="stat-cell" id="d-due3-cell" data-go="calendar"><div class="sk">마감 임박 일정 (D-3 이내)</div><div class="sv" id="d-due3">–</div></button>
+          <button type="button" class="stat-cell" data-go="notice"><div class="sk">오늘 발송</div><div class="sv" id="d-sent">–</div></button>
+        </div>
         <!-- [개편 5단계] 정규시간 대비 인정시간이 모자란 학생 — attendance_daily(sql/55) -->
-        <div class="card" id="d-short-card">
-          <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap">
-            <p class="ph-card-title" style="margin:0">정규시간보다 인정시간이 모자라요 <span class="note" id="d-short-n" style="margin:0;font-weight:400"></span></p>
-            <span class="note" id="d-short-hint" style="margin:0"></span>
-          </div>
+        <section class="dsec" id="d-short-card">
+          <h3 class="dsec-h">정규시간보다 인정시간이 모자라요 <span class="n" id="d-short-n"></span></h3>
+          <p class="dsec-lede" id="d-short-hint"></p>
           <div id="d-short-list"><p class="note">불러오는 중…</p></div>
-        </div>
-        <div class="card" id="d-attn-card">
-          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-            <p class="ph-card-title" style="margin:0">학생 출석진도 반영</p>
-            <span class="note">노션 학생월 DB의 예정·실적 시수를 앱 '내 출석 진도' 카드로 보내요 — 노션 입력 후 한 번씩</span>
-            <span style="margin-left:auto"><button class="mju-btn mju-btn--secondary mju-btn--sm" id="d-attn-sync">노션 출석진도 반영</button></span>
-          </div>
-          <p class="note" id="d-attn-status" style="margin:6px 0 0"></p>
-        </div>
-        <!-- [개편 4단계] 출결점검(행정지원시스템 조회) 결과 → attendance_daily(sql/55) — 날짜별 정규시간·인정시간 -->
-        <div class="card" id="d-daily-card">
-          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-            <p class="ph-card-title" style="margin:0">출결 결과 올리기</p>
-            <span class="note" style="margin:0">출결점검 <code>reports\app_upload_YYYY-MM.json</code> — 날짜별 정규시간·인정시간이 학생 달력과 진도에 쓰여요</span>
-          </div>
-          <p class="note" id="d-daily-last" style="margin:6px 0 0"></p>
-          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:10px">
-            <input type="file" id="d-daily-file" accept=".json,application/json" aria-label="출결 결과 파일" />
-            <button class="mju-btn mju-btn--sm" id="d-daily-go" disabled>올리기</button>
-          </div>
-          <p class="note" id="d-daily-preview" style="margin:8px 0 0"></p>
-          <div class="status" id="d-daily-status"></div>
-        </div>
+        </section>
+        <section class="dsec" id="d-consult-sec" hidden>
+          <h3 class="dsec-h">답하지 않은 상담 <span class="n" id="d-consult-n"></span></h3>
+          <div class="drow"><span class="dl">학생이 남긴 상담에 아직 답하지 않았어요.</span><button type="button" class="phone-btn" id="d-consult-go">상담으로</button></div>
+        </section>
+        <section class="dsec" id="d-push-sec" hidden>
+          <h3 class="dsec-h">알림을 못 받는 학생 <span class="n" id="d-push-n"></span></h3>
+          <p class="dsec-lede">푸시가 가지 않아요 — 문자로 따로 알려주세요</p>
+          <div class="drow"><span class="dl" id="d-push-names"></span><button type="button" class="phone-btn" id="d-push-copy">이름 복사</button></div>
+        </section>
+        <section class="dsec" id="d-due-sec" hidden>
+          <h3 class="dsec-h">3일 안에 끝나는 마감 <span class="n" id="d-due-n"></span></h3>
+          <div class="drow"><span class="dl">설정 › 일정에 등록된 '마감' 일정이에요.</span><button type="button" class="phone-btn" id="d-due-go">일정 보기</button></div>
+        </section>
+        <p class="dquiet" id="d-quiet" hidden></p>
         <!-- [medium-1] 이달의 확인 업무 — 학생 앱 완료체크(sql/40) 진행률 + 미완료자 독촉 동선 -->
-        <div class="card" id="d-tasks-card">
-          <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px;flex-wrap:wrap">
-            <p class="ph-card-title" style="margin:0">이달의 확인 업무</p>
-            <span class="note">학생 앱 완료체크 기준 — 셀프체크라 참고용이에요</span>
-            <span style="margin-left:auto"><button class="mju-btn mju-btn--secondary mju-btn--sm" id="d-tp-refresh">새로고침</button></span>
-          </div>
+        <section class="dsec" id="d-tasks-card">
+          <h3 class="dsec-h">이번 달 마감 <button class="phone-btn dsec-act" id="d-tp-refresh">새로고침</button></h3>
+          <p class="dsec-lede">완료 표시는 학생이 직접 누른 것이라 참고용이에요</p>
           <div class="status" id="d-tp-status"></div>
           <div id="d-tp-list"><p class="note">불러오는 중...</p></div>
-        </div>
-        <div class="card">
-          <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px">
-            <p class="ph-card-title" style="margin:0">최근 활동</p>
-            <span style="margin-left:auto"><button class="mju-btn mju-btn--secondary mju-btn--sm" id="d-goConsult">상담 보기</button></span>
+        </section>
+        <!-- 자료 갱신 — 노션 월 실적(sync-attendance, sql/42) · 출결점검 결과(attendance_daily, sql/55) -->
+        <section class="dsec dtools">
+          <h3 class="dsec-h">자료 갱신</h3>
+          <div class="trow" id="d-attn-card">
+            <div class="tl"><b>노션 출석진도</b><span class="note" id="d-attn-status">노션 학생월 DB의 월 예정·실적 시수를 앱으로 보내요</span></div>
+            <button class="phone-btn" id="d-attn-sync">반영하기</button>
           </div>
-          <p class="note" style="margin:0 0 6px">개인정보 보호를 위해 활동 로그의 이름은 운영자만 열람합니다.</p>
+          <div class="trow" id="d-daily-card">
+            <div class="tl"><b>출결 결과</b><span class="note" id="d-daily-last"></span></div>
+            <label class="phone-btn file-btn"><input type="file" id="d-daily-file" accept=".json,application/json" aria-label="출결 결과 파일 (reports\app_upload_YYYY-MM.json)" />파일 고르기</label>
+            <button class="mju-btn mju-btn--sm" id="d-daily-go" disabled>올리기</button>
+          </div>
+          <p class="note" id="d-daily-preview" style="margin:6px 0 0"></p>
+          <div class="status" id="d-daily-status"></div>
+        </section>
+        <section class="dsec">
+          <h3 class="dsec-h">최근 활동 <button type="button" class="phone-btn dsec-act" id="d-goConsult">상담 보기</button></h3>
           <div class="status" id="d-status"></div>
           <div id="d-logs"></div>
-        </div>
+        </section>
       </div>
 
       <!-- 공지 -->
@@ -2759,6 +2762,7 @@
       } else if (data) {
         $('d-matched').textContent = (data.students_matched ?? '?') + ' / ' + (data.students_total ?? '?');
         $('d-consult').textContent = data.consult_open ?? '?';
+        setDashCnt('consult', data.consult_open);
       }
       // 마감 임박(D-3) — 확인할 화면이 없는 tasks 대신, 카드 클릭이 향하는 일정 탭의 '마감' 일정으로 계산(소스=화면 일치)
       try {
@@ -2766,6 +2770,7 @@
         const { count: due3 } = await supabase.from('calendar_events').select('id', { count: 'exact', head: true }).eq('kind', '마감').gte('event_date', t0).lte('event_date', t3);
         $('d-due3').textContent = due3 ?? '–';
         $('d-due3-cell').classList.toggle('warn', due3 > 0);   // 경고색은 마감 임박이 실제로 있을 때만
+        setDashCnt('due', due3);
       } catch (_) { $('d-due3').textContent = '–'; }
       // 오늘 발송 = push_logs 중 sent_at 이 오늘 0시 이후 (calendar.html 표준 Date 패턴)
       const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -2775,13 +2780,13 @@
       let hp = '';
       try {
         const { data: sl } = await supabase.from('sync_log').select('created_at').order('created_at', { ascending: false }).limit(1);
-        if (sl && sl[0]) { const h = (Date.now() - new Date(sl[0].created_at).getTime()) / 3600000; hp += '마지막 동기화 ' + (h < 1 ? '방금' : Math.round(h) + '시간 전') + (h > 36 ? ' — 36시간 이상 소식 없음, 동기화 점검 필요' : '') + ' · '; }
+        if (sl && sl[0]) { const h = (Date.now() - new Date(sl[0].created_at).getTime()) / 3600000; hp += '마지막 동기화 ' + (h < 1 ? '방금' : Math.round(h) + '시간 전') + (h > 36 ? ' — 36시간 이상 소식 없음, 동기화 점검 필요' : '') + '   '; }
       } catch (_) {}
       try {
         const { data: pl } = await supabase.from('push_logs').select('sent_at').order('sent_at', { ascending: false }).limit(1);
         if (pl && pl[0]) { const h = (Date.now() - new Date(pl[0].sent_at).getTime()) / 3600000; hp += '마지막 발송 ' + (h < 1 ? '방금' : Math.round(h) + '시간 전'); }
       } catch (_) {}
-      $('d-health').textContent = hp || '아직 동기화·발송 기록이 없어요.';
+      $('d-health').textContent = hp || '';
       // 최근 활동 로그
       try {
         const { data: lg } = await supabase.from('admin_logs').select('actor,action,detail,created_at').order('created_at', { ascending: false }).limit(8);
@@ -2790,6 +2795,7 @@
       dashTasksLoad();   // [medium-1] 이달의 확인 업무 — 지표와 분리해 비동기 로드(진행률 RPC가 느려도 요약 지표는 먼저 뜸)
       dailyLastLoad();   // [개편 4단계] 이번 달 출결 결과 반영 상태
       dashShortLoad();   // [개편 5단계] 정규시간보다 인정시간이 모자란 학생
+      dashPushLoad();    // [디자인 재정리] 알림 못 받는 학생
     }
 
     // ===== [medium-1] 이달의 확인 업무 — tasks 완료체크(sql/40 admin_task_progress) 진행률·미완료자 독촉 =====
@@ -3375,6 +3381,41 @@
       stLoad();   // 기업 관리 탭에 바로 반영
     });
 
+    // ===== [디자인 재정리] 오늘 머리 — '오늘 처리할 일 N건' = 모자란 학생 + 미답변 상담 + 알림 못 받는 학생 + 3일 안 마감 =====
+    const dashCnt = { short: null, consult: null, push: null, due: null };
+    function renderHero() {
+      const d = new Date();
+      $('d-when').textContent = `${d.getMonth() + 1}월 ${d.getDate()}일 ${'일월화수목금토'[d.getDay()]}요일`;
+      const vals = Object.values(dashCnt);
+      $('d-todo').textContent = vals.every(v => v === null) ? '–' : vals.reduce((s, v) => s + (v || 0), 0);
+      const sec = (id, n, nid, unit) => { const el = $(id); if (!el) return; el.hidden = !n; if (nid) $(nid).textContent = n ? n + unit : ''; };
+      sec('d-consult-sec', dashCnt.consult, 'd-consult-n', '건');
+      sec('d-push-sec', dashCnt.push, 'd-push-n', '명');
+      sec('d-due-sec', dashCnt.due, 'd-due-n', '건');
+      const quiet = [];
+      if (dashCnt.short === 0) quiet.push('모자란 학생 없음');
+      if (dashCnt.consult === 0) quiet.push('답하지 않은 상담 없음');
+      if (dashCnt.due === 0) quiet.push('3일 안 마감 없음');
+      if (dashCnt.push === 0) quiet.push('명단 학생 모두 알림 켬');
+      $('d-quiet').hidden = !quiet.length; $('d-quiet').textContent = quiet.join(' · ');
+    }
+    function setDashCnt(k, n) { dashCnt[k] = (n == null || isNaN(n)) ? null : Number(n); renderHero(); }
+    // 명단에 있는데 알림 켠 기기가 0인 학생 이름
+    async function pushMissNames() {
+      const [st, ps] = await Promise.all([supabase.from('students').select('name'), supabase.rpc('admin_push_status')]);
+      if (st.error || ps.error) return null;
+      const on = new Set((ps.data || []).filter(r => Number(r.devices) > 0).map(r => (r.name || '').replace(/\s+/g, '')));
+      return [...new Set((st.data || []).map(s => (s.name || '').trim()).filter(n => n && !on.has(n.replace(/\s+/g, ''))))];
+    }
+    let _pushMiss = [];
+    async function dashPushLoad() {
+      try { const m = await pushMissNames(); if (!m) return; _pushMiss = m; $('d-push-names').textContent = m.join(', '); setDashCnt('push', m.length); } catch (_) {}
+    }
+    $('d-push-copy').addEventListener('click', async () => { const b = $('d-push-copy'); try { await navigator.clipboard.writeText(_pushMiss.join('\n')); b.textContent = '복사됨'; setTimeout(() => { b.textContent = '이름 복사'; }, 1200); } catch (_) {} });
+    $('d-consult-go').addEventListener('click', () => { location.hash = 'consult'; });
+    $('d-due-go').addEventListener('click', () => { location.hash = 'calendar'; });
+    renderHero();
+
     // ===== [개편 5단계] 일별 출결(attendance_daily, sql/55) — 진도 표·오늘 목록·학생 상세 공용 =====
     // 판정 기준 = 오늘까지(조회 범위 안) 등록된 정규시간 대비 인정 출석시간. 달력 경과율('월 경과 %')은 쓰지 않는다.
     const normNm = s => (s || '').replace(/\s+/g, '');
@@ -3467,7 +3508,10 @@
         if (st.rec < st.reg) items.push({ name: rows[0].name, st });
       });
       $('d-short-n').textContent = items.length ? items.length + '명' : '';
-      $('d-short-hint').textContent = dc.byName.size ? `오늘까지 등록된 정규시간 대비 인정 출석시간 · 조회 ${fmtFetched(fetched)}` : '';
+      $('d-short-hint').textContent = dc.byName.size ? '오늘까지 등록된 정규시간 대비 인정 출석시간' : '';
+      $('d-meta-fetch').textContent = dc.byName.size ? `출결 조회 ${fmtFetched(fetched)}` : '';
+      $('d-short-card').hidden = !!dc.byName.size && !items.length;
+      setDashCnt('short', dc.byName.size ? items.length : null);
       if (!dc.byName.size) { list.innerHTML = '<p class="note">이번 달 출결 결과를 아직 올리지 않았어요 — 아래 [출결 결과 올리기]로 올리면 여기에 표시돼요.</p>'; return; }
       if (!items.length) { list.innerHTML = '<p class="note">모자란 학생이 없어요.</p>'; return; }
       items.sort((a, b) => (a.st.rec / a.st.reg) - (b.st.rec / b.st.reg));
