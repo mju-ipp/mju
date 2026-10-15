@@ -4,8 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>관리자 · 일학습병행 앱</title>
-  <meta name="theme-color" content="#002968" />
+  <meta name="theme-color" content="#121318" />
   <link rel="stylesheet" href="./styles.css" />
+  <link rel="stylesheet" href="./admin.css" />
   <script src="./config.js"></script>
   <style>
     .msg{max-width:80%;padding:9px 12px;border-radius:12px;margin:5px 0;font-size:14px;white-space:pre-wrap}
@@ -93,7 +94,7 @@
         <div class="stat-row">
           <button type="button" class="stat-cell" data-go="members" title="가입자 탭으로"><div class="sk">학생 매칭</div><div class="sv" id="d-matched">–</div></button>
           <button type="button" class="stat-cell" data-go="consult" title="상담 탭으로"><div class="sk">미답변 상담</div><div class="sv" id="d-consult">–</div></button>
-          <button type="button" class="stat-cell warn" data-go="calendar" title="일정 탭으로"><div class="sk">마감 임박 일정 (D-3 이내)</div><div class="sv" id="d-due3">–</div></button>
+          <button type="button" class="stat-cell" id="d-due3-cell" data-go="calendar" title="일정 탭으로"><div class="sk">마감 임박 일정 (D-3 이내)</div><div class="sv" id="d-due3">–</div></button>
           <button type="button" class="stat-cell" data-go="notice" title="공지 탭 발송 기록으로"><div class="sk">오늘 발송</div><div class="sv" id="d-sent">–</div></button>
         </div>
         <!-- 노션 「OJT 월별 — 학생」 실적 → 앱 '내 출석 진도' 카드(sql/42) 반영 — 서버 함수 sync-attendance -->
@@ -308,7 +309,7 @@
           <label id="sv-sem-label" for="sv-sem">학기</label>
           <select id="sv-sem" class="ph-select"></select>
           <div style="display:flex;gap:8px;margin-top:14px">
-            <button class="mju-btn mju-btn--full" id="sv-refresh">새로고침</button>
+            <button class="mju-btn mju-btn--secondary mju-btn--full" id="sv-refresh">새로고침</button>
             <button class="mju-btn mju-btn--secondary mju-btn--full" id="sv-csv" style="margin-top:8px"><i data-lucide="download"></i> 응답 CSV 내보내기</button>
             <button class="mju-btn mju-btn--secondary mju-btn--full" id="sv-print"><i data-lucide="file-text"></i> PDF로 저장(인쇄)</button>
           </div>
@@ -1172,7 +1173,7 @@
         try {
           await notifyPeople(people, title, body);
           logAction('공지발행(명단)', people.length + '명 · ' + title);
-          setStatus($('n-status'), `✅ ${people.length}명에게 개인 안내로 발행했어요 (${PUSH_ETA} 푸시).`, 'ok');
+          setStatus($('n-status'), `${people.length}명에게 개인 안내로 발행했어요 (${PUSH_ETA} 푸시).`, 'ok');
           $('n-title').value = ''; $('n-body').value = ''; if ($('n-q')) $('n-q').value = ''; nPicker.reset(); nLoad();
         } catch (err) {
           setStatus($('n-status'), '오류: ' + (err.message || err) + ' — 계속되면 시스템 담당자에게 서버 설정(R15) 확인을 요청해주세요.', 'error');
@@ -1189,7 +1190,7 @@
       $('nv-confirm').disabled = false; closeModal('nv-veil');
       if (error) { setStatus($('n-status'), '오류: ' + error.message, 'error'); return; }
       kickPush();
-      setStatus($('n-status'), `✅ 발행되었습니다 (${PUSH_ETA} 푸시).`, 'ok'); logAction('공지발행', lbl + ' · ' + title);
+      setStatus($('n-status'), `발행되었습니다 (${PUSH_ETA} 푸시).`, 'ok'); logAction('공지발행', lbl + ' · ' + title);
       $('n-title').value = ''; $('n-body').value = ''; if ($('n-q')) $('n-q').value = ''; nPicker.reset(); nLoad();
     });
     let _nGen = 0;   // 검색 응답 역전 가드 — 늦게 도착한 이전 검색이 최신 결과를 덮지 않게
@@ -1302,7 +1303,7 @@
         return;
       }
       logAction('할일등록', title + ' → ' + aud);
-      setStatus($('tk-status'), '✅ 등록했어요 — 대상 앱 홈과 요약 카드에 바로 표시됩니다.', 'ok');
+      setStatus($('tk-status'), '등록했어요 — 대상 앱 홈과 요약 카드에 바로 표시됩니다.', 'ok');
       $('tk-title').value = ''; $('tk-memo').value = ''; $('tk-link').value = ''; $('tk-due').value = '';
       tkLoad(); dashTasksLoad();
     });
@@ -1354,7 +1355,7 @@
       kickPush();
     }
     // 본 작업은 성공, 알림 발행만 실패했을 때의 공통 안내
-    const PUSH_FAIL_MSG = ' ⚠️ 알림 발행은 실패했어요 — 공지 탭에서 직접 발행해주세요.';
+    const PUSH_FAIL_MSG = ' 알림 발행은 실패했어요 — 공지 탭에서 직접 발행해주세요.';
 
     // ===== 사안별 투표 (sql/17) =====
     let poPicker = null;
@@ -1427,7 +1428,7 @@
         let pushFail = false;
         if ($('po-push').checked) { try { await pushAsNotice(poPicker, '[투표] ' + question, '새 투표가 열렸어요.' + (closeAt ? ' 마감 ' + new Date(closeAt).toLocaleString('ko-KR') + '.' : '') + ' 앱 투표에서 참여해주세요.'); } catch (_) { pushFail = true; } }
         logAction('투표발행', question);
-        setStatus($('po-status'), pushFail ? '✅ 투표는 발행됐어요.' + PUSH_FAIL_MSG : '✅ 발행했습니다.', pushFail ? 'error' : 'ok');
+        setStatus($('po-status'), pushFail ? '투표는 발행됐어요.' + PUSH_FAIL_MSG : '발행했습니다.', pushFail ? 'error' : 'ok');
         $('po-q').value = ''; $('po-desc').value = ''; $('po-opts').value = ''; $('po-close').value = ''; $('po-multi').checked = false; $('po-public').checked = false; poPicker.reset(); poLoad();
       });
       poPicker.count().then(n => { if (pubGen === _pubGen) $('pub-count').textContent = `예상 대상 ${n}명`; }).catch(() => { if (pubGen === _pubGen) $('pub-count').textContent = ''; });
@@ -1489,7 +1490,7 @@
         if (error) { setStatus($('l-status'), '오류: ' + error.message, 'error'); return; }
         let pushFail = false;
         if ($('l-push').checked) { try { await notifyPeople(people, '[새 자료] ' + title, '자료실에 「' + title + '」 자료가 등록됐어요. 앱 자료실에서 확인하세요.'); } catch (_) { pushFail = true; } }
-        setStatus($('l-status'), `✅ ${hashes.length}명에게만 보이는 자료로 등록${$('l-push').checked && !pushFail ? ' + 개인 안내 발행' : ''}.` + (pushFail ? PUSH_FAIL_MSG : ''), pushFail ? 'error' : 'ok');
+        setStatus($('l-status'), `${hashes.length}명에게만 보이는 자료로 등록${$('l-push').checked && !pushFail ? ' + 개인 안내 발행' : ''}.` + (pushFail ? PUSH_FAIL_MSG : ''), pushFail ? 'error' : 'ok');
         logAction('자료등록(명단)', title + ' · ' + hashes.length + '명');
         $('l-title').value = ''; $('l-url').value = ''; $('l-file').value = ''; $('l-shared').parentElement.style.display = ''; $('l-push').checked = false; if ($('l-q')) $('l-q').value = ''; lPicker.reset(); lLoad();
         return;
@@ -1501,7 +1502,7 @@
       if (error) { setStatus($('l-status'), '오류: ' + error.message, 'error'); return; }
       let pushFail = false;
       if ($('l-push').checked) { try { await pushAsNotice(lPicker, '[새 자료] ' + title, '자료실에 「' + title + '」 자료가 등록됐어요. 앱 자료실에서 확인하세요.'); } catch (_) { pushFail = true; } }
-      setStatus($('l-status'), pushFail ? '✅ 자료는 등록됐어요.' + PUSH_FAIL_MSG : ($('l-push').checked ? `✅ 등록 + 공지 발행 (${PUSH_ETA} 푸시).` : '✅ 등록되었습니다.'), pushFail ? 'error' : 'ok');
+      setStatus($('l-status'), pushFail ? '자료는 등록됐어요.' + PUSH_FAIL_MSG : ($('l-push').checked ? `등록 + 공지 발행 (${PUSH_ETA} 푸시).` : '등록되었습니다.'), pushFail ? 'error' : 'ok');
       logAction(file ? '자료등록(파일)' : '자료등록', title + ' · ' + lPicker.label() + ($('l-push').checked ? ' (+공지)' : '')); $('l-title').value = ''; $('l-url').value = ''; $('l-file').value = ''; $('l-shared').parentElement.style.display = ''; $('l-push').checked = false; if ($('l-q')) $('l-q').value = ''; lPicker.reset(); lLoad();
     });
     let _lGen = 0;
@@ -1524,7 +1525,7 @@
         const row = document.createElement('div'); row.style.cssText = 'padding:9px 0;border-bottom:1px solid var(--gray-100);display:flex;justify-content:space-between;gap:8px;align-items:center';
         const isFile = !!(r.url || '') && (!/^https?:\/\//i.test(r.url || '') || /\/storage\/v1\/object\/(?:public\/|sign\/)?library\//.test(r.url || ''));
         const tgt = (r.job_key || '').indexOf('tokv:') === 0 ? '명단 지정' : (r.job_key || '전체');
-        row.innerHTML = `<div style="min-width:0"><b>${e.innerHTML}</b><br/><span class="note">${r.kind}${isFile ? ' · 📎파일' : ''} · ${esc(tgt)} · ${new Date(r.created_at).toLocaleDateString('ko-KR')}</span></div>`;
+        row.innerHTML = `<div style="min-width:0"><b>${e.innerHTML}</b><br/><span class="note">${r.kind}${isFile ? ' · 파일' : ''} · ${esc(tgt)} · ${new Date(r.created_at).toLocaleDateString('ko-KR')}</span></div>`;
         row.appendChild(mkDelBtn('삭제', async () => {
           const { data, error } = await supabase.from('library').delete().eq('id', r.id).select('id');
           if (error) throw error;
@@ -1555,7 +1556,7 @@
         if (error) { setStatus($('c-status'), '오류: ' + error.message, 'error'); return; }
         let pushFail = false;
         if ($('c-push').checked) { try { await notifyPeople(people, '[일정] ' + title, title + ' — ' + date + (memo ? ' · ' + memo : '') + '. 앱 일정에서 확인하세요.'); } catch (_) { pushFail = true; } }
-        setStatus($('c-status'), `✅ ${hashes.length}명에게만 보이는 일정으로 등록${$('c-push').checked && !pushFail ? ' + 개인 안내 발행' : ''}.` + (pushFail ? PUSH_FAIL_MSG : ''), pushFail ? 'error' : 'ok');
+        setStatus($('c-status'), `${hashes.length}명에게만 보이는 일정으로 등록${$('c-push').checked && !pushFail ? ' + 개인 안내 발행' : ''}.` + (pushFail ? PUSH_FAIL_MSG : ''), pushFail ? 'error' : 'ok');
         logAction('일정등록(명단)', title + ' · ' + hashes.length + '명');
         $('c-title').value = ''; $('c-memo').value = ''; $('c-push').checked = false; if ($('c-q')) $('c-q').value = ''; cPicker.reset(); cLoad();
         return;
@@ -1567,7 +1568,7 @@
       if (error) { setStatus($('c-status'), '오류: ' + error.message, 'error'); return; }
       let pushFail = false;
       if ($('c-push').checked) { try { await pushAsNotice(cPicker, '[일정] ' + title, title + ' — ' + date + (memo ? ' · ' + memo : '') + '. 앱 일정에서 확인하세요.'); } catch (_) { pushFail = true; } }
-      setStatus($('c-status'), pushFail ? '✅ 일정은 등록됐어요.' + PUSH_FAIL_MSG : ($('c-push').checked ? `✅ 등록 + 공지 발행 (${PUSH_ETA} 푸시).` : '✅ 등록되었습니다.'), pushFail ? 'error' : 'ok');
+      setStatus($('c-status'), pushFail ? '일정은 등록됐어요.' + PUSH_FAIL_MSG : ($('c-push').checked ? `등록 + 공지 발행 (${PUSH_ETA} 푸시).` : '등록되었습니다.'), pushFail ? 'error' : 'ok');
       logAction('일정등록', title + ' · ' + cPicker.label() + ($('c-push').checked ? ' (+공지)' : '')); $('c-title').value = ''; $('c-memo').value = ''; $('c-push').checked = false; if ($('c-q')) $('c-q').value = ''; cPicker.reset(); cLoad();
     });
     let _cGen = 0;
@@ -1612,7 +1613,7 @@
       const n = (data || []).length;
       if (!n) { setStatus($('c-status'), '삭제 권한이 아직 없어요 — 시스템 담당자에게 서버 설정(07 admin_tools)을 요청해주세요.', 'error'); return; }
       logAction('지난일정정리', n + '건');
-      setStatus($('c-status'), `✅ 지난 일정 ${n}건을 정리했어요.`, 'ok'); cLoad();
+      setStatus($('c-status'), `지난 일정 ${n}건을 정리했어요.`, 'ok'); cLoad();
     });
 
     // ===== 상담 (관리자) =====
@@ -1674,7 +1675,7 @@
       $('qv-save').disabled = false;
       if (error) { setStatus($('qv-status'), /relation|does not exist|schema cache/i.test(error.message || '') ? 'FAQ 기능이 아직 준비되지 않았어요 — 시스템 담당자에게 서버 설정(05 qna) 적용을 요청해주세요.' : '오류: ' + error.message, 'error'); return; }
       logAction('FAQ공개', q.slice(0, 30));
-      setStatus($('qv-status'), '✅ 자주 묻는 질문에 공개됐어요.', 'ok');
+      setStatus($('qv-status'), '자주 묻는 질문에 공개됐어요.', 'ok');
       rcLoad();
       setTimeout(() => { closeModal('qv-veil'); }, 1000);
     });
@@ -1703,7 +1704,7 @@
       if (!error) await supabase.from('consultations').update({ status: '답변완료', last_at: new Date().toISOString() }).eq('id', curConsult);
       $('cl-send').disabled = false;
       if (error) { setStatus($('cl-status'), '오류: ' + error.message, 'error'); return; }
-      $('cl-reply').value = ''; setStatus($('cl-status'), '✅ 답변 전송', 'ok'); logAction('상담답변', curLabel); openConsult(curConsult, curLabel); clLoad();
+      $('cl-reply').value = ''; setStatus($('cl-status'), '답변 전송', 'ok'); logAction('상담답변', curLabel); openConsult(curConsult, curLabel); clLoad();
     });
     // [정합성] 상담 종료 — consultations.status 를 '종료'로(이미 존재하는 컬럼·센터 스코프 RLS). 학생측은 상태 텍스트로 표시.
     $('cl-close')?.addEventListener('click', async () => {
@@ -1713,7 +1714,7 @@
       $('cl-close').disabled = false;
       if (error) { setStatus($('cl-status'), '오류: ' + error.message, 'error'); return; }
       if (!data || !data.length) { setStatus($('cl-status'), '권한이 없어요 — 센터 범위를 확인하세요.', 'error'); return; }
-      setStatus($('cl-status'), '✅ 상담을 종료했어요.', 'ok'); logAction('상담종료', curLabel); clLoad();
+      setStatus($('cl-status'), '상담을 종료했어요.', 'ok'); logAction('상담종료', curLabel); clLoad();
     });
 
     // ===== 가입자 관리 =====
@@ -1916,7 +1917,7 @@
       {
         let ps = document.getElementById('rg-pushsum');
         if (!ps) { ps = document.createElement('p'); ps.className = 'note'; ps.id = 'rg-pushsum'; $('rg-table').parentNode.insertBefore(ps, $('rg-table')); }
-        ps.textContent = (isStu && pushTotal) ? `🔔 알림 켠 학생 ${Object.keys(pushMap).length}명 · 기기 ${pushTotal}대 — 벨이 없는 가입자는 아직 알림을 안 켰어요` : '';
+        ps.textContent = (isStu && pushTotal) ? `알림 켠 학생 ${Object.keys(pushMap).length}명 · 기기 ${pushTotal}대 — '알림' 표시가 없는 가입자는 아직 알림을 안 켰어요` : '';
       }
       $('rg-table').innerHTML = '<thead><tr>' +
         (canSel ? `<th class="nosort"><input type="checkbox" id="rg-all" aria-label="전체 선택" ${allOn ? 'checked' : ''}></th>` : '') +
@@ -1934,7 +1935,7 @@
           tr.appendChild(cb);
         }
         const _nb = pushMap[(r.name || '').replace(/\s+/g, '')] || 0;   // 알림 켠 기기 수 (sql/46)
-        const bell = ((r.target_type || 'student') === 'student' && _nb) ? ` <span class="mju-badge" title="알림 켠 기기 ${_nb}대">🔔${_nb > 1 ? _nb : ''}</span>` : '';
+        const bell = ((r.target_type || 'student') === 'student' && _nb) ? ` <span class="mju-badge" title="알림 켠 기기 ${_nb}대">알림${_nb > 1 ? ' ' + _nb : ''}</span>` : '';
         const signed = (r.signed ? '<span class="mju-badge mju-badge--success">가입</span>' : '<span class="mju-badge mju-badge--neutral">미가입</span>') + bell;
         const vals = isStu
           ? [esc(r.name || ''), esc(r.manager || '-'), esc(r.job_key || '-'), esc(r.company || '-'), esc(r.cohort || '-'), esc(r.status || '-'), signed]
@@ -1969,7 +1970,7 @@
               try {
                 await issueCode(r.name, r.phone || null);   // codeMap 갱신됨
                 logAction('코드발급', r.name || '');
-                setStatus($('rg-status'), `✅ ${r.name || ''} 초대코드 발급`, 'ok');
+                setStatus($('rg-status'), `${r.name || ''} 초대코드 발급`, 'ok');
                 regRender();   // codeMap 반영 → 코드+복사 버튼으로 다시 그림
               } catch (e) {
                 setStatus($('rg-status'), '코드 발급 실패: ' + (e.message || e), 'error');
@@ -2026,7 +2027,7 @@
                 regLoad(); return;
               }
               logAction('가입기록삭제', (r.name || '') + ' / ' + (r.company || ''));
-              setStatus($('rg-status'), '✅ 삭제했습니다.', 'ok');
+              setStatus($('rg-status'), '삭제했습니다.', 'ok');
               regLoad();
             });
             tdc.appendChild(db);
@@ -2040,7 +2041,7 @@
               const { data: del, error } = await supabase.from('company_contacts').delete().eq('id', r.ccId).select('id');
               if (error) { setStatus($('rg-status'), delErr(error), 'error'); db2.disabled = false; return; }
               if (!del || !del.length) { setStatus($('rg-status'), '삭제된 행이 없어요 — 권한을 확인하세요. 새로고침합니다.', 'error'); regLoad(); return; }
-              logAction('담당자삭제', (r.name || '') + ' / ' + (r.company || '')); setStatus($('rg-status'), '✅ 삭제했습니다.', 'ok'); regLoad();
+              logAction('담당자삭제', (r.name || '') + ' / ' + (r.company || '')); setStatus($('rg-status'), '삭제했습니다.', 'ok'); regLoad();
             });
             tdc.appendChild(db2);
           }
@@ -2055,7 +2056,7 @@
             const { data: del, error } = await supabase.from('registrations').delete().eq('id', r.id).select('id');
             if (error) { setStatus($('rg-status'), delErr(error), 'error'); db.disabled = false; return; }
             if (!del || !del.length) { setStatus($('rg-status'), '삭제된 행이 없어요 — 권한을 확인하세요(담당자에게 설정 14 확인 요청). 새로고침합니다.', 'error'); regLoad(); return; }
-            logAction('지원자삭제', r.name || ''); setStatus($('rg-status'), '✅ 삭제했습니다.', 'ok'); regLoad();
+            logAction('지원자삭제', r.name || ''); setStatus($('rg-status'), '삭제했습니다.', 'ok'); regLoad();
           });
           tdd.appendChild(db); tr.appendChild(tdd);
         }
@@ -2118,7 +2119,7 @@
             const { data: del, error } = await supabase.from('students').delete().eq('id', r.dbId).select('id');
             if (error) { setStatus($('rg-status'), delErr(error), 'error'); sdel.disabled = false; return; }
             if (!del || !del.length) { setStatus($('rg-status'), '삭제된 행이 없어요 — 권한을 확인하세요. 새로고침합니다.', 'error'); regLoad(); return; }
-            logAction('학생삭제', r.name || ''); setStatus($('rg-status'), '✅ 삭제했습니다.', 'ok'); regLoad();
+            logAction('학생삭제', r.name || ''); setStatus($('rg-status'), '삭제했습니다.', 'ok'); regLoad();
           });
           tdc.appendChild(sdel);
         }
@@ -2165,7 +2166,7 @@
       try {
         const { data, error } = await supabase.rpc('graduate_cohort', { p_from: from, p_to: to, p_set_completed: done });
         if (error) throw error;
-        setStatus($('gr-status'), `✅ ${(data && data.rows) || 0}건 이동했어요.`, 'ok');
+        setStatus($('gr-status'), `${(data && data.rows) || 0}건 이동했어요.`, 'ok');
         logAction('기수이동', from + '→' + to + (done ? ' (수료)' : ''));
         $('gr-to').value = ''; $('gr-done').checked = false; regLoad();
       } catch (e) {
@@ -2191,7 +2192,7 @@
       } catch (e) { err = e; }
       if (err) { setStatus($('rg-status'), delErr(err), 'error'); return; }
       logAction('일괄삭제', ok + '명'); regSel.clear();
-      setStatus($('rg-status'), `✅ ${ok}명 삭제했어요.`, 'ok'); regLoad();
+      setStatus($('rg-status'), `${ok}명 삭제했어요.`, 'ok'); regLoad();
     });
     // 일괄 기수 변경 (참여학생만)
     $('rg-bcohort').addEventListener('click', async () => {
@@ -2205,7 +2206,7 @@
       const { data, error } = await supabase.from('students').update({ cohort: co.trim() || null }).in('id', ids).select('id');
       if (error) { setStatus($('rg-status'), delErr(error), 'error'); return; }
       logAction('일괄기수변경', (data || []).length + '명 → ' + (co.trim() || '(해제)')); regSel.clear();
-      setStatus($('rg-status'), `✅ ${(data || []).length}명 기수 변경.`, 'ok'); regLoad();
+      setStatus($('rg-status'), `${(data || []).length}명 기수 변경.`, 'ok'); regLoad();
     });
     // 일괄 상태 변경 — 모달 select (학생 students / 기업담당자 company_contacts)
     $('rg-bstatus').addEventListener('click', () => {
@@ -2229,7 +2230,7 @@
       $('bst-apply').disabled = false; closeModal('bst-veil');
       if (err) { setStatus($('rg-status'), delErr(err), 'error'); return; }
       logAction('일괄상태변경', ok + '명 → ' + st); regSel.clear();
-      setStatus($('rg-status'), `✅ ${ok}명 상태 → ${st}`, 'ok'); regLoad();
+      setStatus($('rg-status'), `${ok}명 상태 → ${st}`, 'ok'); regLoad();
     });
     // 선택한 사람에게 개인 공지(personal·비공개 수신자)
     // [UX] 초대코드 일괄 발급 — 선택 인원 중 코드 없는 학생만 순차 발급 후 1회 재렌더 (새 기수 N명 = 클릭 N회 → 1회)
@@ -2245,7 +2246,7 @@
       }
       btn.disabled = false;
       logAction('코드일괄발급', ok + '명');
-      setStatus($('rg-status'), fail ? `⚠️ ${ok}명 발급 완료, ${fail}명 실패 — 잠시 후 다시 시도해주세요.` : `✅ ${ok}명에게 초대코드를 발급했어요.`, fail ? 'error' : 'ok');
+      setStatus($('rg-status'), fail ? `${ok}명 발급 완료, ${fail}명 실패 — 잠시 후 다시 시도해주세요.` : `${ok}명에게 초대코드를 발급했어요.`, fail ? 'error' : 'ok');
       regRender();
     });
     $('rg-notify').addEventListener('click', () => {
@@ -2272,7 +2273,7 @@
         if (e3) throw e3;
         kickPush();
         logAction('개인공지', people.length + '명 · ' + title);
-        setStatus($('pv-status'), `✅ ${people.length}명에게 개인 공지를 보냈어요 (${PUSH_ETA} 푸시).`, 'ok');
+        setStatus($('pv-status'), `${people.length}명에게 개인 공지를 보냈어요 (${PUSH_ETA} 푸시).`, 'ok');
         regSel.clear(); regRender(); nLoad();
         setTimeout(() => { closeModal('pv-veil'); }, 1500);
       } catch (err) {
@@ -2565,7 +2566,7 @@
         let pushFail = false;
         if ($('ev-push').checked) { try { await pushAsNotice(evPicker, '[설문] ' + title, '새 설문이 열렸어요. 앱 만족도 조사에서 참여해주세요.'); } catch (_) { pushFail = true; } }
         logAction('설문발행', title);
-        setStatus($('ev-status'), (pushFail ? '✅ 설문은 발행됐어요.' + PUSH_FAIL_MSG : '✅ 발행했습니다.') + ' 발행 후에는 문항 수정이 안 돼요(마감·삭제만 가능).', pushFail ? 'error' : 'ok');
+        setStatus($('ev-status'), (pushFail ? '설문은 발행됐어요.' + PUSH_FAIL_MSG : '발행했습니다.') + ' 발행 후에는 문항 수정이 안 돼요(마감·삭제만 가능).', pushFail ? 'error' : 'ok');
         $('ev-title').value = ''; $('ev-desc').value = ''; evQs = []; evPicker.reset(); svEvLoadList();
       });
       evPicker.count().then(n => { if (pubGen === _pubGen) $('pub-count').textContent = `예상 대상 ${n}명`; }).catch(() => { if (pubGen === _pubGen) $('pub-count').textContent = ''; });
@@ -2624,6 +2625,7 @@
         const t0 = ymdLocal(0), t3 = ymdLocal(3);
         const { count: due3 } = await supabase.from('calendar_events').select('id', { count: 'exact', head: true }).eq('kind', '마감').gte('event_date', t0).lte('event_date', t3);
         $('d-due3').textContent = due3 ?? '–';
+        $('d-due3-cell').classList.toggle('warn', due3 > 0);   // 경고색은 마감 임박이 실제로 있을 때만
       } catch (_) { $('d-due3').textContent = '–'; }
       // 오늘 발송 = push_logs 중 sent_at 이 오늘 0시 이후 (calendar.html 표준 Date 패턴)
       const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -2633,11 +2635,11 @@
       let hp = '';
       try {
         const { data: sl } = await supabase.from('sync_log').select('created_at').order('created_at', { ascending: false }).limit(1);
-        if (sl && sl[0]) { const h = (Date.now() - new Date(sl[0].created_at).getTime()) / 3600000; hp += '🔄 마지막 동기화 ' + (h < 1 ? '방금' : Math.round(h) + '시간 전') + (h > 36 ? ' ⚠️ 36시간 이상 소식 없음 — 동기화 점검 필요' : '') + ' '; }
+        if (sl && sl[0]) { const h = (Date.now() - new Date(sl[0].created_at).getTime()) / 3600000; hp += '마지막 동기화 ' + (h < 1 ? '방금' : Math.round(h) + '시간 전') + (h > 36 ? ' — 36시간 이상 소식 없음, 동기화 점검 필요' : '') + ' · '; }
       } catch (_) {}
       try {
         const { data: pl } = await supabase.from('push_logs').select('sent_at').order('sent_at', { ascending: false }).limit(1);
-        if (pl && pl[0]) { const h = (Date.now() - new Date(pl[0].sent_at).getTime()) / 3600000; hp += '📨 마지막 발송 ' + (h < 1 ? '방금' : Math.round(h) + '시간 전'); }
+        if (pl && pl[0]) { const h = (Date.now() - new Date(pl[0].sent_at).getTime()) / 3600000; hp += '마지막 발송 ' + (h < 1 ? '방금' : Math.round(h) + '시간 전'); }
       } catch (_) {}
       $('d-health').textContent = hp || '아직 동기화·발송 기록이 없어요.';
       // 최근 활동 로그
@@ -2690,7 +2692,7 @@
           const pct = total ? Math.round(done / total * 100) : 0;
           const bar = document.createElement('div');
           bar.style.cssText = 'display:flex;align-items:center;gap:10px;margin-top:8px';
-          bar.innerHTML = `<div style="flex:1;height:8px;border-radius:4px;background:var(--gray-200);overflow:hidden"><div style="width:${pct}%;height:100%;background:var(--success-500)"></div></div><b style="font-size:13px;white-space:nowrap">${done}/${total} 완료</b>`;
+          bar.innerHTML = `<div style="flex:1;height:4px;border-radius:2px;background:var(--gray-200);overflow:hidden"><div style="width:${pct}%;height:100%;background:var(--accent)"></div></div><b style="font-size:13px;font-weight:500;white-space:nowrap">${done}/${total} 완료</b>`;
           box.appendChild(bar);
           // [명단 표시] 숫자만으론 누가 처리했는지 알 수 없어 이름을 그대로 편다(운영자 요청 2026-08-28).
           //   완료·미완료·미가입 세 줄. 비어 있는 줄은 만들지 않는다. 이름은 PII라 화면 표시까지만(내보내기는 기존 복사 버튼).
@@ -2701,9 +2703,9 @@
             d.innerHTML = `<b style="color:${color}">${esc(label)} ${arr.length}${p.company ? '곳' : '명'}</b> · ${arr.map(esc).join(', ')}`;
             box.appendChild(d);
           };
-          nameLine('✅ 완료', doneNames, 'var(--success-500)');
-          nameLine('⏳ 미완료', pending, 'var(--warning-500)');
-          if (!p.company) nameLine('📵 앱 미가입 — 설치 안내 필요', unknown, 'var(--text-muted)');
+          nameLine('완료', doneNames, 'var(--text-primary)');
+          nameLine('미완료', pending, 'var(--text-primary)');
+          if (!p.company) nameLine('앱 미가입 — 설치 안내 필요', unknown, 'var(--text-muted)');
           const act = document.createElement('div');
           act.style.cssText = 'display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px';
           if (pending.length) {
@@ -2731,7 +2733,7 @@
           if (window.lucide) window.lucide.createIcons();
         } catch (_) { const prog = box.querySelector('.tp-prog'); if (prog) prog.textContent = '집계 실패'; }
       }
-      if (coN) { const n = document.createElement('p'); n.className = 'note'; n.style.margin = '8px 0 0'; n.textContent = '기업 대상 할 일 ' + coN + '건은 기업 단위 체크(sql/41) 적용 후 여기에 표시됩니다.'; list.appendChild(n); }
+      if (typeof coN !== 'undefined' && coN) { const n = document.createElement('p'); n.className = 'note'; n.style.margin = '8px 0 0'; n.textContent = '기업 대상 할 일 ' + coN + '건은 기업 단위 체크(sql/41) 적용 후 여기에 표시됩니다.'; list.appendChild(n); }
     }
     // 미완료자 독촉 — regCache(가입자 명단)에서 이름 매칭 → regSel 프리필 → 기존 개인 공지 모달 재사용
     function tpNudge(task, names) {
@@ -2803,7 +2805,7 @@
         } catch (_) { pushFail = true; }
       }
       logAction('공고발행', company + ' · ' + title);
-      setStatus($('jp-status'), pushFail ? '✅ 공고는 발행됐어요.' + PUSH_FAIL_MSG : ($('jp-push').checked ? `✅ 공고 발행 + 지원자 알림 (${PUSH_ETA} 푸시).` : '✅ 공고가 발행됐어요.'), pushFail ? 'error' : 'ok');
+      setStatus($('jp-status'), pushFail ? '공고는 발행됐어요.' + PUSH_FAIL_MSG : ($('jp-push').checked ? `공고 발행 + 지원자 알림 (${PUSH_ETA} 푸시).` : '공고가 발행됐어요.'), pushFail ? 'error' : 'ok');
       ['jp-company', 'jp-title', 'jp-region', 'jp-intro', 'jp-perks', 'jp-deadline'].forEach(id => { $(id).value = ''; });
       rcLoad();
     });
@@ -2817,7 +2819,7 @@
       $('sc-add').disabled = false;
       if (error) { setStatus($('sc-status'), tblMissing(error.message) ? '선배 사례 기능이 아직 준비되지 않았어요 — 시스템 담당자에게 서버 설정(03 recruit) 적용을 요청해주세요.' : '오류: ' + error.message, 'error'); return; }
       logAction('사례등록', title);
-      setStatus($('sc-status'), '✅ 사례가 공개됐어요.', 'ok');
+      setStatus($('sc-status'), '사례가 공개됐어요.', 'ok');
       ['sc-title', 'sc-company', 'sc-body'].forEach(id => { $(id).value = ''; });
       rcLoad();
     });
@@ -2831,7 +2833,7 @@
       $('qa-add').disabled = false;
       if (error) { setStatus($('qa-status'), tblMissing(error.message) ? 'FAQ 기능이 아직 준비되지 않았어요 — 시스템 담당자에게 서버 설정(05 qna) 적용을 요청해주세요.' : '오류: ' + error.message, 'error'); return; }
       logAction('FAQ공개', q.slice(0, 30));
-      setStatus($('qa-status'), '✅ 자주 묻는 질문에 공개됐어요.', 'ok');
+      setStatus($('qa-status'), '자주 묻는 질문에 공개됐어요.', 'ok');
       ['qa-cat', 'qa-q', 'qa-a'].forEach(id => { $(id).value = ''; });
       rcLoad();
     });
@@ -2895,7 +2897,7 @@
       if (error) { setStatus($('ci-status'), tblMissing(error.message) ? '기업 정보 저장 기능이 아직 준비되지 않았어요 — 시스템 담당자에게 서버 설정(18 company_info)을 요청해주세요.' : '오류: ' + (error.message || error), 'error'); return; }
       ciMap[ciCompany] = row; ciReady = true;
       logAction('기업정보저장', ciCompany);
-      setStatus($('ci-status'), '✅ 저장했습니다 — 해당 기업의 내 학습기업 화면에 표시돼요.', 'ok');
+      setStatus($('ci-status'), '저장했습니다 — 해당 기업의 내 학습기업 화면에 표시돼요.', 'ok');
     });
     function openCnModal(co) {
       cnCompany = co;
@@ -2919,7 +2921,7 @@
       $('cn-send').disabled = false;
       if (error) { setStatus($('cn-status'), '오류: ' + (error.message || error), 'error'); return; }
       kickPush(); logAction('기업공지', cnCompany + ' · ' + title); nLoad();
-      setStatus($('cn-status'), '✅ 발행했습니다 — 해당 기업 구성원에게 푸시가 나갑니다.', 'ok');
+      setStatus($('cn-status'), '발행했습니다 — 해당 기업 구성원에게 푸시가 나갑니다.', 'ok');
     });
     async function issueCoCode(company) {
       // [2단계] center 서버 주입 발급 — issue_company_code RPC. 미적용/오류면 기존 upsert 폴백.
@@ -3020,7 +3022,7 @@
           }
           save.disabled = false;
           setStatus($('st-status'), error ? '오류: ' + error.message
-            : '✅ ' + co + ' 저장' + (pushFail ? '.' + PUSH_FAIL_MSG : (ntf.querySelector('input').checked ? ' + 알림 발행' : '')), (error || pushFail) ? 'error' : 'ok');
+            : '' + co + ' 저장' + (pushFail ? '.' + PUSH_FAIL_MSG : (ntf.querySelector('input').checked ? ' + 알림 발행' : '')), (error || pushFail) ? 'error' : 'ok');
           if (!error) logAction('단계변경', co + ' → ' + sel.value);
         });
         // [UX] 단계 변경 즉시 자동 저장(알림 발행은 제외) — 좁은 화면에서 [저장]이 가로 스크롤 뒤에 숨어 변경이 유실되는 사고 방지
@@ -3028,7 +3030,7 @@
           const { error } = await supabase.from('company_stages').upsert({ company: co, stage_key: sel.value, memo: memo.value.trim() || null, updated_at: new Date().toISOString() });
           if (error) { setStatus($('st-status'), '자동 저장 실패: ' + error.message + ' — [저장] 버튼으로 다시 시도해주세요.', 'error'); return; }
           logAction('단계변경', co + ' → ' + sel.value);
-          setStatus($('st-status'), '✅ ' + co + ' 단계 자동 저장됨 (기업에 알림을 보내려면 [알림] 체크 후 [저장])', 'ok');
+          setStatus($('st-status'), '' + co + ' 단계 자동 저장됨 (기업에 알림을 보내려면 [알림] 체크 후 [저장])', 'ok');
         });
         const hrdInfo = stHrdMap[normCo(co)];
         const hrdTd = document.createElement('td');
@@ -3160,7 +3162,7 @@
         const msg = /function|PGRST202|42883|schema cache/i.test(error.message || '') ? '서버 업데이트(설정 27·28) 적용 전이에요 — 시스템 담당자에게 요청해주세요.' : (error.message || error);
         setStatus($('bulk-status'), '오류: ' + msg, 'error'); return;
       }
-      setStatus($('bulk-status'), '✅ ' + ((data && data.count) || 0) + "건 처리됐어요 — 위의 '가입자 현황'에서 확인하세요.", 'ok');
+      setStatus($('bulk-status'), '' + ((data && data.count) || 0) + "건 처리됐어요 — 위의 '가입자 현황'에서 확인하세요.", 'ok');
       $('bulk-file').value = ''; bulkRows = []; $('bulk-preview').textContent = '';
       regLoad();   // 방금 올린 명단이 가입자 탭에 바로 보이게(교차 탭 정합성)
     });
@@ -3197,7 +3199,7 @@
       let codeMsg = '';
       try { const code = await issueCode(name, ph); if (code) codeMsg = ' · 초대코드 ' + code; } catch (_) {}
       $('as-add').disabled = false;
-      setStatus($('as-status'), '✅ ' + name + ' 명단 추가됨' + codeMsg + ' (가입은 학생이 코드로)', 'ok');
+      setStatus($('as-status'), '' + name + ' 명단 추가됨' + codeMsg + ' (가입은 학생이 코드로)', 'ok');
       $('as-name').value = ''; $('as-no').value = ''; $('as-phone').value = ''; $('as-job').value = ''; $('as-company').value = ''; $('as-cohort').value = '';
       regLoad();   // 가입자 탭에 바로 반영
     });
@@ -3220,7 +3222,7 @@
       let codeMsg = '';
       try { const code = await issueCoCode(name); if (code) codeMsg = ' · 기업코드 ' + code; } catch (_) {}
       $('ac-add').disabled = false;
-      setStatus($('ac-status'), '✅ ' + name + ' 추가됨' + codeMsg + ' (담당자는 코드로 가입)', 'ok');
+      setStatus($('ac-status'), '' + name + ' 추가됨' + codeMsg + ' (담당자는 코드로 가입)', 'ok');
       $('ac-name').value = ''; $('ac-mgr').value = ''; $('ac-phone').value = ''; $('ac-email').value = '';
       stLoad();   // 기업 관리 탭에 바로 반영
     });
@@ -3265,10 +3267,10 @@
       const pace = isCur ? Math.round(today.getDate() / dim * 100) : (isPast ? 100 : null);
       const pct = r => r.actual == null ? null : Math.min(100, Math.round(r.actual / r.planned * 100));
       const stateOf = r => { const p = pct(r);
-        if (p == null) return ['집계 전', 'var(--text-muted)', '#d3d1c7'];
-        if (p >= 100) return ['완료', '#0F6E56', '#1baf7a'];
-        if (pace != null && p < pace - 15) return ['미달', '#993C1D', '#eb6834'];
-        return ['진행', '#185FA5', '#2a78d6']; };
+        if (p == null) return ['집계 전', 'var(--text-muted)', 'var(--gray-300)'];
+        if (p >= 100) return ['완료', 'var(--text-primary)', 'var(--accent)'];
+        if (pace != null && p < pace - 15) return ['미달', 'var(--danger-500)', 'var(--danger-500)'];
+        return ['진행', 'var(--accent)', 'var(--accent)']; };
       // 요약
       const withA = mrows.filter(r => r.actual != null);
       const sumP = withA.reduce((s, r) => s + r.planned, 0), sumA = withA.reduce((s, r) => s + r.actual, 0);
@@ -3276,8 +3278,8 @@
       const nLag = mrows.filter(r => { const p = pct(r); return p != null && pace != null && p < pace - 15 && p < 100; }).length;
       $('at-sum').innerHTML =
         `<span class="note"><b style="font-size:16px;color:var(--text-primary)">${sumP ? Math.round(sumA / sumP * 100) : 0}%</b> 전체 달성률(시수)</span>` +
-        `<span class="note"><b style="font-size:16px;color:#0F6E56">${nDone}</b>명 완료</span>` +
-        `<span class="note"><b style="font-size:16px;color:#993C1D">${nLag}</b>명 페이스 미달</span>` +
+        `<span class="note"><b style="font-size:16px;color:var(--text-primary)">${nDone}</b>명 완료</span>` +
+        `<span class="note"><b style="font-size:16px;color:var(--danger-500)">${nLag}</b>명 페이스 미달</span>` +
         (pace != null && isCur ? `<span class="note">월 경과 ${pace}%</span>` : '') +
         (withA.length < mrows.length ? `<span class="note">${mrows.length - withA.length}명 집계 전</span>` : '');
       // 목록 — 미달·저조 순 정렬 (집계 전은 맨 아래)
@@ -3291,12 +3293,12 @@
         nm.innerHTML = `<b>${esc(r.name)}</b> <span class="note">${esc(r.company)}</span>` +
           (r.units ? `<br/><span class="note" style="font-size:12px">${esc(r.units)}</span>` : '');
         const barWrap = document.createElement('div'); barWrap.style.cssText = 'flex:1;min-width:120px';
-        barWrap.innerHTML = `<div style="height:9px;border-radius:5px;background:var(--gray-100);overflow:hidden">` +
+        barWrap.innerHTML = `<div style="height:4px;border-radius:2px;background:var(--gray-200);overflow:hidden">` +
           `<div style="height:100%;width:${p == null ? 0 : p}%;background:${bcol}"></div></div>`;
         const val = document.createElement('div'); val.style.cssText = 'flex:0 0 150px;text-align:right;white-space:nowrap';
         val.innerHTML = p == null
           ? `<span class="note">예정 ${r.planned}h · 집계 전</span>`
-          : `<b style="color:${tcol}">${p}%</b> <span class="note">${r.actual}h/${r.planned}h</span> <span class="mju-badge" style="color:${tcol}">${label}</span>`;
+          : `<b style="color:${tcol}">${p}%</b> <span class="note">${r.actual}h/${r.planned}h</span> <span class="st-dot" style="color:${tcol};font-size:13px">${label}</span>`;
         row.appendChild(nm); row.appendChild(barWrap); row.appendChild(val);
         list.appendChild(row);
       });
@@ -3396,7 +3398,7 @@
       const { error } = await supabase.rpc('create_center', { p_slug: slug, p_name: name, p_region: region });
       $('cc-create').disabled = false;
       if (error) { setStatus($('cc-status'), '오류: ' + (error.message || error), 'error'); return; }
-      setStatus($('cc-status'), '✅ 센터 개설됨 — 이제 관리자를 발급하세요.', 'ok');
+      setStatus($('cc-status'), '센터 개설됨 — 이제 관리자를 발급하세요.', 'ok');
       $('cc-slug').value = ''; $('cc-name').value = ''; $('cc-region').value = '';
     });
     $('ga-grant')?.addEventListener('click', async () => {
@@ -3406,7 +3408,7 @@
       const { error } = await supabase.rpc('grant_admin', { p_email: email, p_center_slug: slug, p_role: role });
       $('ga-grant').disabled = false;
       if (error) { setStatus($('ga-status'), '오류: ' + (error.message || error), 'error'); return; }
-      setStatus($('ga-status'), '✅ 관리자 발급됨 (' + email + ' → ' + slug + ' / ' + role + ')', 'ok');
+      setStatus($('ga-status'), '관리자 발급됨 (' + email + ' → ' + slug + ' / ' + role + ')', 'ok');
       $('ga-email').value = ''; $('ga-slug').value = '';
     });
     refresh();

@@ -1,0 +1,174 @@
+/* =====================================================================
+ *  admin.css — 관리자 콘솔 전용 디자인 (docs/ADMIN_REDESIGN.md 1단계)
+ *  기준: 04_일학습병행앱_v2/DESIGN.md — 먹색 머리 + 코발트 하나 + 마감 임박만 warn,
+ *  Noto Sans KR 한 가족, 면(카드) 대신 1px 선, 그림자는 모달에만.
+ *  styles.css 를 학생 앱과 공유하므로 전부 body.adm 범위로만 덮어쓴다(학생 화면 무변화).
+ *  styles.css 다음에 로드할 것.
+ * ===================================================================== */
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap');
+
+/* ── 1. 토큰 리맵 — styles.css 가 var() 로 참조하는 값을 관리자 범위에서만 교체 ── */
+body.adm{
+  --v-bg:#fafaf8; --v-paper:#fff; --v-ink:#121318; --v-mute:#5f626c; --v-mute-on-ink:#b4b7c2;
+  --v-line:#dcdcd6; --v-cobalt:#2b3fd6; --v-cobalt-d:#1f2fa8; --v-cobalt-l:#8592ff; --v-cobalt-bg:#eef0fd;
+  --v-warn:#b3400b; --v-warn-bg:#f8ebe4;
+
+  --blue-50:var(--v-cobalt-bg); --blue-100:#dfe3fb; --blue-200:#c5cbf6; --blue-300:#8592ff;
+  --blue-400:var(--v-cobalt); --blue-500:var(--v-cobalt); --blue-600:var(--v-cobalt); --blue-700:var(--v-cobalt-d);
+  --gold-300:var(--v-cobalt-bg); --gold-500:var(--v-cobalt); --gold-600:var(--v-cobalt-d);
+  --coral-300:var(--v-warn-bg); --coral-500:var(--v-warn); --coral-600:var(--v-warn);
+  --white:var(--v-paper); --paper:var(--v-bg);
+  --gray-100:#f1f1ed; --gray-200:var(--v-line); --gray-300:#c9c9c2; --gray-400:#8e9098;
+  --gray-500:var(--v-mute); --gray-600:var(--v-mute); --gray-700:#2e3038; --ink-800:var(--v-ink); --ink-900:var(--v-ink);
+  --success-500:var(--v-ink); --success-50:#f1f1ed; --warning-500:var(--v-warn); --warning-50:var(--v-warn-bg);
+  --danger-500:var(--v-warn); --danger-50:var(--v-warn-bg); --info-500:var(--v-cobalt); --info-50:var(--v-cobalt-bg);
+  --surface-page:var(--v-bg); --surface-card:var(--v-paper); --surface-sunken:#f1f1ed;
+  --text-primary:var(--v-ink); --text-secondary:var(--v-mute); --text-muted:var(--v-mute);
+  --border-subtle:var(--v-line); --border-default:var(--v-line);
+  --focus-ring:var(--v-cobalt); --accent-orange:var(--v-mute); --kdp-cyan:var(--v-cobalt);
+  --tint-bg:var(--v-cobalt-bg); --tint-fg:var(--v-cobalt); --accent:var(--v-cobalt); --link:var(--v-cobalt);
+  --font-sans:'Noto Sans KR',-apple-system,'Apple SD Gothic Neo','Malgun Gothic',system-ui,sans-serif;
+  --mono:var(--font-sans); --font-mono:var(--font-sans);
+  --radius-xs:6px; --radius-sm:6px; --radius-md:6px; --radius-lg:6px;
+  --shadow-xs:none; --shadow-sm:none; --shadow-md:none;
+
+  background:var(--v-bg); color:var(--v-ink); font-size:14px; line-height:1.55;
+  font-variant-numeric:tabular-nums;     /* 숫자 자리 맞춤 — 고정폭 글꼴 대신 */
+}
+
+/* ── 2. 머리 — 먹색 ── */
+body.adm .adm-header{background:var(--v-ink); color:#fff; border-bottom:0; padding:0 32px}
+body.adm .adm-header-inner{max-width:none; min-height:60px}
+body.adm .adm-mark{display:none}
+body.adm .adm-header .lk{font-size:12px; font-weight:400; letter-spacing:0; text-transform:none; color:var(--v-mute-on-ink)}
+body.adm .adm-header .ttl{font-size:17px; font-weight:700; letter-spacing:-.01em; color:#fff}
+body.adm .adm-center{background:transparent; color:var(--v-mute-on-ink); border:1px solid #3a3c45; font-size:12px; font-weight:400}
+body.adm .adm-header .mail{font-size:13px; color:var(--v-mute-on-ink)}
+body.adm .mju-btn--onNavy{--_bg:transparent; --_fg:#fff; --_bd:#3a3c45; --_bgh:#22242c}
+
+/* ── 3. 2단 틀 · 왼쪽 메뉴 — 면 없이 선, 선택은 코발트 글자 + 점 ── */
+body.adm .adm-shell{max-width:1280px; margin:0 auto; padding:0 32px 64px; grid-template-columns:184px minmax(0,1fr); gap:40px}
+body.adm .adm-nav{background:transparent; border:0; border-radius:0; box-shadow:none; padding:24px 0; top:0; gap:0}
+body.adm .adm-nav-item{min-height:44px; padding:0 0 0 16px; border-radius:0; font-size:15px; font-weight:400; color:var(--v-ink); gap:10px; position:relative}
+body.adm .adm-nav-item svg{display:none}
+body.adm .adm-nav-item:hover{background:transparent; color:var(--v-cobalt)}
+body.adm .adm-nav-item.act{background:transparent; color:var(--v-cobalt); font-weight:700}
+body.adm .adm-nav-item.act::before{content:""; position:absolute; left:2px; top:50%; width:6px; height:6px; margin-top:-3px; border-radius:50%; background:var(--v-cobalt)}
+body.adm .adm-nav-item:focus-visible{outline:2px solid var(--v-cobalt); outline-offset:-2px}
+body.adm .adm-nav-item .cnt{font-size:12px; font-weight:400; color:var(--v-mute)}
+body.adm .adm-nav-sep{background:var(--v-line); margin:8px 0 8px 16px}
+body.adm .adm-main{gap:0; padding-top:24px}
+
+/* ── 4. 제목 · 글자 ── */
+body.adm .adm-h2{font-size:24px; font-weight:700; letter-spacing:-.01em; margin:0 0 8px}
+body.adm .adm-h2 .hint{font-size:13px; font-weight:400; color:var(--v-mute)}
+body.adm .ph-card-title{font-size:17px; font-weight:700; letter-spacing:-.01em}
+body.adm .note,body.adm .ph-note{color:var(--v-mute)}
+body.adm label{font-size:13px; font-weight:500}
+body.adm .req{color:var(--v-warn)}
+
+/* ── 5. 카드 → 선으로 나눈 묶음 (로그인·모달은 면 유지) ── */
+body.adm #panel .card{background:transparent; border:0; border-top:1px solid var(--v-line); border-radius:0; box-shadow:none; padding:24px 0; overflow:visible}
+body.adm #login,body.adm #noperm{border:1px solid var(--v-line); box-shadow:none; border-radius:16px}
+body.adm .modal-veil{background:rgba(18,19,24,.45); backdrop-filter:none}
+body.adm .modal{border-radius:16px; box-shadow:0 24px 48px -16px rgba(18,19,24,.35)}
+
+/* ── 6. 요약 숫자 — 면 없이 선, 큰 숫자 300 굵기, 경고색은 값이 있을 때만(.warn 은 JS가 붙임) ── */
+body.adm .stat-row{gap:0; border-top:1px solid var(--v-ink); border-bottom:1px solid var(--v-line); margin:8px 0 16px}
+body.adm .stat-cell,body.adm .stat-cell.warn{background:transparent; border:0; border-left:1px solid var(--v-line); border-radius:0; box-shadow:none; padding:16px 20px; margin:0}
+body.adm .stat-cell:first-child{border-left:0; padding-left:0}
+body.adm .stat-cell:hover{background:var(--v-paper); border-color:var(--v-line)}
+body.adm .stat-cell .sk{font-size:13px; font-weight:400; color:var(--v-mute); letter-spacing:0}
+body.adm .stat-cell .sv{font-size:32px; font-weight:300; letter-spacing:0; color:var(--v-ink); margin-top:4px}
+body.adm .stat-cell.warn .sv{color:var(--v-warn)}
+
+/* ── 7. 버튼 3종 — 주(코발트) · 선 · 글자. 금색·산호색 변형도 이 셋으로 ── */
+body.adm .mju-btn,body.adm .btn{font-family:var(--font-sans); font-size:14px; font-weight:500; border-radius:6px; min-height:40px; padding:0 16px; box-shadow:none}
+body.adm .mju-btn:active,body.adm .btn:active{transform:none}
+body.adm .mju-btn--sm{font-size:13px; min-height:36px; padding:0 14px}
+body.adm .mju-btn--secondary,body.adm .mju-btn--gold{--_bg:var(--v-paper); --_fg:var(--v-ink); --_bd:var(--v-line); --_bgh:var(--v-paper)}
+body.adm .mju-btn--secondary:hover,body.adm .mju-btn--gold:hover{border-color:var(--v-ink)}
+body.adm .mju-btn--ghost{--_bg:transparent; --_fg:var(--v-cobalt); --_bd:transparent; --_bgh:var(--v-cobalt-bg)}
+body.adm .mju-btn--coral{--_bg:var(--v-warn); --_fg:#fff; --_bd:transparent; --_bgh:#8f3309}
+body.adm .mju-btn--coral-outline{--_bg:var(--v-paper); --_fg:var(--v-warn); --_bd:var(--v-line); --_bgh:var(--v-warn-bg)}
+/* 표·목록 안 작은 버튼(복사·수정 등) — 어디에 있든 같은 선 버튼 */
+body.adm .phone-btn,body.adm .mem-row .phone-btn,body.adm .mtbl .phone-btn{display:inline-flex; align-items:center; gap:5px; min-height:32px; padding:0 12px;
+  font-family:var(--font-sans); font-size:13px; font-weight:500; color:var(--v-ink); background:var(--v-paper); border:1px solid var(--v-line); border-radius:6px; cursor:pointer}
+body.adm .phone-btn:hover{border-color:var(--v-ink)}
+body.adm .phone-btn:focus-visible{outline:2px solid var(--v-cobalt); outline-offset:2px}
+body.adm .phone-btn.phone-btn--danger{color:var(--v-warn); background:var(--v-paper); border-color:var(--v-line)}
+body.adm .phone-btn.phone-btn--danger:hover{background:var(--v-warn-bg); border-color:var(--v-warn)}
+body.adm .icon-btn{border-radius:6px; border-color:var(--v-line)}
+
+/* ── 8. 배지 · 칩 — 칠하지 않고 글자색으로 ── */
+body.adm .mju-badge{font-weight:500; font-size:12px; padding:4px 8px; border-radius:999px; background:transparent; color:var(--v-mute); border:1px solid var(--v-line)}
+body.adm .mju-badge--navy,body.adm .mju-badge--sky{color:var(--v-cobalt); border-color:var(--blue-200); background:transparent}
+body.adm .mju-badge--gold{color:var(--v-cobalt); border-color:var(--blue-200); background:transparent}
+body.adm .mju-badge--coral{color:var(--v-warn); border-color:#e7c3b1; background:transparent}
+body.adm .mju-badge--neutral{color:var(--v-mute); background:transparent}
+body.adm .mju-badge--success{color:var(--v-ink); background:transparent}
+body.adm .chip{border:1px solid var(--v-line); font-weight:400; color:var(--v-ink); padding:6px 14px}
+body.adm .chip.on{background:var(--v-ink); border-color:var(--v-ink); color:#fff}
+body.adm #mo-seg{background:transparent; border:1px solid var(--v-line); border-radius:6px; padding:0; gap:0; overflow:hidden}
+body.adm #mo-seg .chip{border:0; border-radius:0; font-weight:400; padding:9px 16px}
+body.adm #mo-seg .chip + .chip{border-left:1px solid var(--v-line)}
+body.adm #mo-seg .chip.on{background:var(--v-ink); color:#fff}
+body.adm .role-card{border:1px solid var(--v-line); border-radius:6px}
+body.adm .role-card .rc-t{font-weight:500}
+
+/* ── 9. 입력칸 ── */
+body.adm input[type=text],body.adm input[type=tel],body.adm input[type=email],body.adm input[type=password],
+body.adm input[type=number],body.adm input[type=date],body.adm input[type=search],body.adm input[type=datetime-local],
+body.adm select,body.adm textarea{border:1px solid var(--v-line); border-radius:6px; background:var(--v-paper); font-size:14px; padding:10px 12px}
+body.adm select.ph-select{height:42px}
+body.adm input:focus,body.adm select:focus,body.adm textarea:focus{border-color:var(--v-cobalt); box-shadow:0 0 0 3px var(--v-cobalt-bg)}
+body.adm .mtbl-bar input,body.adm .mtbl-bar select{border-radius:6px; min-height:36px; padding:0 10px}
+
+/* ── 10. 표 — 페이지와 함께 스크롤, 머리글만 고정, 가로선만 ── */
+body.adm .mtbl-wrap{max-height:none; overflow:visible; border:0; border-radius:0; margin-top:12px}
+body.adm .mtbl{font-size:14px}
+body.adm .mtbl th{background:var(--v-bg); font-size:12px; font-weight:500; color:var(--v-mute); border-bottom:1px solid var(--v-ink); padding:10px 12px 10px 0}
+body.adm .mtbl td{border-bottom:1px solid var(--v-line); padding:0 12px 0 0; height:52px}
+body.adm .mtbl tbody tr:hover{background:var(--v-paper)}
+body.adm .mtbl tbody tr.on{background:var(--v-cobalt-bg); box-shadow:none}
+body.adm table.rep th,body.adm table.rep td{border:0; border-bottom:1px solid var(--v-line); font-size:13px}
+body.adm table.rep th{background:transparent; color:var(--v-mute); font-weight:500; border-bottom-color:var(--v-ink)}
+body.adm .selbar{background:var(--v-cobalt-bg); border:0; border-radius:6px}
+
+/* ── 11. 목록 행 · 막대 · 알림 박스 ── */
+body.adm .act-row,body.adm .mem-row{border-top-color:var(--v-line)}
+body.adm .act-row .ak,body.adm .mem-row .mn{font-weight:500}
+body.adm .agg-bar{height:4px; border-radius:2px; background:var(--v-line)}
+body.adm .agg-bar i{border-radius:2px}
+body.adm .agg-row .an{color:var(--v-ink); font-weight:500}
+body.adm .mju-alert{border-radius:6px}
+body.adm .mju-alert--warning{background:var(--v-warn-bg); border-color:#e7c3b1; color:var(--v-warn)}
+body.adm .mju-alert--warning .mju-alert__icon{background:var(--v-warn)}
+body.adm .warn{background:var(--v-warn-bg); border-color:#e7c3b1; border-radius:6px; color:var(--v-warn)}
+body.adm .warn b{color:var(--v-warn)}
+body.adm .msg{border-radius:12px}
+body.adm .ph-toast{background:var(--v-ink); box-shadow:none; font-weight:500}
+
+/* 상태 점 — 색만으로 나누지 않고 점 + 글자, 색은 모자람(warn)에만 */
+body.adm .st-dot{display:inline-flex; align-items:center; gap:6px}
+body.adm .st-dot::before{content:""; width:7px; height:7px; border-radius:50%; background:currentColor}
+
+/* ── 12. 좁은 화면(980px 이하) — 메뉴를 위쪽 가로줄로 ── */
+@media (max-width:980px){
+  body.adm .adm-header{padding:0 16px}
+  body.adm .adm-shell{padding:0 16px 48px; gap:0}
+  body.adm .adm-nav{background:var(--v-bg); border-bottom:1px solid var(--v-line); padding:0}
+  body.adm .adm-nav-item{padding:0 14px}
+  body.adm .adm-nav-item.act::before{left:4px}
+  body.adm .adm-nav-sep{width:1px; margin:10px 0}
+  body.adm .stat-cell:nth-child(3){border-left:0; padding-left:0}
+  body.adm .stat-row .stat-cell:nth-child(n+3){border-top:1px solid var(--v-line)}
+}
+@media (prefers-reduced-motion:reduce){body.adm *{transition:none!important}}
+
+/* ── 13. 화면별 보정 ── */
+body.adm .tabsec > .card:first-child{border-top:0; padding-top:0}       /* 제목 없이 시작하는 탭(진도) 맨 위 빈 선 제거 */
+body.adm #sec-recruit .adm-2col{grid-template-columns:minmax(0,720px)}  /* 파일럿에서 왼쪽(채용공고·사례)이 숨겨져 빈 칸이던 것 */
+body.adm input[type=file]::file-selector-button{font:inherit; font-size:13px; font-weight:500; min-height:32px; padding:0 12px; margin-right:10px;
+  color:var(--v-ink); background:var(--v-paper); border:1px solid var(--v-line); border-radius:6px; cursor:pointer}
+body.adm input[type=file]::file-selector-button:hover{border-color:var(--v-ink)}
