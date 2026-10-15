@@ -685,3 +685,23 @@ body.has-tabbar .ph-body{padding-bottom:84px}
 #sec-onboard .card .ph-card-title::before{counter-increment:onb;content:counter(onb)" · ";color:var(--accent-orange);font-weight:800}
 #sec-onboard input[type=file]{font-size:13px;padding:9px 10px;border:1px dashed var(--border-default);border-radius:8px;background:var(--surface-sunken);color:var(--text-secondary);cursor:pointer;flex:1;min-width:200px}
 #sec-onboard input[type=file]::file-selector-button{font:inherit;font-weight:700;margin-right:10px;padding:7px 12px;border:0;border-radius:6px;background:var(--tint-bg);color:var(--tint-fg);cursor:pointer}
+
+/* ── 학생 일정: 내 정규 훈련시간(관리자 개편 6단계, sql/55) — 훈련 날은 연파랑 바탕 + 시간, 지난 날은 점 + 인정시간 ── */
+.cal-cell.ojt{background:var(--tint-bg); color:var(--tint-fg); cursor:pointer; min-height:52px; justify-content:flex-start; padding-top:5px}
+.cal-cell.ojt.past{color:var(--tint-fg)}
+.ojt-t{font-size:10.5px; font-weight:700; line-height:1.1; letter-spacing:-.02em}
+.ojt-st{display:inline-flex; align-items:center; gap:3px; font-size:11px; font-weight:600; line-height:1.1; color:var(--text-secondary)}
+.ojt-st::before{content:""; width:5px; height:5px; border-radius:50%; background:currentColor; flex-shrink:0}
+.ojt-st.ok{color:var(--text-primary)}
+.ojt-st.short{color:var(--coral-600)}
+.ojt-st.none{color:var(--text-muted)}
+.ojt-st.none::before{background:transparent; box-shadow:0 0 0 1.2px currentColor inset}
+.ojt-sum{padding:2px 2px 12px; margin-bottom:10px; border-bottom:1px solid var(--border-subtle)}
+.ojt-big{display:flex; align-items:baseline; gap:6px; flex-wrap:wrap}
+.ojt-big b{font-size:30px; font-weight:400; color:var(--tint-fg); line-height:1}
+.ojt-big span{font-size:13px; color:var(--text-secondary)}
+.ojt-legend{display:flex; flex-wrap:wrap; justify-content:center; gap:4px 14px; margin-top:10px; font-size:12px; color:var(--text-secondary)}
+.ojt-legend .sw{display:inline-block; width:11px; height:11px; border-radius:3px; background:var(--tint-bg); vertical-align:-1px; margin-right:4px}
+.ojt-daycard{border:1px solid var(--tint-bg)}
+.ojt-daycard .ojt-st{font-size:12.5px; margin-left:4px}
+.ojt-daycard .ojt-st::before{width:6px; height:6px}

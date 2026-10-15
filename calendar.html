@@ -20,6 +20,8 @@
     </header>
     <main class="ph-body">
       <div class="card" id="calCard" style="display:none;padding:14px">
+        <!-- [개편 6단계] 내 정규 훈련시간(my_attendance_days, sql/55) — 이번 달만, 자료 없으면 요약·범례는 안 보임 -->
+        <div class="ojt-sum" id="ojt-sum" hidden></div>
         <div class="cal-head">
           <button class="cal-nav" id="cal-prev" aria-label="이전 달"><i data-lucide="chevron-left"></i></button>
           <b id="cal-title"></b>
@@ -27,9 +29,11 @@
         </div>
         <div class="cal-grid" id="cal-dow"></div>
         <div class="cal-grid" id="cal-cells"></div>
-        <p class="note" style="margin:8px 0 0;text-align:center">점이 있는 날짜를 누르면 아래 목록이 그 날짜로 좁혀져요.</p>
+        <div class="ojt-legend" id="ojt-legend" hidden><span><i class="sw"></i>내 훈련 날</span><span class="ojt-st ok">인정</span><span class="ojt-st short">모자람</span><span class="ojt-st none">기록 없음</span></div>
+        <p class="note" style="margin:8px 0 0;text-align:center" id="cal-help">점이 있는 날짜를 누르면 아래 목록이 그 날짜로 좁혀져요.</p>
       </div>
       <div class="filter-chips" id="chips" style="display:none" role="group" aria-label="일정 종류 필터"></div>
+      <div id="ojt-day"></div>
       <div id="list"></div>
       <div id="empty" class="empty-state" style="display:none">
         <span class="ei"><i data-lucide="calendar-days"></i></span>
@@ -75,20 +79,36 @@
     const weekAgo = new Date(now); weekAgo.setDate(weekAgo.getDate() - 7);
     const weekAgoStr = `${weekAgo.getFullYear()}-${pad(weekAgo.getMonth() + 1)}-${pad(weekAgo.getDate())}`;   // [TASKS v2 Q2] 지난 마감 노출 창
     let all = [], kindSel = '', daySel = '';
+    let ojt = null;   // [개편 6단계] { ym, fetched, byDay } — 이번 달 내 정규 훈련시간
     let calY = now.getFullYear(), calM = now.getMonth();             // 표시 중인 달
     let loadedFrom = null;                                            // 가장 이른 조회 시작일
     const minD = new Date(now.getFullYear(), now.getMonth() - 3, 1); // 과거 3개월까지만
     const monthStart = (y, m) => { const d = new Date(y, m, 1); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-01`; };
 
+    // [개편 6단계] 고른 날짜가 내 훈련 날이면 목록 위에 정규시간·인정·입퇴실
+    const OJT_LABEL = { ok: '인정', short: '모자람', none: '기록 없음', planned: '예정' };
+    function renderOjtDay() {
+      const box = document.getElementById('ojt-day');
+      const r = daySel && ojt && ojt.byDay[daySel];
+      if (!r) { box.innerHTML = ''; return; }
+      const io = (r.in || r.out) ? `입실 ${esc(r.in || '기록 없음')} · 퇴실 ${esc(r.out || '기록 없음')}` : '';
+      const rec = r.status === 'planned' ? '아직 전이에요' : `${Number(r.recognized) || 0}시간 인정 <span class="ojt-st ${r.status}">${OJT_LABEL[r.status] || ''}</span>`;
+      box.innerHTML = `<div class="card ojt-daycard"><p class="ph-card-title" style="margin:0 0 6px">${fmtDate(daySel)} 내 훈련</p>` +
+        `<p class="ph-note" style="margin:0">정규시간 <b>${esc(r.start)}–${esc(r.end)}</b> · ${Number(r.planned)}시간</p>` +
+        `<p class="ph-note" style="margin:4px 0 0">${rec}${io ? ' · ' + io : ''}</p>` +
+        (r.status === 'short' || r.status === 'none' ? `<p class="ph-note" style="margin:4px 0 0">출석 기록이 모자란 날이에요. 처리 방법은 담당자가 안내하고, 궁금하면 상담으로 물어봐 주세요.</p>` : '') + `</div>`;
+    }
     function renderList() {
+      renderOjtDay();
       const shown = all.filter(r =>
         (!kindSel || r.kind === kindSel) &&
         (daySel ? r.event_date === daySel : (r.event_date >= todayStr || (r.is_task && r.event_date >= weekAgoStr))));   // 지난 마감 할 일은 7일까지 노출(Q2)
       listEl.innerHTML = '';
       const em = document.getElementById('empty');
       if (!shown.length) {
-        em.style.display = 'block';
-        document.getElementById('emptyMsg').textContent = daySel ? '이 날짜에 해당하는 일정이 없습니다.' : '이 종류의 예정된 일정이 없습니다.';
+        // 내 훈련 날만 있고 센터 일정은 없는 날 — 빈 상태 안내는 띄우지 않음
+        em.style.display = (daySel && ojt && ojt.byDay[daySel]) ? 'none' : 'block';
+        document.getElementById('emptyMsg').textContent = daySel ? '이 날짜에 해당하는 센터 일정이 없습니다.' : (kindSel ? '이 종류의 예정된 일정이 없습니다.' : '예정된 센터 일정이 없습니다.');
         return;
       }
       em.style.display = 'none';
@@ -150,16 +170,24 @@
       for (let d = 1; d <= days; d++) {
         const ds = `${calY}-${pad(calM + 1)}-${pad(d)}`;
         const evts = byDate[ds] || [];
+        const tr = ojt && ojt.byDay[ds];   // 내 훈련 날(이번 달만)
         const b = document.createElement('button');
         b.type = 'button';
-        b.className = 'cal-cell' + (evts.length ? ' has' : '') + (ds < todayStr ? ' past' : '') + (ds === todayStr ? ' today' : '') + (ds === daySel ? ' sel' : '');
-        b.innerHTML = `<span>${d}</span><span class="cal-dots">${evts.slice(0, 3).map(() => '<span class="cal-dot"></span>').join('')}</span>`;
-        if (evts.length) {
-          b.setAttribute('aria-label', `${calM + 1}월 ${d}일 일정 ${evts.length}건`);
+        b.className = 'cal-cell' + (evts.length ? ' has' : '') + (tr ? ' ojt' : '') + (ds < todayStr ? ' past' : '') + (ds === todayStr ? ' today' : '') + (ds === daySel ? ' sel' : '');
+        b.innerHTML = `<span>${d}</span>`
+          + (tr ? `<span class="ojt-t">${esc((tr.start || '').slice(0, 2))}–${esc((tr.end || '').slice(0, 2))}</span>` : '')
+          + (tr && tr.status !== 'planned' ? `<span class="ojt-st ${tr.status}">${tr.status === 'none' ? '없음' : (Number(tr.recognized) || 0) + 'h'}</span>` : '')
+          + `<span class="cal-dots">${evts.slice(0, 3).map(() => '<span class="cal-dot"></span>').join('')}</span>`;
+        if (evts.length || tr) {
+          b.setAttribute('aria-label', `${calM + 1}월 ${d}일` + (tr ? ` 내 훈련 ${tr.start}–${tr.end}` + (tr.status !== 'planned' ? ` ${OJT_LABEL[tr.status]}` : '') : '') + (evts.length ? ` 일정 ${evts.length}건` : ''));
           b.addEventListener('click', () => { daySel = (daySel === ds) ? '' : ds; renderCal(); renderList(); });
         } else b.disabled = true;
         cells.appendChild(b);
       }
+      const isOjtMonth = !!(ojt && ojt.ym === `${calY}-${pad(calM + 1)}`);
+      document.getElementById('ojt-legend').hidden = !isOjtMonth;
+      document.getElementById('ojt-sum').hidden = !isOjtMonth;
+      document.getElementById('cal-help').textContent = isOjtMonth ? '날짜를 누르면 그날 내 훈련과 일정이 아래에 보여요.' : '점이 있는 날짜를 누르면 아래 목록이 그 날짜로 좁혀져요.';
       const prevStart = new Date(calY, calM - 1, 1);
       document.getElementById('cal-prev').disabled = prevStart < minD;
     }
@@ -219,6 +247,27 @@
       return true;
     }
 
+    // [개편 6단계] 내 정규 훈련시간 — 학생만, 코드 또는 서명토큰(my_attendance 와 같은 본인 확인). RPC 없거나 자료 없으면 조용히 없음
+    async function loadOjt() {
+      if (profile.target_type !== 'student' || (!profile.code && !profile.token)) return;
+      try {
+        const res = await supabase.rpc('my_attendance_days', { p_code: profile.code || null, p_token: profile.token || null });
+        const d = res.data;
+        if (res.error || !d || d.ok !== true || !Array.isArray(d.days) || !d.days.length) return;
+        const byDay = {}; d.days.forEach(r => { byDay[r.day] = r; });
+        ojt = { ym: d.month, fetched: d.fetched_at, byDay };
+        let reg = 0, rec = 0, total = 0;
+        d.days.forEach(r => { total += Number(r.planned) || 0; if (r.status && r.status !== 'planned') { reg += Number(r.planned) || 0; rec += Number(r.recognized) || 0; } });
+        const next = d.days.find(r => r.day >= todayStr && r.status === 'planned');
+        const fd = s => { const x = new Date(s + 'T00:00:00'); return `${x.getMonth() + 1}/${x.getDate()}(${'일월화수목금토'[x.getDay()]})`; };
+        let ft = ''; try { const f = new Date(d.fetched_at); if (!isNaN(f)) ft = `${f.getMonth() + 1}/${f.getDate()} ${pad(f.getHours())}:${pad(f.getMinutes())} 조회`; } catch (_) {}
+        document.getElementById('ojt-sum').innerHTML =
+          `<div class="ojt-big"><b>${rec}</b><span>/ ${reg}시간 인정 · ${Number(d.month.slice(5))}월 등록 ${total}시간</span></div>`
+          + (next ? `<p class="ph-note" style="margin:4px 0 0">다음 훈련 <b>${fd(next.day)} ${esc(next.start)}–${esc(next.end)}</b></p>` : '')
+          + (ft ? `<p class="ph-note" style="margin:2px 0 0;font-size:12px">${ft} · 정규시간이 바뀌면 다음 조회 때 반영돼요</p>` : '');
+      } catch (_) {}
+    }
+
     (async () => {
       if (!configReady()) { document.getElementById('empty').style.display = 'block'; return; }
       skeletonList(listEl, 3);
@@ -235,8 +284,9 @@
         if (!msg.textContent || msg.textContent === '새로운 일정이 등록되면 여기에 표시됩니다.') msg.textContent = '일시적 오류로 불러오지 못했습니다. 잠시 후 새로고침해주세요.';
         return;
       }
+      await loadOjt();
       renderCal();
-      if (!all.length) {
+      if (!all.length && !ojt) {
         const em = document.getElementById('empty'); em.style.display = 'block';
         if (!profile.name) document.getElementById('emptyMsg').innerHTML = '내 정보가 이 기기에 없어 맞춤 일정이 안 보일 수 있어요.<br/><a href="./index.html">홈에서 정보 입력하기</a>';
         window.lucide?.createIcons();
