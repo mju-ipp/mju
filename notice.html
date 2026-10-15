@@ -35,7 +35,7 @@
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
   <script type="module">
     import { supabase, configReady, esc, getProfile, noticeMatches, skeletonList, clearSkeleton,
-             getReadSet, markNoticesRead, updateUnreadBadges, requireCenterId, centerRequiredMessage } from './app.js';
+             getReadSet, markNoticesRead, recordNoticesRead, updateUnreadBadges, requireCenterId, centerRequiredMessage } from './app.js';
     if (window.lucide) window.lucide.createIcons();
 
     // 이 기기의 프로필(가입 때 저장) — 공지 필터링용
@@ -154,6 +154,7 @@
       // 이 페이지를 본 것 = 읽음 처리 → 탭바·홈 배지 갱신
       // (오래된 것부터 저장해, 저장 한도 초과 시 최신 공지가 먼저 밀려나지 않게)
       markNoticesRead(all.map(n => n.id).reverse());
+      recordNoticesRead(all.map(n => n.id));   // 최신순 앞 200건 — 관리자 읽음 집계(sql/57)
       updateUnreadBadges();
       window.lucide?.createIcons();
     })();

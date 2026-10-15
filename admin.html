@@ -169,7 +169,7 @@
             <p class="note">※ 발행하면 자동으로 푸시가 발송됩니다.</p>
           </div>
           <div style="display:flex;flex-direction:column;gap:18px">
-            <div class="card"><p class="ph-card-title">발송한 공지</p>
+            <div class="card"><p class="ph-card-title">발송한 공지 <span class="note" style="font-weight:400;margin:0">학생 읽음은 10/15부터 기록 — 공지 화면을 연 학생 기준</span></p>
               <input type="text" id="n-q" placeholder="제목 검색 — 오래된 공지도 찾아요" aria-label="공지 제목 검색" style="margin:0 0 6px;padding:8px 11px;font-size:13px;border-radius:8px" />
               <div id="n-list"></div></div>
             <div class="card">
@@ -1135,6 +1135,17 @@
       // GET + no-cors: 응답은 안 읽고 깨우기만 (Apps Script 리다이렉트가 POST를 거부하는 경우 회피)
       try { fetch(PUSH_KICK, { mode: 'no-cors' }); } catch (_) {}
     }
+    // 공지 저장 공통 — 같은 센터·제목·대상이 10분 안에 나갔으면 서버(sql/56)가 duplicate_notice 로 거절한다.
+    //   resend: 화면에서 이미 경고를 보고 '그래도 발행'을 누른 경우 → 처음부터 resend_ok 로 넣음
+    //   그 외에는 확인 창으로 물어 '보내기'면 resend_ok 로 다시 넣고, '취소'면 { cancelled: true }(오류 아님)
+    async function insertNotice(row, opt = {}) {
+      let { error } = await supabase.from('notices').insert(opt.resend ? { ...row, resend_ok: true } : row);
+      if (error && error.message === 'duplicate_notice') {
+        if (!confirm(`「${row.title}」 — 같은 제목·같은 대상 공지를 ${error.details || '조금 전'}에 이미 보냈어요.\n다시 보내면 학생에게 같은 알림이 두 번 갑니다. 그래도 보낼까요?`)) return { cancelled: true };
+        ({ error } = await supabase.from('notices').insert({ ...row, resend_ok: true }));
+      }
+      return { error };
+    }
     async function notifyPeople(people, title, body) {
       const { data: ins, error: e1 } = await supabase.from('notices')
         .insert({ title: '개인 안내', body: '개인 안내가 도착했습니다. 앱에서 확인하세요.', target_scope: 'personal', target_value: null, published: false })
@@ -1239,8 +1250,10 @@
       const lbl = nPicker.label();
       $('nv-confirm').disabled = true; setStatus($('n-status'), '발행 중...', 'info');
       // created_by(이메일)는 공개 읽기 테이블에 노출되므로 저장하지 않음 — admin_logs(관리자 전용)가 기록
-      const { error } = await supabase.from('notices').insert({ title, body, target_scope: scope, target_value: value, published: true, created_by: null });
+      const { error, cancelled } = await insertNotice({ title, body, target_scope: scope, target_value: value, published: true, created_by: null },
+                                                      { resend: !$('nv-dup').hidden });   // 경고를 보고 '그래도 발행' → 의도적 재발송
       $('nv-confirm').disabled = false; closeModal('nv-veil');
+      if (cancelled) { setStatus($('n-status'), '발행하지 않았어요 — 같은 공지가 이미 나갔습니다.', 'info'); return; }
       if (error) { setStatus($('n-status'), '오류: ' + error.message, 'error'); return; }
       kickPush();
       setStatus($('n-status'), `발행되었습니다 (${PUSH_ETA} 푸시).`, 'ok'); logAction('공지발행', lbl + ' · ' + title);
@@ -1261,6 +1274,7 @@
         if (nq) el.innerHTML = `<p class="note">검색 결과 ${data.length}건${data.length >= 100 ? ' (상위 100건)' : ''}</p>`;
         else if (data.length >= 20) el.innerHTML = '<p class="note">최근 20건만 표시 중 — 지난 공지는 위 검색으로 찾으세요</p>';
       }
+      const readEls = {};   // 공지 id → 읽음 줄(발행된 공지만)
       (data || []).forEach(n => {
         const t = fmtTarget(n.target_scope, n.target_value);
         const e = document.createElement('div'); e.textContent = n.title;
@@ -1269,6 +1283,7 @@
                  : n.pushed ? '<span class="mju-badge mju-badge--success">발송완료</span>'
                  : '<span class="mju-badge mju-badge--gold">발송대기</span>';
         const info = document.createElement('div'); info.innerHTML = `<b>${e.innerHTML}</b> ${st}<br/><span class="note">${t} · ${new Date(n.created_at).toLocaleString('ko-KR')}</span>`;
+        if (n.published) { const rd = document.createElement('div'); rd.className = 'n-read'; info.appendChild(rd); readEls[n.id] = rd; }
         const tg = document.createElement('button'); tg.textContent = n.published ? '내리기' : '올리기';
         tg.style.cssText = 'padding:5px 12px;font-size:13px;border:1px solid var(--line);border-radius:8px;background:#fff;cursor:pointer;white-space:nowrap';
         tg.addEventListener('click', async () => {
@@ -1288,6 +1303,22 @@
         const btns = document.createElement('div'); btns.style.cssText = 'display:flex;gap:6px;flex-shrink:0';
         btns.appendChild(tg); btns.appendChild(del);
         row.appendChild(info); row.appendChild(btns); el.appendChild(row);
+      });
+      nReadsLoad(gen, readEls);
+    }
+    // 공지별 학생 읽음(sql/57 admin_notice_reads) — 대상 = 명단 학생 중 받는 대상에 맞는 사람, 읽음 = 학생이 공지 화면을 연 기록(10/15부터)
+    async function nReadsLoad(gen, els) {
+      const ids = Object.keys(els); if (!ids.length) return;
+      let r;
+      try { r = await supabase.rpc('admin_notice_reads', { p_ids: ids }); } catch (e) { r = { error: e }; }
+      if (gen !== _nGen || r.error || !Array.isArray(r.data)) return;   // RPC 미적용·권한 없음 → 줄 없이 지금과 같음
+      r.data.forEach(x => {
+        const el = els[x.id]; if (!el || !x.targets) return;
+        el.innerHTML = `<span class="note" style="margin:0">학생 읽음 <b>${x.read}</b> / 대상 ${x.targets}${x.others ? ` · 대상 밖 ${x.others}명도 읽음` : ''}</span>`;
+        if (!x.unread || !x.unread.length) return;
+        const b = document.createElement('button'); b.type = 'button'; b.className = 'phone-btn'; b.textContent = `안 읽은 ${x.unread.length}명 이름 복사`;
+        b.addEventListener('click', async () => { try { await navigator.clipboard.writeText(x.unread.join('\n')); b.textContent = '복사됨'; setTimeout(() => { b.textContent = `안 읽은 ${x.unread.length}명 이름 복사`; }, 1200); } catch (_) {} });
+        el.appendChild(b);
       });
     }
 
@@ -1419,9 +1450,9 @@
     async function pushAsNotice(picker, title, body) {
       const scope = picker.mode === 'all' ? 'all' : 'custom';
       const value = picker.mode === 'all' ? null : picker.serial();
-      const { error } = await supabase.from('notices').insert({ title, body, target_scope: scope, target_value: value, published: true, created_by: null });
+      const { error, cancelled } = await insertNotice({ title, body, target_scope: scope, target_value: value, published: true, created_by: null });
       if (error) throw error;
-      kickPush();
+      if (!cancelled) kickPush();
     }
     // ===== [개편 7단계] 보내기 통합 — 공지 첨부(자료·일정·설문), 등록 화면의 [이걸로 공지 쓰기], 같은 제목 재발송 경고 =====
     // 첨부는 공지 본문 끝의 '첨부 · 종류: 이름' 줄로 저장한다(스키마 변경 없음). 학생 notice.html 이 이 줄을 해당 화면 링크로 바꿔 보여준다.
@@ -2948,14 +2979,14 @@
       let pushFail = false;
       if ($('jp-push').checked) {
         try {
-          const { error: pe } = await supabase.from('notices').insert({
+          const { error: pe, cancelled } = await insertNotice({
             title: '[채용] ' + company + (row.job_key ? ' — ' + row.job_key : ''),
             body: title + (row.deadline ? ' · 마감 ' + row.deadline : ' · 상시') + '. 앱 모집기업에서 확인하세요.',
             target_scope: 'custom', target_value: JSON.stringify({ targets: ['applicant'], jobs: [], companies: [], types: [], managers: [] }),
             published: true, created_by: null
           });
           if (pe) throw pe;
-          kickPush();
+          if (!cancelled) kickPush();
         } catch (_) { pushFail = true; }
       }
       logAction('공고발행', company + ' · ' + title);
@@ -3067,12 +3098,13 @@
       const title = $('cn-ntitle').value.trim(), body = $('cn-body').value.trim();
       if (!title || !body) { setStatus($('cn-status'), '제목·내용을 입력하세요.', 'error'); return; }
       $('cn-send').disabled = true; setStatus($('cn-status'), '발행 중...', 'info');
-      const { error } = await supabase.from('notices').insert({
+      const { error, cancelled } = await insertNotice({
         title, body, target_scope: 'custom',
         target_value: JSON.stringify({ targets: [], jobs: [], companies: [cnCompany], types: [], managers: [] }),
         published: true, created_by: null
       });
       $('cn-send').disabled = false;
+      if (cancelled) { setStatus($('cn-status'), '발행하지 않았어요 — 같은 공지가 이미 나갔습니다.', 'info'); return; }
       if (error) { setStatus($('cn-status'), '오류: ' + (error.message || error), 'error'); return; }
       kickPush(); logAction('기업공지', cnCompany + ' · ' + title); nLoad();
       setStatus($('cn-status'), '발행했습니다 — 해당 기업 구성원에게 푸시가 나갑니다.', 'ok');
@@ -3164,14 +3196,14 @@
           if (!error && ntf.querySelector('input').checked) {
             const label = (STAGES.find(s => s.key === sel.value) || {}).label || sel.value;
             try {
-              const { error: pe } = await supabase.from('notices').insert({
+              const { error: pe, cancelled } = await insertNotice({
                 title: '[진행 안내] ' + label,
                 body: '「' + co + '」 진행단계가 \'' + label + '\'(으)로 업데이트됐어요.' + (memo.value.trim() ? ' — ' + memo.value.trim() : '') + ' 앱 홈에서 확인하세요.',
                 target_scope: 'custom', target_value: JSON.stringify({ targets: [], jobs: [], companies: [co], types: [], managers: [] }),
                 published: true, created_by: null
               });
               if (pe) throw pe;
-              kickPush();
+              if (!cancelled) kickPush();
             } catch (_) { pushFail = true; }
           }
           save.disabled = false;

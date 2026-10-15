@@ -214,7 +214,7 @@ export function clearSkeleton(el) {
   el.innerHTML = '';
 }
 
-/* ── 공지 읽음 추적 (이 기기 localStorage — 서버 변경 없음) ── */
+/* ── 공지 읽음 추적 (배지는 이 기기 localStorage, 관리자 집계용 기록은 서버 sql/57) ── */
 const READ_KEY = 'ilhak_read_notices';
 export function getReadSet() {
   try { return new Set(JSON.parse(localStorage.getItem(READ_KEY) || '[]')); } catch (_) { return new Set(); }
@@ -224,6 +224,16 @@ export function markNoticesRead(ids) {
     const s = getReadSet();
     ids.forEach(id => s.add(id));
     localStorage.setItem(READ_KEY, JSON.stringify([...s].slice(-800))); // 무한 증식 방지
+  } catch (_) {}
+}
+// 서버에도 읽음 기록(sql/57 mark_notices_read) — 관리자 '읽음 n / 대상 n' 집계용.
+// 본인 확인은 코드 또는 서명토큰(my_attendance 와 같은 방식). RPC 미적용·실패여도 화면은 그대로(응답 안 기다림).
+export function recordNoticesRead(ids) {
+  const p = getProfile();
+  if (!supabase || !ids.length || !(p.code || p.token)) return;
+  try {
+    supabase.rpc('mark_notices_read', { p_ids: ids.slice(0, 200), p_code: p.code || null, p_token: p.token || null })
+      .then(() => {}, () => {});
   } catch (_) {}
 }
 // 내 대상 공지 중 아직 안 읽은 개수 (최근 100건 기준)
