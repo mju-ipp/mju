@@ -4,7 +4,7 @@
 //  · personal 스코프: notice_recipients → push_tokens(device_key) 매칭, 수신자별 제목·본문
 //  · 그 외: push_tokens 전체에서 타겟 매칭(all/job/company/target/type/custom)
 //  · 클릭 시 https://mju-ipp.github.io/mju/notice.html 열림(신규 주소)
-//  · 무효 토큰(UNREGISTERED)은 자동 정리, push_logs 기록, pushed=true 마킹
+//  · 무효 토큰(UNREGISTERED)은 자동 정리, push_logs 기록, pushed=true 는 발송 전에 선점 마킹(중복 발송 방지)
 //  · 호출: pg_cron 5분 폴링 + 관리자 발행 즉시 킥(GET/POST 모두 처리, 멱등)
 //  · secret: FIREBASE_SERVICE_ACCOUNT (서비스 계정 JSON 전체)
 // =====================================================================
@@ -95,6 +95,13 @@ Deno.serve(async (req) => {
 
     const results: unknown[] = []
     for (const n of notices) {
+      // 선점 — 5분 폴링과 즉시 킥이 같은 순간 겹치면(비콘 09:00·16:00) 두 호출이 같은 공지를 읽는다.
+      //   pushed=false → true 전환에 성공한 호출만 발송해 같은 알림이 두 번 나가지 않게 한다.
+      //   대가: 발송 도중 함수가 죽으면 그 공지는 재시도되지 않는다(중복 발송보다 낫다).
+      const { data: claimed, error: ce } = await db.from('notices')
+        .update({ pushed: true }).eq('id', n.id).eq('pushed', false).select('id')
+      if (ce || !claimed?.length) continue
+
       // 공지는 자기 센터 기기에만 — 멀티센터로 늘어나도 남의 학생에게 새지 않게
       const tokens = (allTokens || []).filter((t) => t.center_id === n.center_id)
       let targets: { fcm: string; title: string; body: string; rowId: string }[] = []
@@ -129,10 +136,9 @@ Deno.serve(async (req) => {
         title: n.title, body: (n.body || '').slice(0, 200),
         recipient_count: targets.length, success_count: ok, center_id: n.center_id,
       })
-      await db.from('notices').update({ pushed: true }).eq('id', n.id)
       results.push({ notice: n.title, recipients: targets.length, success: ok, cleaned: dead.length })
     }
-    return json({ ok: true, processed: notices.length, results })
+    return json({ ok: true, processed: results.length, results })
   } catch (e) {
     return json({ error: String(e).slice(0, 300) }, 500)
   }
