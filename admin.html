@@ -3373,6 +3373,7 @@
       applyRoleUI();
       await applyCenterVocab();   // [원장] 담당/유형/상태 등을 DB(centers.vocab)에서 먼저 배급 → 이후 모든 로더가 DB값 사용
       dashLoad(); initPickers().then(fillRecruitPickers); nLoad(); plLoad(); lLoad(); cLoad(); tkLoad(); clLoad(); regLoad(); uvLoad(); rcLoad(); stLoad(); svEvLoadList(); poLoad(); populateAddStudentPickers();
+      attnLoad();   // 출석 진도도 첫 로드에 포함 — #attn 으로 바로 열거나 새로고침하면 빈 화면이던 것(기존 누락)
       // URL 해시의 탭 복원(새로고침·재로그인 후 작업 위치 유지) — 위에서 전체 로드했으니 중복 조회는 생략
       const t = resolveTab(location.hash.slice(1));
       if (t && TAB_KEYS.includes(t) && !(t === 'centers' && window.ADMIN_ROLE !== 'super_admin')) showTab(t, { noLoad: true });
