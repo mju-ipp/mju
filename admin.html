@@ -3480,7 +3480,8 @@
     const mdOf = d => Number(d.slice(5, 7)) + '/' + Number(d.slice(8, 10));
     const hm = t => (t || '').slice(0, 5);
     function badWhy(r) {
-      if (r.status === 'none') return '기록 없음';
+      // 인정 0이어도 입실만 있으면 '기록 없음'이 아니라 퇴실 누락 — 노션 비고 표기와 맞춤(10/15 박소현·박은애)
+      if (r.status === 'none') return r.in_time && !r.out_time ? `퇴실 누락 · 입실 ${r.in_time}` : r.in_time ? `0h 인정 · ${r.in_time}~${r.out_time}` : '기록 없음';
       const why = !r.in_time ? '입실 기록 없음' : !r.out_time ? '퇴실 기록 없음' : `${r.in_time}~${r.out_time}`;
       return `${Number(r.recognized_hours) || 0}h만 인정 · ${why}`;
     }
