@@ -102,6 +102,20 @@
           </div>
           <p class="note" id="d-attn-status" style="margin:6px 0 0"></p>
         </div>
+        <!-- [개편 4단계] 출결점검(행정지원시스템 조회) 결과 → attendance_daily(sql/55) — 날짜별 정규시간·인정시간 -->
+        <div class="card" id="d-daily-card">
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+            <p class="ph-card-title" style="margin:0">출결 결과 올리기</p>
+            <span class="note" style="margin:0">출결점검 <code>reports\app_upload_YYYY-MM.json</code> — 날짜별 정규시간·인정시간이 학생 달력과 진도에 쓰여요</span>
+          </div>
+          <p class="note" id="d-daily-last" style="margin:6px 0 0"></p>
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:10px">
+            <input type="file" id="d-daily-file" accept=".json,application/json" aria-label="출결 결과 파일" />
+            <button class="mju-btn mju-btn--sm" id="d-daily-go" disabled>올리기</button>
+          </div>
+          <p class="note" id="d-daily-preview" style="margin:8px 0 0"></p>
+          <div class="status" id="d-daily-status"></div>
+        </div>
         <!-- [medium-1] 이달의 확인 업무 — 학생 앱 완료체크(sql/40) 진행률 + 미완료자 독촉 동선 -->
         <div class="card" id="d-tasks-card">
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px;flex-wrap:wrap">
@@ -2651,6 +2665,7 @@
         $('d-logs').innerHTML = (lg && lg.length) ? lg.map(l => `<div style="padding:6px 0;border-bottom:1px solid var(--gray-100);font-size:13px"><b>${esc(l.action)}</b> ${esc(l.detail || '')} <span class="note">· ${new Date(l.created_at).toLocaleString('ko-KR')}</span></div>`).join('') : '<p class="note">기록 없음</p>';
       } catch (_) { $('d-logs').innerHTML = ''; }
       dashTasksLoad();   // [medium-1] 이달의 확인 업무 — 지표와 분리해 비동기 로드(진행률 RPC가 느려도 요약 지표는 먼저 뜸)
+      dailyLastLoad();   // [개편 4단계] 이번 달 출결 결과 반영 상태
     }
 
     // ===== [medium-1] 이달의 확인 업무 — tasks 완료체크(sql/40 admin_task_progress) 진행률·미완료자 독촉 =====
@@ -3336,6 +3351,56 @@
           }
         } catch (e) { st.textContent = '반영 실패: ' + ((e && e.message) || e); }
         btn.disabled = false;
+      });
+    })();
+
+    // ===== [개편 4단계] 출결 결과 올리기 — 출결점검 scripts\app_export.py 결과 → attendance_daily(sql/55) =====
+    // 파일은 이 PC에서 고른 JSON 그대로 RPC 로만 보낸다(비밀키 없음 — 관리자 로그인 세션). 올린 학생의 그 달 행은 서버가 통째로 교체.
+    const DAILY_LABEL = { ok: '인정', short: '모자람', none: '기록 없음', planned: '예정' };
+    async function dailyLastLoad() {
+      const el = $('d-daily-last'); if (!el) return;
+      const ym = ymdLocal(0).slice(0, 7);
+      const { data, error } = await supabase.from('attendance_daily').select('name,fetched_at,updated_at')
+        .gte('day', ym + '-01').order('updated_at', { ascending: false }).limit(1000);
+      if (error) { el.textContent = /attendance_daily|PGRST205|42P01|schema cache/i.test(error.message || '') ? '서버 설정(sql/55) 적용 후 쓸 수 있어요.' : ''; return; }
+      if (!(data || []).length) { el.textContent = '이번 달 올린 출결 결과가 아직 없어요.'; return; }
+      const names = new Set(data.map(r => (r.name || '').replace(/\s+/g, '')));
+      const f = data.map(r => r.fetched_at).filter(Boolean).sort();
+      const fmt = s => new Date(s).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+      el.textContent = `이번 달 ${names.size}명 반영됨 · 조회 ${f.length ? fmt(f[f.length - 1]) : '-'} · 올린 시각 ${fmt(data[0].updated_at)}`;
+    }
+    (() => {
+      const file = $('d-daily-file'), go = $('d-daily-go'); if (!file || !go) return;
+      let payload = null;
+      file.addEventListener('change', async () => {
+        payload = null; go.disabled = true; setStatus($('d-daily-status'), '', 'info'); $('d-daily-preview').textContent = '';
+        const f = file.files && file.files[0]; if (!f) return;
+        let j;
+        try { j = JSON.parse(await f.text()); } catch (_) { setStatus($('d-daily-status'), 'JSON 파일이 아니에요 — app_upload_YYYY-MM.json 을 골라주세요.', 'error'); return; }
+        const rows = Array.isArray(j && j.rows) ? j.rows : null;
+        if (!/^\d{4}-\d{2}$/.test((j && j.month) || '') || !rows || !rows.length) { setStatus($('d-daily-status'), '형식이 달라요 — month·rows 가 있는 app_upload 파일이어야 해요.', 'error'); return; }
+        const norm = s => (s || '').replace(/\s+/g, '');
+        const names = [...new Set(rows.map(r => norm(r.name)).filter(Boolean))];
+        const cnt = {}; rows.forEach(r => { cnt[r.status] = (cnt[r.status] || 0) + 1; });
+        const fetched = rows.map(r => r.fetched_at).filter(Boolean).sort();
+        // 명단에 없는 이름은 학생 앱에서 본인 조회가 안 되므로 미리 알린다(올리기는 막지 않음)
+        let miss = [];
+        try { const { data: st } = await supabase.from('students').select('name'); const have = new Set((st || []).map(s => norm(s.name))); miss = names.filter(n => !have.has(n)); } catch (_) {}
+        $('d-daily-preview').textContent = `${j.month} · 학생 ${names.length}명 · ${rows.length}일분 — `
+          + Object.keys(DAILY_LABEL).filter(k => cnt[k]).map(k => `${DAILY_LABEL[k]} ${cnt[k]}`).join(' · ')
+          + (fetched.length ? ` · 조회 ${fetched[0].slice(5, 16).replace('T', ' ')}~${fetched[fetched.length - 1].slice(11, 16)}` : '')
+          + (miss.length ? ` · 명단에 없는 이름 ${miss.length}명(${miss.join(', ')})` : '');
+        payload = { month: j.month, rows }; go.disabled = false;
+      });
+      go.addEventListener('click', async () => {
+        if (!payload) return;
+        go.disabled = true; setStatus($('d-daily-status'), '올리는 중…', 'info');
+        const { data, error } = await supabase.rpc('bulk_upsert_attendance_daily', { p_month: payload.month, p_rows: payload.rows });
+        if (error) { setStatus($('d-daily-status'), '올리기 실패: ' + (/not_admin/.test(error.message || '') ? '관리자 계정으로만 올릴 수 있어요.' : error.message), 'error'); go.disabled = false; return; }
+        setStatus($('d-daily-status'), `${payload.month} 반영 — 학생 ${data.students}명 · ${data.inserted}일분 저장` + (data.deleted ? ` (이전 ${data.deleted}일분 교체)` : '') + (data.skipped ? ` · 건너뜀 ${data.skipped}` : ''), 'ok');
+        try { logAction('출결 결과 올리기', payload.month + ' · ' + data.students + '명 ' + data.inserted + '일'); } catch (_) {}
+        payload = null; file.value = ''; $('d-daily-preview').textContent = '';
+        dailyLastLoad();
       });
     })();
 

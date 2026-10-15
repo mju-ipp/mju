@@ -183,3 +183,7 @@ body.adm .adm-subnav button{all:unset; cursor:pointer; flex:0 0 auto; min-height
 body.adm .adm-subnav button:hover{color:var(--v-ink)}
 body.adm .adm-subnav button[aria-selected="true"]{color:var(--v-ink); font-weight:700; border-bottom-color:var(--v-ink)}
 body.adm .adm-subnav button:focus-visible{outline:2px solid var(--v-cobalt); outline-offset:2px}
+
+/* ── 15. 출결 결과 올리기(개편 4단계) ── */
+body.adm #d-daily-card code{font-family:var(--font-sans); font-size:12px; background:var(--surface-sunken); padding:1px 6px; border-radius:4px; color:var(--v-ink)}
+body.adm #d-daily-status{text-align:left}
