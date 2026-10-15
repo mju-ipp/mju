@@ -705,3 +705,9 @@ body.has-tabbar .ph-body{padding-bottom:84px}
 .ojt-daycard{border:1px solid var(--tint-bg)}
 .ojt-daycard .ojt-st{font-size:12.5px; margin-left:4px}
 .ojt-daycard .ojt-st::before{width:6px; height:6px}
+
+/* ── 공지 첨부 링크(관리자 개편 7단계) — 본문 끝 '첨부 · 자료|일정|설문' 줄 ── */
+.notice-att{display:flex; flex-direction:column; gap:6px; margin-top:10px}
+.notice-att-link{display:flex; align-items:center; gap:8px; min-height:44px; padding:0 14px; border-radius:10px; background:var(--tint-bg); color:var(--tint-fg); font-size:14px; text-decoration:none}
+.notice-att-link b{font-weight:700; flex-shrink:0}
+.notice-att-link::after{content:"›"; margin-left:auto; font-size:18px; line-height:1}

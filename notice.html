@@ -55,6 +55,16 @@
     let shownCount = 0;
     const readBefore = getReadSet();   // 이번 방문 '이전'의 읽음 — unread 표시 기준
 
+    // [관리자 개편 7단계] 공지 본문 끝 '첨부 · 자료|일정|설문: 이름' 줄 → 해당 화면 링크(본문은 그대로 이스케이프)
+    const ATT_HREF = { '자료': './library.html', '일정': './calendar.html', '설문': './survey.html' };
+    function bodyHtml(body) {
+      const lines = String(body || '').split('\n');
+      const att = [], txt = [];
+      lines.forEach(l => { const m = /^첨부 · (자료|일정|설문): (.+)$/.exec(l.trim()); if (m) att.push(m); else txt.push(l); });
+      while (txt.length && !txt[txt.length - 1].trim()) txt.pop();
+      return `<p class="notice-body">${esc(txt.join('\n'))}</p>` + (att.length ? '<div class="notice-att">' + att.map(m =>
+        `<a class="notice-att-link" href="${ATT_HREF[m[1]]}"><b>${esc(m[1])}</b> ${esc(m[2])}</a>`).join('') + '</div>' : '');
+    }
     function cardFor(n) {
       const card = document.createElement('div');
       card.className = 'card';
@@ -64,7 +74,7 @@
       card.innerHTML = `<p class="ph-card-title">${unread}${esc(n.title)}` +
         (n._personal ? ` <span class="mju-badge mju-badge--neutral">개인 안내</span>` : (!isUnread && isNew(n.created_at) ? ` <span class="mju-badge mju-badge--sky">NEW</span>` : ``)) + `</p>` +
         `<p class="notice-card-time">${fmt(n.created_at)}</p>` +
-        `<p class="notice-body">${esc(n.body)}</p>`;
+        bodyHtml(n.body);
       return card;
     }
     function renderMore() {
