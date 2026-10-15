@@ -3487,18 +3487,32 @@
       return `${Number(r.recognized_hours) || 0}h만 인정 · ${why}`;
     }
     const fmtFetched = f => f ? new Date(f).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }) : '-';
+    // 이번 달 실적 숫자 = 노션 실적(attendance_monthly.actual_hours). 일별 자료는 '오늘까지 정규'(분모)와 달력·모자란 날 설명에만 쓴다.
+    // 노션 실적이 아직 없으면 일별 인정 합으로 대신한다(src='daily').
+    function monthRowOf(name, ym) {
+      return (attnCache || []).find(r => String(r.month).slice(0, 7) === ym && normNm(r.name) === normNm(name)) || null;
+    }
+    function curStat(name, rows, ym) {
+      const st = dailyStats(rows), mrow = monthRowOf(name, ym);
+      const hasN = !!mrow && mrow.actual_hours != null;
+      return { ...st, act: hasN ? Number(mrow.actual_hours) : st.rec, src: hasN ? 'notion' : 'daily', mrow };
+    }
+    function notionSyncedAt(ym) {
+      let t = null; (attnCache || []).forEach(r => { if (String(r.month).slice(0, 7) === ym && r.updated_at && (!t || r.updated_at > t)) t = r.updated_at; });
+      return t;
+    }
 
     // 학생 상세 — 이번 달 정규시간 달력(훈련 날 = 코발트 바탕 + 시간, 지난 날 = 점 + 인정시간)
     function openStuSheet(name) {
       const rows = (dailyCache && dailyCache.byName.get(normNm(name))) || [];
       const ym = dailyCache ? dailyCache.ym : ymdLocal(0).slice(0, 7);
-      const mrow = (attnCache || []).find(r => String(r.month).slice(0, 7) === ym && normNm(r.name) === normNm(name));
-      const st = dailyStats(rows);
+      const st = curStat(name, rows, ym), mrow = st.mrow;
       $('stu-name').textContent = name;
       $('stu-sub').textContent = [attnComp[normNm(name)], mrow && mrow.units].filter(Boolean).join(' · ');
       $('stu-month').textContent = Number(ym.slice(5)) + '월 정규시간';
       $('stu-lede').textContent = rows.length
-        ? `인정 ${st.rec}h / 오늘까지 정규 ${st.reg}h · 등록 ${st.total}h` + (mrow ? ` · 월 계획 ${Number(mrow.planned_hours)}h` : '') + ` · 조회 ${fmtFetched(st.fetched)}`
+        ? (st.src === 'notion' ? `노션 실적 ${st.act}h` : `인정 ${st.act}h(노션 실적 없음)`) + ` / 오늘까지 정규 ${st.reg}h · 등록 ${st.total}h`
+          + (mrow ? ` · 월 계획 ${Number(mrow.planned_hours)}h` : '') + ` · 달력은 출결 조회 ${fmtFetched(st.fetched)} 기준`
         : '이번 달 일별 자료가 없어요 — 오늘 › 출결 결과 올리기로 올리면 표시돼요.';
       const y = Number(ym.slice(0, 4)), m = Number(ym.slice(5));
       const first = new Date(y, m - 1, 1).getDay(), dim = new Date(y, m, 0).getDate(), today = ymdLocal(0);
@@ -3537,23 +3551,24 @@
       if (!dc.ok) { $('d-short-card').style.display = 'none'; return; }
       let fetched = null; const items = [];
       dc.byName.forEach(rows => {
-        const st = dailyStats(rows);
+        const st = curStat(rows[0].name, rows, dc.ym);
         if (st.fetched && (!fetched || st.fetched > fetched)) fetched = st.fetched;
-        if (st.rec < st.reg) items.push({ name: rows[0].name, st });
+        if (st.act < st.reg) items.push({ name: rows[0].name, st });
       });
+      const synced = notionSyncedAt(dc.ym);
       $('d-short-n').textContent = items.length ? items.length + '명' : '';
-      $('d-short-hint').textContent = dc.byName.size ? '오늘까지 등록된 정규시간 대비 인정 출석시간' : '';
+      $('d-short-hint').textContent = dc.byName.size ? `노션 실적 대비 오늘까지 등록된 정규시간 · 노션 반영 ${fmtFetched(synced)}` : '';
       $('d-meta-fetch').textContent = dc.byName.size ? `출결 조회 ${fmtFetched(fetched)}` : '';
       $('d-short-card').hidden = !!dc.byName.size && !items.length;
       setDashCnt('short', dc.byName.size ? items.length : null);
       if (!dc.byName.size) { list.innerHTML = '<p class="note">이번 달 출결 결과를 아직 올리지 않았어요 — 아래 [출결 결과 올리기]로 올리면 여기에 표시돼요.</p>'; return; }
       if (!items.length) { list.innerHTML = '<p class="note">모자란 학생이 없어요.</p>'; return; }
-      items.sort((a, b) => (a.st.rec / a.st.reg) - (b.st.rec / b.st.reg));
+      items.sort((a, b) => (a.st.act / a.st.reg) - (b.st.act / b.st.reg));
       list.innerHTML = '';
       items.forEach(it => {
         const row = document.createElement('div'); row.className = 'short-row';
         row.innerHTML = `<span class="nm">${esc(it.name)}</span><span class="co">${esc(attnComp[normNm(it.name)] || '')}</span>`
-          + `<span class="hh">${it.st.rec}h / ${it.st.reg}h</span>`
+          + `<span class="hh">${it.st.act}h / ${it.st.reg}h${it.st.src === 'daily' ? ' (일별)' : ''}</span>`
           + `<span class="why">${it.st.bad.map(r => `<span class="st-dot ${r.status === 'none' ? 'st-none' : 'st-short'}">${esc(mdOf(r.day) + ' ' + badWhy(r))}</span>`).join('')}</span>`;
         const b = document.createElement('button'); b.type = 'button'; b.className = 'phone-btn'; b.textContent = '달력 보기';
         b.addEventListener('click', () => openStuSheet(it.name));
@@ -3599,24 +3614,23 @@
       const mrows = attnCache.filter(r => String(r.month).slice(0, 7) === attnMonth && Number(r.planned_hours) > 0).map(r => {
         const planned = Number(r.planned_hours), actual = r.actual_hours == null ? null : Number(r.actual_hours);
         const rows = isDaily ? (dc.byName.get(normNm(r.name)) || []) : [];
-        const d = rows.length ? dailyStats(rows) : null;
+        const d = rows.length ? curStat(r.name, rows, attnMonth) : null;
+        const done = d ? d.act : (actual || 0);
+        // 판정: 노션 실적이 오늘까지 정규보다 적으면 모자람(일별 자료 있는 이번 달), 없으면 월 계획 대비
         let state;
-        if (d) state = d.rec < d.reg ? 'short' : (d.rec >= planned ? 'ok' : 'todo');
+        if (d) state = d.act < d.reg ? 'short' : (d.act >= planned ? 'ok' : 'todo');
         else state = actual == null ? 'wait' : (actual >= planned ? 'ok' : (isPast ? 'short' : 'todo'));
-        return { name: r.name, company: attnComp[normNm(r.name)] || '-', units: r.units || '', planned, actual, d, state,
-                 done: d ? d.rec : (actual || 0) };
+        return { name: r.name, company: attnComp[normNm(r.name)] || '-', units: r.units || '', planned, actual, d, state, done };
       });
       // 요약
       const n = k => mrows.filter(r => r.state === k).length;
-      let fetched = null; mrows.forEach(r => { if (r.d && r.d.fetched && (!fetched || r.d.fetched > fetched)) fetched = r.d.fetched; });
-      const noDaily = isDaily ? mrows.filter(r => !r.d).length : 0;
+      const synced = notionSyncedAt(attnMonth);
       $('at-sum').innerHTML =
         `<span class="note"><b style="font-size:16px;color:var(--danger-500)">${n('short')}</b>명 모자람</span>` +
         `<span class="note"><b style="font-size:16px;color:var(--accent)">${n('todo')}</b>명 진행 중</span>` +
         `<span class="note"><b style="font-size:16px;color:var(--text-primary)">${n('ok')}</b>명 채움</span>` +
         (n('wait') ? `<span class="note">${n('wait')}명 집계 전</span>` : '') +
-        (isDaily && fetched ? `<span class="note">정규시간 기준 · 조회 ${fmtFetched(fetched)}</span>` : '<span class="note">노션 월 실적 기준</span>') +
-        (noDaily ? `<span class="note">일별 자료 없음 ${noDaily}명(월 실적으로 표시)</span>` : '');
+        `<span class="note">노션 실적 기준 · 노션 반영 ${fmtFetched(synced)}</span>`;
       // 목록 — 모자람 먼저, 그다음 달성률 낮은 순, 집계 전은 맨 아래
       const ORD = { short: 0, todo: 1, ok: 2, wait: 3 };
       mrows.sort((x, y) => (ORD[x.state] - ORD[y.state]) || ((x.done / x.planned) - (y.done / y.planned)) || x.name.localeCompare(y.name, 'ko'));
@@ -3627,8 +3641,8 @@
         const row = document.createElement(isDaily ? 'button' : 'div');
         if (isDaily) { row.type = 'button'; row.title = r.name + ' 달력 보기'; row.addEventListener('click', () => openStuSheet(r.name)); }
         row.className = 'attn-row';
-        const val = r.d ? `${r.d.rec} / ${r.d.reg}h` : (r.actual == null ? '-' : `${r.actual} / ${r.planned}h`);
-        const sub = r.d ? `월 ${r.planned}h` + (r.d.total < r.planned ? ` · 미등록 ${r.planned - r.d.total}h` : '') : (isDaily ? '월 실적' : '');
+        const val = r.d ? `${r.d.act} / ${r.d.reg}h` : (r.actual == null ? '-' : `${r.actual} / ${r.planned}h`);
+        const sub = r.d ? `오늘까지 정규 · 월 ${r.planned}h` + (r.d.total < r.planned ? ` · 미등록 ${r.planned - r.d.total}h` : '') + (r.d.src === 'daily' ? ' · 노션 실적 없음' : '') : '';
         row.innerHTML = `<span class="nm"><b>${esc(r.name)}</b> <span class="note">${esc(r.company)}</span>`
           + (r.units ? `<br/><span class="note" style="font-size:12px">${esc(r.units)}</span>` : '') + '</span>'
           + `<span class="bar"><i style="width:${pct}%;background:${r.state === 'short' ? 'var(--danger-500)' : 'var(--accent)'}"></i></span>`
@@ -3665,6 +3679,7 @@
             st.textContent = '완료 — 노션 ' + out.notion_rows + '행 → 신규 ' + out.inserted + ' · 갱신 ' + out.updated
               + (out.skipped ? ' · 건너뜀 ' + out.skipped : '') + ' (' + new Date().toLocaleTimeString('ko-KR') + ')';
             try { logAction('출석진도 반영', '노션 ' + out.notion_rows + '행'); } catch (_) {}
+            attnCache = null; dashShortLoad(); attnLoad(true);   // 반영한 노션 실적으로 오늘·진도 다시 그리기
           }
         } catch (e) { st.textContent = '반영 실패: ' + ((e && e.message) || e); }
         btn.disabled = false;
