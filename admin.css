@@ -187,3 +187,55 @@ body.adm .adm-subnav button:focus-visible{outline:2px solid var(--v-cobalt); out
 /* ── 15. 출결 결과 올리기(개편 4단계) ── */
 body.adm #d-daily-card code{font-family:var(--font-sans); font-size:12px; background:var(--surface-sunken); padding:1px 6px; border-radius:4px; color:var(--v-ink)}
 body.adm #d-daily-status{text-align:left}
+
+/* ── 16. 정규시간 기준 진도·오늘 목록·학생 상세(개편 5단계) ── */
+body.adm .st-dot.st-short{color:var(--v-warn)}
+body.adm .st-dot.st-none{color:var(--v-mute)}
+body.adm .st-dot.st-none::before{background:transparent; border:1.5px solid currentColor; width:5px; height:5px}
+/* 오늘 › 모자란 학생 */
+body.adm .short-row{display:grid; grid-template-columns:96px 130px 96px minmax(0,1fr) auto; gap:14px; align-items:center; min-height:52px; padding:8px 0; border-top:1px solid var(--v-line)}
+body.adm .short-row:last-child{border-bottom:1px solid var(--v-line)}
+body.adm .short-row .nm{font-weight:500}
+body.adm .short-row .co{color:var(--v-mute); font-size:13px}
+body.adm .short-row .hh{color:var(--v-warn); font-weight:500}
+body.adm .short-row .why{display:flex; flex-wrap:wrap; gap:4px 14px; font-size:13px}
+/* 학생 › 출석 진도 행(누르면 상세) */
+body.adm .attn-row{all:unset; box-sizing:border-box; display:grid; grid-template-columns:minmax(0,220px) minmax(80px,1fr) 92px 120px 72px; gap:14px; align-items:center;
+  width:100%; min-height:52px; padding:8px 0; border-top:1px solid var(--v-line); font-size:14px}
+body.adm button.attn-row{cursor:pointer}
+body.adm button.attn-row:hover{background:var(--v-paper)}
+body.adm button.attn-row:focus-visible{outline:2px solid var(--v-cobalt); outline-offset:-2px}
+body.adm .attn-row .bar{display:block; height:4px; border-radius:2px; background:var(--v-line); overflow:hidden}
+body.adm .attn-row .bar i{display:block; height:100%}
+body.adm .attn-row .val{text-align:right; font-weight:500; white-space:nowrap}
+body.adm .attn-row .sub{margin:0; font-size:12px; white-space:nowrap}
+body.adm .attn-row .note{margin:0}
+/* 학생 상세 시트 — 오른쪽에서. 그림자는 올라오는 면에만 */
+body.adm .stu-sheet{position:fixed; top:0; right:0; z-index:1000; width:440px; max-width:100vw; height:100vh; overflow:auto; background:var(--v-paper);
+  box-shadow:-24px 0 48px -24px rgba(18,19,24,.28); transform:translateX(100%); visibility:hidden; transition:transform .18s ease-out, visibility 0s .18s}
+body.adm .stu-sheet.open{transform:none; visibility:visible; transition:transform .18s ease-out}
+body.adm .stu-sheet .sh{background:var(--v-ink); color:#fff; padding:20px 24px 18px}
+body.adm .stu-sheet .sh h3{margin:0; font-size:20px; font-weight:700}
+body.adm .stu-sheet .sh p{margin:4px 0 0; font-size:13px; color:var(--v-mute-on-ink)}
+body.adm .stu-sheet .x{all:unset; cursor:pointer; float:right; min-height:44px; margin-top:-10px; font-size:13px; color:var(--v-mute-on-ink)}
+body.adm .stu-sheet .x:focus-visible{outline:2px solid var(--v-cobalt-l); outline-offset:2px}
+body.adm .stu-sheet .sb{padding:0 24px 32px}
+body.adm .stu-cal{display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); border-top:1px solid var(--v-line); border-left:1px solid var(--v-line)}
+body.adm .stu-cal .wd{font-size:12px; color:var(--v-mute); text-align:center; padding:6px 0; border-right:1px solid var(--v-line); border-bottom:1px solid var(--v-line)}
+body.adm .stu-cal .d{min-height:58px; padding:4px 5px; font-size:12px; border-right:1px solid var(--v-line); border-bottom:1px solid var(--v-line); background:var(--v-paper)}
+body.adm .stu-cal .d.off{background:var(--v-bg); color:var(--v-mute)}
+body.adm .stu-cal .d.plan{background:var(--v-cobalt-bg)}
+body.adm .stu-cal .d .dn{font-size:12px}
+body.adm .stu-cal .d.today .dn{display:inline-grid; place-items:center; width:20px; height:20px; border-radius:50%; background:var(--v-ink); color:#fff}
+body.adm .stu-cal .d .t{display:block; margin-top:2px; font-size:12px; line-height:1.3; color:var(--v-cobalt); font-weight:500}
+body.adm .stu-cal .d .st-dot{display:flex; font-size:12px; gap:4px; margin-top:2px}
+body.adm .stu-cal .d .st-dot::before{width:6px; height:6px}
+body.adm .stu-legend{display:flex; flex-wrap:wrap; gap:6px 16px; margin:10px 0 0; font-size:12px; color:var(--v-mute)}
+body.adm .stu-legend .sw{display:inline-block; width:12px; height:12px; background:var(--v-cobalt-bg); border:1px solid var(--v-line); vertical-align:-2px; margin-right:4px}
+@media (max-width:980px){
+  body.adm .short-row{grid-template-columns:1fr auto; gap:4px 12px}
+  body.adm .short-row .co,body.adm .short-row .hh{grid-column:1}
+  body.adm .short-row .why{grid-column:1 / -1}
+  body.adm .attn-row{grid-template-columns:minmax(0,1fr) 92px; gap:4px 12px}
+  body.adm .attn-row .bar{grid-column:1 / -1}
+}

@@ -94,6 +94,14 @@
           <button type="button" class="stat-cell" data-go="notice" title="보내기 › 발송 기록으로"><div class="sk">오늘 발송</div><div class="sv" id="d-sent">–</div></button>
         </div>
         <!-- 노션 「OJT 월별 — 학생」 실적 → 앱 '내 출석 진도' 카드(sql/42) 반영 — 서버 함수 sync-attendance -->
+        <!-- [개편 5단계] 정규시간 대비 인정시간이 모자란 학생 — attendance_daily(sql/55) -->
+        <div class="card" id="d-short-card">
+          <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap">
+            <p class="ph-card-title" style="margin:0">정규시간보다 인정시간이 모자라요 <span class="note" id="d-short-n" style="margin:0;font-weight:400"></span></p>
+            <span class="note" id="d-short-hint" style="margin:0"></span>
+          </div>
+          <div id="d-short-list"><p class="note">불러오는 중…</p></div>
+        </div>
         <div class="card" id="d-attn-card">
           <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
             <p class="ph-card-title" style="margin:0">학생 출석진도 반영</p>
@@ -175,7 +183,7 @@
         <div class="card">
           <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
             <p class="ph-card-title" style="margin:0">학생 출석 진도</p>
-            <span class="note">노션 실적 기준 — 갱신은 오늘 화면의 [노션 출석진도 반영]</span>
+            <span class="note">정규시간 기준(오늘 › 출결 결과 올리기) — 일별 자료가 없는 학생은 노션 월 실적으로 표시</span>
             <span style="margin-left:auto"><button class="mju-btn mju-btn--secondary mju-btn--sm" id="at-refresh">새로고침</button></span>
           </div>
           <div class="filter-chips" id="at-months" style="margin:10px 0 6px"></div>
@@ -543,6 +551,17 @@
         </div>
       </div>
       </main>
+      <!-- [개편 5단계] 학생 상세 — 이번 달 정규시간 달력(attendance_daily). 진도 표·오늘 목록에서 연다 -->
+      <aside class="stu-sheet" id="stu-sheet" aria-label="학생 상세" aria-hidden="true">
+        <div class="sh"><button type="button" class="x" id="stu-close">닫기</button><h3 id="stu-name"></h3><p id="stu-sub"></p></div>
+        <div class="sb">
+          <p class="ph-card-title" style="margin:20px 0 4px" id="stu-month"></p>
+          <p class="note" id="stu-lede" style="margin:0 0 8px"></p>
+          <div class="stu-cal" id="stu-cal"></div>
+          <div class="stu-legend"><span><i class="sw"></i>훈련 날</span><span class="st-dot">인정</span><span class="st-dot" style="color:var(--danger-500)">모자람</span><span class="st-dot st-none">기록 없음</span></div>
+          <div id="stu-days"></div>
+        </div>
+      </aside>
     </div>
 
     <!-- 공지 발행 확인 모달 -->
@@ -773,6 +792,7 @@
         if (on && x.scrollIntoView) x.scrollIntoView({ block: 'nearest', inline: 'nearest' });   // 모바일 가로 탭바에서 활성 탭 보이게
       });
       renderSubnav(key);
+      closeStuSheet();
       TAB_KEYS.forEach(t => { const el = $('sec-' + t); if (el) el.style.display = (t === tab ? 'block' : 'none'); });
       if (tab === 'members') moShow(seg || 'roster');   // 명시적 #members = 항상 현황(배지·지표 진입점 착지 보정). #onboard 만 등록 세그먼트
       if (adminEmail && !(opts && opts.noLoad) && TAB_LOAD[tab]) TAB_LOAD[tab]();   // 로그인 전에는 조회 안 함
@@ -2666,6 +2686,7 @@
       } catch (_) { $('d-logs').innerHTML = ''; }
       dashTasksLoad();   // [medium-1] 이달의 확인 업무 — 지표와 분리해 비동기 로드(진행률 RPC가 느려도 요약 지표는 먼저 뜸)
       dailyLastLoad();   // [개편 4단계] 이번 달 출결 결과 반영 상태
+      dashShortLoad();   // [개편 5단계] 정규시간보다 인정시간이 모자란 학생
     }
 
     // ===== [medium-1] 이달의 확인 업무 — tasks 완료체크(sql/40 admin_task_progress) 진행률·미완료자 독촉 =====
@@ -2727,11 +2748,17 @@
           const act = document.createElement('div');
           act.style.cssText = 'display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px';
           if (pending.length) {
-            if (!p.company) {
+            if (!p.company && (dd === null || dd <= 3)) {
               const pb = document.createElement('button'); pb.type = 'button'; pb.className = 'mju-btn mju-btn--gold mju-btn--sm';
               pb.innerHTML = `<i data-lucide="send"></i> 미완료 ${pending.length}명 — 독촉 공지`;
               pb.addEventListener('click', () => tpNudge(t, pending));
               act.appendChild(pb);
+            } else if (!p.company) {
+              // [개편 5단계] 독촉은 마감 D-3부터 — 그 전엔 셀프체크 미완료가 대부분이라 독촉이 이르다
+              const od = new Date(t.due_date); od.setDate(od.getDate() - 3);
+              const lb = document.createElement('span'); lb.className = 'note'; lb.style.margin = '0';
+              lb.textContent = `독촉 공지는 ${od.getMonth() + 1}/${od.getDate()}(D-3)부터 열려요`;
+              act.appendChild(lb);
             } else {
               const lb = document.createElement('span'); lb.className = 'note'; lb.innerHTML = `<b>미완료 기업 ${pending.length}곳</b>`; act.appendChild(lb);
             }
@@ -3245,25 +3272,138 @@
       stLoad();   // 기업 관리 탭에 바로 반영
     });
 
-    // ===== 진도 탭 — 학생별 월 출석 진행 현황 (attendance_monthly 직조회, 관리자 RLS) =====
+    // ===== [개편 5단계] 일별 출결(attendance_daily, sql/55) — 진도 표·오늘 목록·학생 상세 공용 =====
+    // 판정 기준 = 오늘까지(조회 범위 안) 등록된 정규시간 대비 인정 출석시간. 달력 경과율('월 경과 %')은 쓰지 않는다.
+    const normNm = s => (s || '').replace(/\s+/g, '');
+    let dailyCache = null;   // { ym, byName: Map(정규화 이름 → 그 달 행[]), ok }
+    async function loadDaily(force) {
+      const ym = ymdLocal(0).slice(0, 7);
+      if (dailyCache && !force && dailyCache.ym === ym) return dailyCache;
+      const nx = new Date(Number(ym.slice(0, 4)), Number(ym.slice(5)), 1);
+      const to = nx.getFullYear() + '-' + String(nx.getMonth() + 1).padStart(2, '0') + '-01';
+      const { data, error } = await supabase.from('attendance_daily')
+        .select('name,day,start_time,end_time,planned_hours,recognized_hours,in_time,out_time,method,status,fetched_at')
+        .gte('day', ym + '-01').lt('day', to).order('day');
+      const byName = new Map();
+      (error ? [] : (data || [])).forEach(r => { const k = normNm(r.name); if (!byName.has(k)) byName.set(k, []); byName.get(k).push(r); });
+      dailyCache = { ym, byName, ok: !error };
+      return dailyCache;
+    }
+    // 한 학생의 이번 달 요약 — reg=조회 범위 안 정규시간 합, rec=그 인정 합, total=등록된 정규시간 전체
+    function dailyStats(rows) {
+      let reg = 0, rec = 0, total = 0, fetched = null; const bad = [];
+      rows.forEach(r => {
+        const p = Number(r.planned_hours) || 0; total += p;
+        if (r.fetched_at && (!fetched || r.fetched_at > fetched)) fetched = r.fetched_at;
+        if (!r.status || r.status === 'planned') return;
+        reg += p; rec += Number(r.recognized_hours) || 0;
+        if (r.status === 'short' || r.status === 'none') bad.push(r);
+      });
+      return { reg, rec, total, fetched, bad };
+    }
+    const mdOf = d => Number(d.slice(5, 7)) + '/' + Number(d.slice(8, 10));
+    const hm = t => (t || '').slice(0, 5);
+    function badWhy(r) {
+      if (r.status === 'none') return '기록 없음';
+      const why = !r.in_time ? '입실 기록 없음' : !r.out_time ? '퇴실 기록 없음' : `${r.in_time}~${r.out_time}`;
+      return `${Number(r.recognized_hours) || 0}h만 인정 · ${why}`;
+    }
+    const fmtFetched = f => f ? new Date(f).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }) : '-';
+
+    // 학생 상세 — 이번 달 정규시간 달력(훈련 날 = 코발트 바탕 + 시간, 지난 날 = 점 + 인정시간)
+    function openStuSheet(name) {
+      const rows = (dailyCache && dailyCache.byName.get(normNm(name))) || [];
+      const ym = dailyCache ? dailyCache.ym : ymdLocal(0).slice(0, 7);
+      const mrow = (attnCache || []).find(r => String(r.month).slice(0, 7) === ym && normNm(r.name) === normNm(name));
+      const st = dailyStats(rows);
+      $('stu-name').textContent = name;
+      $('stu-sub').textContent = [attnComp[normNm(name)], mrow && mrow.units].filter(Boolean).join(' · ');
+      $('stu-month').textContent = Number(ym.slice(5)) + '월 정규시간';
+      $('stu-lede').textContent = rows.length
+        ? `인정 ${st.rec}h / 오늘까지 정규 ${st.reg}h · 등록 ${st.total}h` + (mrow ? ` · 월 계획 ${Number(mrow.planned_hours)}h` : '') + ` · 조회 ${fmtFetched(st.fetched)}`
+        : '이번 달 일별 자료가 없어요 — 오늘 › 출결 결과 올리기로 올리면 표시돼요.';
+      const y = Number(ym.slice(0, 4)), m = Number(ym.slice(5));
+      const first = new Date(y, m - 1, 1).getDay(), dim = new Date(y, m, 0).getDate(), today = ymdLocal(0);
+      const byDay = {}; rows.forEach(r => { byDay[r.day] = r; });
+      let h = ['일', '월', '화', '수', '목', '금', '토'].map(w => `<div class="wd">${w}</div>`).join('');
+      for (let i = 0; i < first; i++) h += '<div class="d off"></div>';
+      for (let d = 1; d <= dim; d++) {
+        const key = ym + '-' + String(d).padStart(2, '0'), wd = (first + d - 1) % 7, r = byDay[key];
+        let inner = `<span class="dn">${d}</span>`;
+        if (r) {
+          inner += `<span class="t">${hm(r.start_time)}–${hm(r.end_time)}</span>`;
+          if (r.status && r.status !== 'planned') {
+            const c = r.status === 'ok' ? '' : r.status === 'short' ? ' st-short' : ' st-none';
+            inner += `<span class="st-dot${c}">${r.status === 'none' ? '없음' : (Number(r.recognized_hours) || 0) + 'h'}</span>`;
+          }
+        }
+        h += `<div class="d${(wd === 0 || wd === 6) ? ' off' : ''}${r ? ' plan' : ''}${key === today ? ' today' : ''}">${inner}</div>`;
+      }
+      const tail = (first + dim) % 7; if (tail) for (let i = tail; i < 7; i++) h += '<div class="d off"></div>';
+      $('stu-cal').innerHTML = h;
+      $('stu-days').innerHTML = st.bad.length
+        ? '<p class="ph-card-title" style="margin:20px 0 4px;font-size:15px">모자란 날</p>' + st.bad.map(r =>
+            `<div class="act-row"><span class="ak">${esc(mdOf(r.day))}</span><span class="av" style="color:var(--danger-500)">${esc(badWhy(r))}</span><span class="at">정규 ${esc(hm(r.start_time))}–${esc(hm(r.end_time))} · ${Number(r.planned_hours)}h</span></div>`).join('')
+        : '';
+      const sh = $('stu-sheet'); sh.classList.add('open'); sh.setAttribute('aria-hidden', 'false'); $('stu-close').focus();
+    }
+    function closeStuSheet() { const sh = $('stu-sheet'); if (!sh) return; sh.classList.remove('open'); sh.setAttribute('aria-hidden', 'true'); }
+    $('stu-close').addEventListener('click', closeStuSheet);
+    document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('stu-sheet').classList.contains('open')) closeStuSheet(); });
+
+    // 오늘 › 정규시간보다 인정시간이 모자란 학생
+    async function dashShortLoad() {
+      const list = $('d-short-list'); if (!list) return;
+      try { await fetchAttn(); } catch (_) {}
+      const dc = await loadDaily(true);
+      if (!dc.ok) { $('d-short-card').style.display = 'none'; return; }
+      let fetched = null; const items = [];
+      dc.byName.forEach(rows => {
+        const st = dailyStats(rows);
+        if (st.fetched && (!fetched || st.fetched > fetched)) fetched = st.fetched;
+        if (st.rec < st.reg) items.push({ name: rows[0].name, st });
+      });
+      $('d-short-n').textContent = items.length ? items.length + '명' : '';
+      $('d-short-hint').textContent = dc.byName.size ? `오늘까지 등록된 정규시간 대비 인정 출석시간 · 조회 ${fmtFetched(fetched)}` : '';
+      if (!dc.byName.size) { list.innerHTML = '<p class="note">이번 달 출결 결과를 아직 올리지 않았어요 — 아래 [출결 결과 올리기]로 올리면 여기에 표시돼요.</p>'; return; }
+      if (!items.length) { list.innerHTML = '<p class="note">모자란 학생이 없어요.</p>'; return; }
+      items.sort((a, b) => (a.st.rec / a.st.reg) - (b.st.rec / b.st.reg));
+      list.innerHTML = '';
+      items.forEach(it => {
+        const row = document.createElement('div'); row.className = 'short-row';
+        row.innerHTML = `<span class="nm">${esc(it.name)}</span><span class="co">${esc(attnComp[normNm(it.name)] || '')}</span>`
+          + `<span class="hh">${it.st.rec}h / ${it.st.reg}h</span>`
+          + `<span class="why">${it.st.bad.map(r => `<span class="st-dot ${r.status === 'none' ? 'st-none' : 'st-short'}">${esc(mdOf(r.day) + ' ' + badWhy(r))}</span>`).join('')}</span>`;
+        const b = document.createElement('button'); b.type = 'button'; b.className = 'phone-btn'; b.textContent = '달력 보기';
+        b.addEventListener('click', () => openStuSheet(it.name));
+        row.appendChild(b); list.appendChild(row);
+      });
+    }
+
+    // ===== 학생 › 출석 진도 — 이번 달은 정규시간 기준(attendance_daily), 지난달·일별 자료 없는 학생은 노션 월 실적 =====
     let attnMonth = null, attnCache = null, attnComp = {};
+    async function fetchAttn(force) {
+      if (attnCache && !force) return true;
+      const [a, s] = await Promise.all([
+        supabase.from('attendance_monthly').select('name,month,planned_hours,actual_hours,units,updated_at').order('month'),
+        supabase.from('students').select('name,company'),
+      ]);
+      if (a.error) return false;
+      attnCache = a.data || [];
+      attnComp = {};
+      (s.data || []).forEach(x => { attnComp[normNm(x.name)] = x.company || ''; });
+      return true;
+    }
+    const ATTN_STATE = { short: ['모자람', 'var(--danger-500)'], todo: ['진행 중', 'var(--accent)'], ok: ['채움', 'var(--text-primary)'], wait: ['집계 전', 'var(--text-muted)'] };
     async function attnLoad(force) {
       const list = $('at-list'); if (!list) return;
-      if (!attnCache || force) {
-        list.innerHTML = '<p class="note">불러오는 중…</p>';
-        try {
-          const [a, s] = await Promise.all([
-            supabase.from('attendance_monthly').select('name,month,planned_hours,actual_hours,units,updated_at').order('month'),
-            supabase.from('students').select('name,company'),
-          ]);
-          if (a.error) { list.innerHTML = '<p class="note">조회 권한이 아직 없어요 — 서버 설정(sql/42) 적용을 확인해주세요.</p>'; return; }
-          attnCache = a.data || [];
-          attnComp = {};
-          (s.data || []).forEach(x => { attnComp[(x.name || '').replace(/\s+/g, '')] = x.company || ''; });
-        } catch (_) { list.innerHTML = '<p class="note">조회에 실패했어요 — 새로고침해 보세요.</p>'; return; }
-      }
+      if (!attnCache || force) list.innerHTML = '<p class="note">불러오는 중…</p>';
+      let okA;
+      try { okA = await fetchAttn(force); } catch (_) { list.innerHTML = '<p class="note">조회에 실패했어요 — 새로고침해 보세요.</p>'; return; }
+      if (!okA) { list.innerHTML = '<p class="note">조회 권한이 아직 없어요 — 서버 설정(sql/42) 적용을 확인해주세요.</p>'; return; }
+      const dc = await loadDaily(force);
       const months = [...new Set(attnCache.map(r => String(r.month).slice(0, 7)))].sort();
-      const nowYm = new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0');
+      const nowYm = ymdLocal(0).slice(0, 7);
       if (!attnMonth || !months.includes(attnMonth)) attnMonth = months.includes(nowYm) ? nowYm : months[months.length - 1];
       // 월 선택 칩
       const chips = $('at-months'); chips.innerHTML = '';
@@ -3274,50 +3414,46 @@
         b.addEventListener('click', () => { attnMonth = m; attnLoad(); });
         chips.appendChild(b);
       });
-      // 선택 월 행 구성
-      const mrows = attnCache.filter(r => String(r.month).slice(0, 7) === attnMonth && Number(r.planned_hours) > 0)
-        .map(r => ({ name: r.name, company: attnComp[(r.name || '').replace(/\s+/g, '')] || '-',
-                     planned: Number(r.planned_hours), actual: r.actual_hours == null ? null : Number(r.actual_hours),
-                     units: r.units || '', upd: r.updated_at }));
-      // 페이스: 이번 달=경과일 비율, 지난달=100%, 미래달=없음
-      const today = new Date(); const isCur = attnMonth === nowYm; const isPast = attnMonth < nowYm;
-      const dim = new Date(Number(attnMonth.slice(0, 4)), Number(attnMonth.slice(5)), 0).getDate();
-      const pace = isCur ? Math.round(today.getDate() / dim * 100) : (isPast ? 100 : null);
-      const pct = r => r.actual == null ? null : Math.min(100, Math.round(r.actual / r.planned * 100));
-      const stateOf = r => { const p = pct(r);
-        if (p == null) return ['집계 전', 'var(--text-muted)', 'var(--gray-300)'];
-        if (p >= 100) return ['완료', 'var(--text-primary)', 'var(--accent)'];
-        if (pace != null && p < pace - 15) return ['미달', 'var(--danger-500)', 'var(--danger-500)'];
-        return ['진행', 'var(--accent)', 'var(--accent)']; };
+      const isDaily = attnMonth === dc.ym, isPast = attnMonth < nowYm;
+      const mrows = attnCache.filter(r => String(r.month).slice(0, 7) === attnMonth && Number(r.planned_hours) > 0).map(r => {
+        const planned = Number(r.planned_hours), actual = r.actual_hours == null ? null : Number(r.actual_hours);
+        const rows = isDaily ? (dc.byName.get(normNm(r.name)) || []) : [];
+        const d = rows.length ? dailyStats(rows) : null;
+        let state;
+        if (d) state = d.rec < d.reg ? 'short' : (d.rec >= planned ? 'ok' : 'todo');
+        else state = actual == null ? 'wait' : (actual >= planned ? 'ok' : (isPast ? 'short' : 'todo'));
+        return { name: r.name, company: attnComp[normNm(r.name)] || '-', units: r.units || '', planned, actual, d, state,
+                 done: d ? d.rec : (actual || 0) };
+      });
       // 요약
-      const withA = mrows.filter(r => r.actual != null);
-      const sumP = withA.reduce((s, r) => s + r.planned, 0), sumA = withA.reduce((s, r) => s + r.actual, 0);
-      const nDone = mrows.filter(r => pct(r) >= 100).length;
-      const nLag = mrows.filter(r => { const p = pct(r); return p != null && pace != null && p < pace - 15 && p < 100; }).length;
+      const n = k => mrows.filter(r => r.state === k).length;
+      let fetched = null; mrows.forEach(r => { if (r.d && r.d.fetched && (!fetched || r.d.fetched > fetched)) fetched = r.d.fetched; });
+      const noDaily = isDaily ? mrows.filter(r => !r.d).length : 0;
       $('at-sum').innerHTML =
-        `<span class="note"><b style="font-size:16px;color:var(--text-primary)">${sumP ? Math.round(sumA / sumP * 100) : 0}%</b> 전체 달성률(시수)</span>` +
-        `<span class="note"><b style="font-size:16px;color:var(--text-primary)">${nDone}</b>명 완료</span>` +
-        `<span class="note"><b style="font-size:16px;color:var(--danger-500)">${nLag}</b>명 페이스 미달</span>` +
-        (pace != null && isCur ? `<span class="note">월 경과 ${pace}%</span>` : '') +
-        (withA.length < mrows.length ? `<span class="note">${mrows.length - withA.length}명 집계 전</span>` : '');
-      // 목록 — 미달·저조 순 정렬 (집계 전은 맨 아래)
-      mrows.sort((x, y) => { const a = pct(x), b = pct(y); if (a == null) return 1; if (b == null) return -1; return a - b; });
+        `<span class="note"><b style="font-size:16px;color:var(--danger-500)">${n('short')}</b>명 모자람</span>` +
+        `<span class="note"><b style="font-size:16px;color:var(--accent)">${n('todo')}</b>명 진행 중</span>` +
+        `<span class="note"><b style="font-size:16px;color:var(--text-primary)">${n('ok')}</b>명 채움</span>` +
+        (n('wait') ? `<span class="note">${n('wait')}명 집계 전</span>` : '') +
+        (isDaily && fetched ? `<span class="note">정규시간 기준 · 조회 ${fmtFetched(fetched)}</span>` : '<span class="note">노션 월 실적 기준</span>') +
+        (noDaily ? `<span class="note">일별 자료 없음 ${noDaily}명(월 실적으로 표시)</span>` : '');
+      // 목록 — 모자람 먼저, 그다음 달성률 낮은 순, 집계 전은 맨 아래
+      const ORD = { short: 0, todo: 1, ok: 2, wait: 3 };
+      mrows.sort((x, y) => (ORD[x.state] - ORD[y.state]) || ((x.done / x.planned) - (y.done / y.planned)) || x.name.localeCompare(y.name, 'ko'));
       list.innerHTML = '';
       mrows.forEach(r => {
-        const p = pct(r); const [label, tcol, bcol] = stateOf(r);
-        const row = document.createElement('div');
-        row.style.cssText = 'display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--gray-100)';
-        const nm = document.createElement('div'); nm.style.cssText = 'flex:0 0 190px;min-width:0';
-        nm.innerHTML = `<b>${esc(r.name)}</b> <span class="note">${esc(r.company)}</span>` +
-          (r.units ? `<br/><span class="note" style="font-size:12px">${esc(r.units)}</span>` : '');
-        const barWrap = document.createElement('div'); barWrap.style.cssText = 'flex:1;min-width:120px';
-        barWrap.innerHTML = `<div style="height:4px;border-radius:2px;background:var(--gray-200);overflow:hidden">` +
-          `<div style="height:100%;width:${p == null ? 0 : p}%;background:${bcol}"></div></div>`;
-        const val = document.createElement('div'); val.style.cssText = 'flex:0 0 150px;text-align:right;white-space:nowrap';
-        val.innerHTML = p == null
-          ? `<span class="note">예정 ${r.planned}h · 집계 전</span>`
-          : `<b style="color:${tcol}">${p}%</b> <span class="note">${r.actual}h/${r.planned}h</span> <span class="st-dot" style="color:${tcol};font-size:13px">${label}</span>`;
-        row.appendChild(nm); row.appendChild(barWrap); row.appendChild(val);
+        const [label, col] = ATTN_STATE[r.state];
+        const pct = Math.min(100, Math.round(r.done / r.planned * 100));
+        const row = document.createElement(isDaily ? 'button' : 'div');
+        if (isDaily) { row.type = 'button'; row.title = r.name + ' 달력 보기'; row.addEventListener('click', () => openStuSheet(r.name)); }
+        row.className = 'attn-row';
+        const val = r.d ? `${r.d.rec} / ${r.d.reg}h` : (r.actual == null ? '-' : `${r.actual} / ${r.planned}h`);
+        const sub = r.d ? `월 ${r.planned}h` + (r.d.total < r.planned ? ` · 미등록 ${r.planned - r.d.total}h` : '') : (isDaily ? '월 실적' : '');
+        row.innerHTML = `<span class="nm"><b>${esc(r.name)}</b> <span class="note">${esc(r.company)}</span>`
+          + (r.units ? `<br/><span class="note" style="font-size:12px">${esc(r.units)}</span>` : '') + '</span>'
+          + `<span class="bar"><i style="width:${pct}%;background:${r.state === 'short' ? 'var(--danger-500)' : 'var(--accent)'}"></i></span>`
+          + `<span class="val" style="color:${r.state === 'short' ? 'var(--danger-500)' : 'inherit'}">${val}</span>`
+          + `<span class="note sub">${esc(sub)}</span>`
+          + `<span class="st-dot" style="color:${col}">${label}</span>`;
         list.appendChild(row);
       });
       if (!mrows.length) list.innerHTML = '<p class="note">이 달 데이터가 없어요.</p>';
@@ -3400,7 +3536,7 @@
         setStatus($('d-daily-status'), `${payload.month} 반영 — 학생 ${data.students}명 · ${data.inserted}일분 저장` + (data.deleted ? ` (이전 ${data.deleted}일분 교체)` : '') + (data.skipped ? ` · 건너뜀 ${data.skipped}` : ''), 'ok');
         try { logAction('출결 결과 올리기', payload.month + ' · ' + data.students + '명 ' + data.inserted + '일'); } catch (_) {}
         payload = null; file.value = ''; $('d-daily-preview').textContent = '';
-        dailyLastLoad();
+        dailyLastLoad(); dailyCache = null; dashShortLoad();
       });
     })();
 
