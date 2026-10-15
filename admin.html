@@ -72,30 +72,26 @@
   <div id="panel" style="display:none">
     <div class="adm-shell">
       <nav class="adm-nav tabs">
-        <button class="adm-nav-item act" data-tab="dash" aria-current="page"><i data-lucide="layout-dashboard"></i>요약</button>
-        <div class="adm-nav-sep"></div>
-        <button class="adm-nav-item" data-tab="notice"><i data-lucide="megaphone"></i>공지</button>
-        <button class="adm-nav-item" data-tab="consult"><i data-lucide="message-circle"></i>상담</button>
-        <div class="adm-nav-sep"></div>
-        <button class="adm-nav-item" data-tab="library"><i data-lucide="folder"></i>자료</button>
-        <button class="adm-nav-item" data-tab="calendar"><i data-lucide="calendar-days"></i>일정</button>
-        <button class="adm-nav-item" data-tab="recruit"><i data-lucide="circle-help"></i>FAQ</button>
-        <div class="adm-nav-sep"></div>
-        <button class="adm-nav-item" data-tab="members"><i data-lucide="users"></i>가입자</button>
-        <button class="adm-nav-item" data-tab="attn"><i data-lucide="gauge"></i>진도</button>
-        <!-- (파일럿) '기업 관리'·'센터' 탭 숨김 — 복원 시 이 자리에 nav 버튼과 TAB_KEYS의 'stages','centers'를 되살리면 됨 -->
-        <button class="adm-nav-item" data-tab="survey"><i data-lucide="clipboard-list"></i>만족도</button>
+        <!-- [개편 2단계] 메뉴 5개. 버튼은 묶음(data-group)의 첫 화면으로 가고, 묶음 안 화면은 위쪽 하위 탭(#subnav)으로 전환.
+             기존 해시(#notice·#members·#attn·#library…)는 그대로 유효 — showTab 이 묶음을 찾아 강조한다(docs/ADMIN_REDESIGN.md) -->
+        <button class="adm-nav-item act" data-tab="dash" data-group="today" aria-current="page">오늘</button>
+        <button class="adm-nav-item" data-tab="members" data-group="students">학생</button>
+        <button class="adm-nav-item" data-tab="notice" data-group="send">보내기</button>
+        <button class="adm-nav-item" data-tab="consult" data-group="consult">상담</button>
+        <!-- (파일럿) '기업 관리'·'센터' 탭 숨김 — 복원 시 nav 버튼과 TAB_KEYS의 'stages','centers'를 되살리면 됨 -->
+        <button class="adm-nav-item" data-tab="library" data-group="settings">설정</button>
       </nav>
 
       <main class="adm-main">
+      <div class="adm-subnav" id="subnav" role="tablist" aria-label="하위 화면" hidden></div>
       <!-- 전담인력(운영팀) 요약 -->
       <div class="tabsec" id="sec-dash">
-        <h2 class="adm-h2">운영 요약 <span class="hint" id="d-health"></span></h2>
+        <h2 class="adm-h2">오늘 <span class="hint" id="d-health"></span></h2>
         <div class="stat-row">
-          <button type="button" class="stat-cell" data-go="members" title="가입자 탭으로"><div class="sk">학생 매칭</div><div class="sv" id="d-matched">–</div></button>
-          <button type="button" class="stat-cell" data-go="consult" title="상담 탭으로"><div class="sk">미답변 상담</div><div class="sv" id="d-consult">–</div></button>
-          <button type="button" class="stat-cell" id="d-due3-cell" data-go="calendar" title="일정 탭으로"><div class="sk">마감 임박 일정 (D-3 이내)</div><div class="sv" id="d-due3">–</div></button>
-          <button type="button" class="stat-cell" data-go="notice" title="공지 탭 발송 기록으로"><div class="sk">오늘 발송</div><div class="sv" id="d-sent">–</div></button>
+          <button type="button" class="stat-cell" data-go="members" title="학생 명단으로"><div class="sk">학생 매칭</div><div class="sv" id="d-matched">–</div></button>
+          <button type="button" class="stat-cell" data-go="consult" title="상담으로"><div class="sk">미답변 상담</div><div class="sv" id="d-consult">–</div></button>
+          <button type="button" class="stat-cell" id="d-due3-cell" data-go="calendar" title="설정 › 일정으로"><div class="sk">마감 임박 일정 (D-3 이내)</div><div class="sv" id="d-due3">–</div></button>
+          <button type="button" class="stat-cell" data-go="notice" title="보내기 › 발송 기록으로"><div class="sk">오늘 발송</div><div class="sv" id="d-sent">–</div></button>
         </div>
         <!-- 노션 「OJT 월별 — 학생」 실적 → 앱 '내 출석 진도' 카드(sql/42) 반영 — 서버 함수 sync-attendance -->
         <div class="card" id="d-attn-card">
@@ -129,7 +125,7 @@
 
       <!-- 공지 -->
       <div class="tabsec" id="sec-notice" style="display:none">
-        <h2 class="adm-h2">공지</h2>
+        <h2 class="adm-h2">보내기 <span class="hint">공지 작성 · 발송 기록</span></h2>
         <div class="adm-2col">
           <div class="card">
             <p class="ph-card-title">공지 작성</p>
@@ -165,7 +161,7 @@
         <div class="card">
           <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
             <p class="ph-card-title" style="margin:0">학생 출석 진도</p>
-            <span class="note">노션 실적 기준 — 갱신은 요약 탭 [노션 출석진도 반영]</span>
+            <span class="note">노션 실적 기준 — 갱신은 오늘 화면의 [노션 출석진도 반영]</span>
             <span style="margin-left:auto"><button class="mju-btn mju-btn--secondary mju-btn--sm" id="at-refresh">새로고침</button></span>
           </div>
           <div class="filter-chips" id="at-months" style="margin:10px 0 6px"></div>
@@ -241,7 +237,7 @@
             <input type="date" id="c-date" />
             <label for="c-kind">종류</label>
             <select id="c-kind" class="ph-select"><option>외부평가</option><option>마감</option><option>OT</option><option>특강</option><option>행사</option><option selected>기타</option></select>
-            <p class="note" style="margin:4px 0 0">요약 탭 'D-3 마감 임박' 카드에는 종류가 <b>마감</b>인 일정만 집계돼요.</p>
+            <p class="note" style="margin:4px 0 0">오늘 화면의 'D-3 마감 임박' 숫자에는 종류가 <b>마감</b>인 일정만 집계돼요.</p>
             <label>대상</label>
             <div id="c-tgt"></div>
             <label for="c-memo">메모 (선택)</label>
@@ -263,7 +259,7 @@
         <div class="adm-2col" style="margin-top:18px">
           <div class="card">
             <p class="ph-card-title">할 일 등록</p>
-            <p class="note" style="margin:0 0 6px">일정과 달리 <b>완료 체크</b>가 붙어요 — 학생·기업 앱 홈에 표시되고 요약 탭 '이달의 확인 업무' 진행률로 집계됩니다.</p>
+            <p class="note" style="margin:0 0 6px">일정과 달리 <b>완료 체크</b>가 붙어요 — 학생·기업 앱 홈에 표시되고 오늘 화면의 '이달의 확인 업무' 진행률로 집계됩니다.</p>
             <label for="tk-title">제목 <span class="req">*</span></label>
             <input type="text" id="tk-title" placeholder="예: 9월분 출석결과확인 등록 (고용24)" />
             <label for="tk-aud">대상</label>
@@ -337,7 +333,7 @@
 
       <!-- 가입자 관리 (현황 + 명단 등록 통합 — 세그먼트 전환) -->
       <div class="tabsec" id="sec-members" style="display:none">
-        <h2 class="adm-h2">가입자 <span class="hint" id="mo-hint">참여학생은 정렬·필터 후 체크 → 개인 공지·코드 발급 / 휴대폰은 운영자만 열람</span></h2>
+        <h2 class="adm-h2">학생 <span class="hint" id="mo-hint">참여학생은 정렬·필터 후 체크 → 개인 공지·코드 발급 / 휴대폰은 운영자만 열람</span></h2>
         <div id="mo-seg" role="group" aria-label="가입자 화면 구분"></div>
         <div class="card">
           <div class="filter-chips" id="rg-seg" role="group" aria-label="가입자 구분" style="margin-bottom:10px"></div>
@@ -436,7 +432,7 @@
 
       <!-- 모집 콘텐츠 (공고·사례·QnA) -->
       <div class="tabsec" id="sec-recruit" style="display:none">
-        <h2 class="adm-h2">모집 콘텐츠 <span class="hint">채용공고·선배사례·FAQ — 공개 페이지(모집기업/사례/자주 묻는 질문)에 노출됩니다</span></h2>
+        <h2 class="adm-h2">FAQ <span class="hint">공개 페이지(자주 묻는 질문)에 노출됩니다</span></h2>
         <div class="adm-2col">
           <div style="display:flex;flex-direction:column;gap:18px">
             <!-- (학생 전용 전환) 모집 기능 폐지 — 채용공고·선배사례 카드 숨김. 복원 시 display 제거 -->
@@ -478,7 +474,7 @@
           <div style="display:flex;flex-direction:column;gap:18px">
             <div class="card">
               <p class="ph-card-title">FAQ 등록 (직접 작성)</p>
-              <p class="note">상담 탭에서 '사례로 공개'를 눌러도 여기로 들어옵니다. 식별 정보는 꼭 지워주세요.</p>
+              <p class="note">상담에서 '사례로 공개'를 눌러도 여기로 들어옵니다. 식별 정보는 꼭 지워주세요.</p>
               <label for="qa-aud">대상</label>
               <select id="qa-aud" class="ph-select"><option value="all">전체</option><option value="student">학생</option></select>
               <label for="qa-cat">카테고리</label>
@@ -729,17 +725,40 @@
       recruit: () => rcLoad(),
       stages: () => stLoad(),
     };
+    // [개편 2단계] 메뉴 묶음 — 화면 키 → 묶음, 묶음별 하위 탭(순서 = 표시 순서). 새 메뉴 해시(#today 등)는 첫 화면 별칭.
+    const TAB_GROUP = { dash: 'today', members: 'students', onboard: 'students', attn: 'students', notice: 'send', consult: 'consult',
+      library: 'settings', calendar: 'settings', recruit: 'settings', survey: 'settings' };
+    const GROUP_SUBS = {
+      students: [['members', '명단'], ['onboard', '명단 등록·추가'], ['attn', '출석 진도']],
+      settings: [['library', '자료'], ['calendar', '일정·할 일'], ['recruit', 'FAQ'], ['survey', '만족도·설문']],
+    };
+    const TAB_ALIAS = { today: 'dash', students: 'members', send: 'notice', settings: 'library' };
+    function resolveTab(t) { return TAB_ALIAS[t] || t; }
+    function renderSubnav(key) {
+      const box = $('subnav'); const subs = GROUP_SUBS[TAB_GROUP[key]];
+      box.hidden = !subs; box.innerHTML = '';
+      (subs || []).forEach(([k, label]) => {
+        const b = document.createElement('button'); b.type = 'button'; b.setAttribute('role', 'tab');
+        b.textContent = label; b.setAttribute('aria-selected', k === key ? 'true' : 'false');
+        b.addEventListener('click', () => { if (location.hash !== '#' + k) location.hash = k; else showTab(k); });
+        box.appendChild(b);
+      });
+    }
     function showTab(tab, opts) {
+      tab = resolveTab(tab);
       if (!TAB_KEYS.includes(tab)) tab = 'dash';
       if (tab === 'centers' && window.ADMIN_ROLE !== 'super_admin') tab = 'dash';   // 해시 직접 입력·뒤로가기로도 역할 게이트 우회 불가
+      const key = tab;   // 하위 탭 강조용(onboard 는 members 섹션의 등록 세그먼트로 재매핑되기 전 값)
       let seg = null;
-      if (tab === 'onboard') { tab = 'members'; seg = 'onboard'; }   // 구 '명단 등록' 탭 해시·북마크 호환 → 가입자 탭의 등록 세그먼트
+      if (tab === 'onboard') { tab = 'members'; seg = 'onboard'; }   // '명단 등록' = 가입자 섹션의 등록 세그먼트
+      const grp = TAB_GROUP[key];
       document.querySelectorAll('.tabs button').forEach(x => {
-        const on = x.dataset.tab === tab;
+        const on = x.dataset.group === grp;
         x.classList.toggle('act', on);
         if (on) x.setAttribute('aria-current', 'page'); else x.removeAttribute('aria-current');
         if (on && x.scrollIntoView) x.scrollIntoView({ block: 'nearest', inline: 'nearest' });   // 모바일 가로 탭바에서 활성 탭 보이게
       });
+      renderSubnav(key);
       TAB_KEYS.forEach(t => { const el = $('sec-' + t); if (el) el.style.display = (t === tab ? 'block' : 'none'); });
       if (tab === 'members') moShow(seg || 'roster');   // 명시적 #members = 항상 현황(배지·지표 진입점 착지 보정). #onboard 만 등록 세그먼트
       if (adminEmail && !(opts && opts.noLoad) && TAB_LOAD[tab]) TAB_LOAD[tab]();   // 로그인 전에는 조회 안 함
@@ -754,27 +773,11 @@
       $('mo-hint').textContent = seg === 'roster'
         ? '참여학생은 정렬·필터 후 체크 → 개인 공지·코드 발급 / 휴대폰은 운영자만 열람'
         : 'CSV 일괄등록 · 단건 추가 · 기수 이동(졸업)';
-      const segEl = $('mo-seg'); segEl.innerHTML = '';
-      [['roster', '가입자 현황'], ['onboard', '명단 등록·추가']].forEach(([k, label]) => {
-        const b = document.createElement('button'); b.type = 'button';
-        b.className = 'chip' + (seg === k ? ' on' : '');
-        b.setAttribute('aria-pressed', seg === k ? 'true' : 'false');
-        b.textContent = label;
-        b.addEventListener('click', () => {
-          if (moSeg === k) return;
-          moShow(k);
-          // 해시 동기화 — 새로고침·재로그인에도 세그먼트 유지(replaceState 라 hashchange 재진입 없음)
-          history.replaceState(null, '', '#' + (k === 'roster' ? 'members' : 'onboard'));
-          if (k === 'roster' && adminEmail) {
-            // 등록에서 현황으로 돌아올 때 방금 등록분·가입 도움 요청 반영(인라인 편집 중이면 표는 보존)
-            if (!document.querySelector('#rg-table .le-save')) regLoad();
-            uvLoad();
-          }
-        });
-        segEl.appendChild(b);
-      });
+      // [개편 2단계] 현황/등록 전환 칩은 위쪽 하위 탭(#subnav: 명단 · 명단 등록·추가)으로 옮김. 해시가 #members/#onboard 로 바뀌므로
+      // 현황으로 돌아올 때의 재조회는 showTab → TAB_LOAD.members 가 맡는다.
+      $('mo-seg').style.display = 'none';
     }
-    moShow('roster');   // 첫 진입에도 세그먼트 칩이 보이게
+    moShow('roster');
     document.querySelectorAll('.tabs button').forEach(b => b.addEventListener('click', () => {
       if (location.hash !== '#' + b.dataset.tab) location.hash = b.dataset.tab;   // hashchange 가 showTab 호출
       else showTab(b.dataset.tab);
@@ -892,7 +895,7 @@
 
     // 탭 배지 — 처리 대기 건수(.cnt 스타일은 styles.css). 0이면 제거.
     function setTabCnt(tab, n) {
-      const b = document.querySelector(`.adm-nav-item[data-tab="${tab}"]`); if (!b) return;
+      const b = document.querySelector(`.adm-nav-item[data-group="${TAB_GROUP[tab] || tab}"]`); if (!b) return;   // 묶음 버튼에 표시(개편 2단계)
       let c = b.querySelector('.cnt');
       if (!n) { if (c) c.remove(); return; }
       if (!c) { c = document.createElement('span'); c.className = 'cnt'; b.appendChild(c); }
@@ -1336,7 +1339,7 @@
       logAction('CSV내보내기', '발송기록 ' + data.length + '건');
     });
     $('pl-clear').addEventListener('click', async () => {
-      if (!confirm('발송 기록을 모두 지울까요? 복구할 수 없고, 요약 탭의 발송 헬스 표기가 초기화됩니다.')) return;
+      if (!confirm('발송 기록을 모두 지울까요? 복구할 수 없고, 오늘 화면의 마지막 발송 표기가 초기화됩니다.')) return;
       $('pl-clear').disabled = true;
       const { data, error } = await supabase.from('push_logs').delete().gte('sent_at', '1970-01-01').select('id');
       $('pl-clear').disabled = false;
@@ -1355,7 +1358,7 @@
       kickPush();
     }
     // 본 작업은 성공, 알림 발행만 실패했을 때의 공통 안내
-    const PUSH_FAIL_MSG = ' 알림 발행은 실패했어요 — 공지 탭에서 직접 발행해주세요.';
+    const PUSH_FAIL_MSG = ' 알림 발행은 실패했어요 — 보내기에서 직접 발행해주세요.';
 
     // ===== 사안별 투표 (sql/17) =====
     let poPicker = null;
@@ -2665,7 +2668,7 @@
         .order('due_date', { ascending: true }).limit(6);
       if (error) { list.innerHTML = '<p class="note">할 일 목록을 불러오지 못했어요.</p>'; return; }
       if (!(tasks || []).length) {
-        list.innerHTML = '<p class="note">이번 달 확인할 할 일이 없어요 — 일정 탭에서 할 일을 등록하면 여기에 진행률이 표시됩니다.</p>';
+        list.innerHTML = '<p class="note">이번 달 확인할 할 일이 없어요 — 설정 › 일정·할 일에서 할 일을 등록하면 여기에 진행률이 표시됩니다.</p>';
         return;
       }
       list.innerHTML = '';
@@ -2745,10 +2748,10 @@
         else if (hits.length > 1) dup.push(nm);
         else miss.push(nm);
       });
-      if (!picked.length) { setStatus($('d-tp-status'), '가입자 명단에서 이름을 찾지 못했어요 — 가입자 탭에서 [새로고침] 후 다시 시도해주세요.', 'error'); return; }
+      if (!picked.length) { setStatus($('d-tp-status'), '가입자 명단에서 이름을 찾지 못했어요 — 학생 › 명단에서 [새로고침] 후 다시 시도해주세요.', 'error'); return; }
       regSel.clear(); picked.forEach(id => regSel.add(id));
       let note = '';
-      if (dup.length) note += `동명이인 ${dup.length}명(${dup.slice(0, 3).join(', ')}${dup.length > 3 ? ' 외' : ''})은 자동 선택에서 제외했어요 — 가입자 탭에서 직접 선택하세요. `;
+      if (dup.length) note += `동명이인 ${dup.length}명(${dup.slice(0, 3).join(', ')}${dup.length > 3 ? ' 외' : ''})은 자동 선택에서 제외했어요 — 학생 › 명단에서 직접 선택하세요. `;
       if (miss.length) note += `명단 미매칭 ${miss.length}명은 제외됐어요.`;
       $('pv-title').value = '[확인 요청] ' + (task.title || '');
       $('pv-body').value = `'${task.title}' 마감(${task.due_date || '기한 확인'})까지 완료 확인이 필요해요. 앱 홈에서 완료 체크를 눌러주세요. 이미 처리하셨다면 체크만 부탁드려요.`;
@@ -3371,7 +3374,7 @@
       await applyCenterVocab();   // [원장] 담당/유형/상태 등을 DB(centers.vocab)에서 먼저 배급 → 이후 모든 로더가 DB값 사용
       dashLoad(); initPickers().then(fillRecruitPickers); nLoad(); plLoad(); lLoad(); cLoad(); tkLoad(); clLoad(); regLoad(); uvLoad(); rcLoad(); stLoad(); svEvLoadList(); poLoad(); populateAddStudentPickers();
       // URL 해시의 탭 복원(새로고침·재로그인 후 작업 위치 유지) — 위에서 전체 로드했으니 중복 조회는 생략
-      const t = location.hash.slice(1);
+      const t = resolveTab(location.hash.slice(1));
       if (t && TAB_KEYS.includes(t) && !(t === 'centers' && window.ADMIN_ROLE !== 'super_admin')) showTab(t, { noLoad: true });
     }
     $('loginBtn').addEventListener('click', async () => {
