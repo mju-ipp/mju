@@ -200,7 +200,7 @@ body.adm .short-row .co{color:var(--v-mute); font-size:13px}
 body.adm .short-row .hh{color:var(--v-warn); font-weight:500}
 body.adm .short-row .why{display:flex; flex-wrap:wrap; gap:4px 14px; font-size:13px}
 /* 학생 › 출석 진도 행(누르면 상세) */
-body.adm .attn-row{all:unset; box-sizing:border-box; display:grid; grid-template-columns:minmax(0,220px) minmax(80px,1fr) 92px 120px 72px; gap:14px; align-items:center;
+body.adm .attn-row{all:unset; box-sizing:border-box; display:grid; grid-template-columns:minmax(0,260px) minmax(80px,1fr) 92px 140px 72px auto; gap:14px; align-items:center;
   width:100%; min-height:52px; padding:8px 0; border-top:1px solid var(--v-line); font-size:14px}
 body.adm button.attn-row{cursor:pointer}
 body.adm button.attn-row:hover{background:var(--v-paper)}
@@ -208,7 +208,7 @@ body.adm button.attn-row:focus-visible{outline:2px solid var(--v-cobalt); outlin
 body.adm .attn-row .bar{display:block; height:4px; border-radius:2px; background:var(--v-line); overflow:hidden}
 body.adm .attn-row .bar i{display:block; height:100%}
 body.adm .attn-row .val{text-align:right; font-weight:500; white-space:nowrap}
-body.adm .attn-row .sub{margin:0; font-size:12px; white-space:nowrap}
+body.adm .attn-row .sub{margin:0; font-size:12px}
 body.adm .attn-row .note{margin:0}
 /* 학생 상세 시트 — 오른쪽에서. 그림자는 올라오는 면에만 */
 body.adm .stu-sheet{position:fixed; top:0; right:0; z-index:1000; width:440px; max-width:100vw; height:100vh; overflow:auto; background:var(--v-paper);
@@ -238,6 +238,7 @@ body.adm .stu-legend .sw{display:inline-block; width:12px; height:12px; backgrou
   body.adm .short-row .why{grid-column:1 / -1}
   body.adm .attn-row{grid-template-columns:minmax(0,1fr) 92px; gap:4px 12px}
   body.adm .attn-row .bar{grid-column:1 / -1}
+  body.adm .attn-row > span:last-child{grid-column:1 / -1}
 }
 
 /* ── 17. 보내기 통합(개편 7단계) — 첨부 칩 · 중복 경고 · 알림 못 받는 학생 ── */

@@ -6,7 +6,7 @@
   <title>관리자 · 일학습병행 앱</title>
   <meta name="theme-color" content="#121318" />
   <link rel="stylesheet" href="./styles.css" />
-  <link rel="stylesheet" href="./admin.css?v=20261015-2" /><!-- 배포 때 v 를 올려 캐시된 옛 스타일과 새 HTML 이 섞이지 않게 -->
+  <link rel="stylesheet" href="./admin.css?v=20261016-1" /><!-- 배포 때 v 를 올려 캐시된 옛 스타일과 새 HTML 이 섞이지 않게 -->
   <script src="./config.js"></script>
   <style>
     .msg{max-width:80%;padding:9px 12px;border-radius:12px;margin:5px 0;font-size:14px;white-space:pre-wrap}
@@ -126,16 +126,12 @@
           <div class="status" id="d-tp-status"></div>
           <div id="d-tp-list"><p class="note">불러오는 중...</p></div>
         </section>
-        <!-- 자료 갱신 — 노션 월 실적(sync-attendance, sql/42) · 출결점검 결과(attendance_daily, sql/55) -->
+        <!-- 자료 갱신 — 출석결과 엑셀·출결점검 파일(attendance_daily, sql/55·61). 노션 연동은 10/16 제거(sql/61) -->
         <section class="dsec dtools">
           <h3 class="dsec-h">자료 갱신</h3>
-          <div class="trow" id="d-attn-card">
-            <div class="tl"><b>노션 출석진도</b><span class="note" id="d-attn-status">노션 학생월 DB의 월 예정·실적 시수를 앱으로 보내요</span></div>
-            <button class="phone-btn" id="d-attn-sync">반영하기</button>
-          </div>
           <div class="trow" id="d-daily-card">
-            <div class="tl"><b>출결 결과</b><span class="note" id="d-daily-last"></span></div>
-            <label class="phone-btn file-btn"><input type="file" id="d-daily-file" accept=".json,application/json" aria-label="출결 결과 파일 (reports\app_upload_YYYY-MM.json)" />파일 고르기</label>
+            <div class="tl"><b>출결 결과</b><span class="note" id="d-daily-last"></span><span class="note">행정지원시스템 출석결과확인 [다운로드]→[엑셀]을 저장한 파일(여러 개 가능) 또는 출결점검 app_upload_YYYY-MM.json</span></div>
+            <label class="phone-btn file-btn"><input type="file" id="d-daily-file" multiple accept=".xlsx,.json,application/json,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" aria-label="출석결과 엑셀 또는 출결 결과 파일" />파일 고르기</label>
             <button class="mju-btn mju-btn--sm" id="d-daily-go" disabled>올리기</button>
           </div>
           <p class="note" id="d-daily-preview" style="margin:6px 0 0"></p>
@@ -192,12 +188,26 @@
         <div class="card">
           <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
             <p class="ph-card-title" style="margin:0">학생 출석 진도</p>
-            <span class="note">정규시간 기준(오늘 › 출결 결과 올리기) — 일별 자료가 없는 학생은 노션 월 실적으로 표시</span>
+            <span class="note">실적 = 올린 출결(엑셀·출결점검)의 인정시간 합 · 손으로 고친 값은 '수정' 표시 · OFF-JT·OJT 따로, 전체는 외부평가 응시 기준(80%)</span>
             <span style="margin-left:auto"><button class="mju-btn mju-btn--secondary mju-btn--sm" id="at-refresh">새로고침</button></span>
           </div>
           <div class="filter-chips" id="at-months" style="margin:10px 0 6px"></div>
           <div id="at-sum" style="display:flex;gap:14px;flex-wrap:wrap;margin:4px 0 10px"></div>
           <div id="at-list"></div>
+          <details style="margin-top:14px" id="at-input">
+            <summary class="note" style="cursor:pointer">시수 직접 입력 — 실시신고 시간표의 월 예정 시수, 엑셀 없이 실적 입력</summary>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-top:8px">
+              <label class="note">학생 <select id="at-in-name" class="ph-select" style="min-width:110px"></select></label>
+              <label class="note">월 <input type="month" id="at-in-month" style="padding:8px"></label>
+              <label class="note">구분 <select id="at-in-track" class="ph-select"><option value="ojt">OJT</option><option value="offjt">OFF-JT</option></select></label>
+              <label class="note">예정(h) <input type="number" min="0" step="1" id="at-in-plan" style="width:80px;padding:8px"></label>
+              <label class="note">실적(h) <input type="number" min="0" step="1" id="at-in-act" style="width:80px;padding:8px" placeholder="비우면 그대로"></label>
+              <label class="note">메모 <input type="text" id="at-in-note" style="width:180px;padding:8px"></label>
+              <button type="button" class="mju-btn mju-btn--sm" id="at-in-save">저장</button>
+            </div>
+            <p class="note" style="margin:6px 0 0">실적을 넣으면 '수정'으로 표시되고, 다음에 엑셀을 올려도 그 값이 유지돼요. 엑셀 계산값으로 돌리려면 표의 [엑셀 값으로].</p>
+            <div class="status" id="at-in-status"></div>
+          </details>
         </div>
       </div>
       <div class="tabsec" id="sec-vote" style="display:none">
@@ -3566,19 +3576,46 @@
       return `${Number(r.recognized_hours) || 0}h만 인정 · ${why}`;
     }
     const fmtFetched = f => f ? new Date(f).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }) : '-';
-    // 이번 달 실적 숫자 = 노션 실적(attendance_monthly.actual_hours). 일별 자료는 '오늘까지 정규'(분모)와 달력·모자란 날 설명에만 쓴다.
-    // 노션 실적이 아직 없으면 일별 인정 합으로 대신한다(src='daily').
+    // 이번 달 실적 숫자 = 월 실적(attendance_monthly.actual_hours — 올린 출결의 인정 합, 손 수정이면 그 값, sql/61).
+    // 일별 자료는 '오늘까지 정규'(분모)와 달력·모자란 날 설명에만 쓴다. OFF-JT·OJT 행이 같이 있으면(3유형) 합친다.
+    // 월 실적이 아직 없으면 일별 인정 합으로 대신한다(src='daily').
+    const TRACK_LABEL = { offjt: 'OFF-JT', ojt: 'OJT' };
+    const trk = r => r.track === 'offjt' ? 'offjt' : 'ojt';   // sql/61 전 행은 OJT
     function monthRowOf(name, ym) {
-      return (attnCache || []).find(r => String(r.month).slice(0, 7) === ym && normNm(r.name) === normNm(name)) || null;
+      const rs = (attnCache || []).filter(r => String(r.month).slice(0, 7) === ym && normNm(r.name) === normNm(name));
+      if (!rs.length) return null;
+      const withA = rs.filter(r => r.actual_hours != null);
+      return {
+        planned_hours: rs.reduce((s, r) => s + (Number(r.planned_hours) || 0), 0),
+        actual_hours: withA.length ? withA.reduce((s, r) => s + Number(r.actual_hours), 0) : null,
+        units: rs.map(r => r.units).filter(Boolean).join(' · '),
+        manual: rs.some(r => r.source === 'manual'), rows: rs,
+      };
     }
     function curStat(name, rows, ym) {
       const st = dailyStats(rows), mrow = monthRowOf(name, ym);
       const hasN = !!mrow && mrow.actual_hours != null;
-      return { ...st, act: hasN ? Number(mrow.actual_hours) : st.rec, src: hasN ? 'notion' : 'daily', mrow };
+      return { ...st, act: hasN ? Number(mrow.actual_hours) : st.rec, src: hasN ? 'month' : 'daily', mrow };
     }
-    function notionSyncedAt(ym) {
+    function monthSyncedAt(ym) {
       let t = null; (attnCache || []).forEach(r => { if (String(r.month).slice(0, 7) === ym && r.updated_at && (!t || r.updated_at > t)) t = r.updated_at; });
       return t;
+    }
+    // 학생 누적 — track 별, 끝난 달(이번 달 전)만 실적·예정을 더한다(진행 중인 달은 월 예정 대비 낮게 보여서 뺌).
+    // total = 모든 달 예정 합(실시신고 시간표) — 남은 달을 다 채웠을 때 최대 출석률(best) 계산에 쓴다.
+    function cumOf(name) {
+      const o = { offjt: { a: 0, p: 0, total: 0 }, ojt: { a: 0, p: 0, total: 0 } };
+      const nowYm = ymdLocal(0).slice(0, 7);
+      (attnCache || []).forEach(r => {
+        if (normNm(r.name) !== normNm(name)) return;
+        const t = o[trk(r)], p = Number(r.planned_hours) || 0;
+        t.total += p;
+        if (r.actual_hours != null && p > 0 && String(r.month).slice(0, 7) < nowYm) { t.a += Number(r.actual_hours); t.p += p; }
+      });
+      const a = o.offjt.a + o.ojt.a, p = o.offjt.p + o.ojt.p, total = o.offjt.total + o.ojt.total;
+      // 남은 달을 다 채운다고 했을 때의 최대 출석률 — 80% 아래면 외부평가 응시 위험
+      const best = total ? Math.round((a + (total - p)) / total * 100) : null;
+      return { ...o, a, p, total, pct: p ? Math.round(a / p * 100) : null, best };
     }
 
     // 학생 상세 — 이번 달 정규시간 달력(훈련 날 = 코발트 바탕 + 시간, 지난 날 = 점 + 인정시간)
@@ -3590,7 +3627,7 @@
       $('stu-sub').textContent = [attnComp[normNm(name)], mrow && mrow.units].filter(Boolean).join(' · ');
       $('stu-month').textContent = Number(ym.slice(5)) + '월 정규시간';
       $('stu-lede').textContent = rows.length
-        ? (st.src === 'notion' ? `노션 실적 ${st.act}h` : `인정 ${st.act}h(노션 실적 없음)`) + ` / 오늘까지 정규 ${st.reg}h · 등록 ${st.total}h`
+        ? (st.src === 'month' ? `실적 ${st.act}h${mrow && mrow.manual ? '(수정)' : ''}` : `인정 ${st.act}h(월 실적 없음)`) + ` / 오늘까지 정규 ${st.reg}h · 등록 ${st.total}h`
           + (mrow ? ` · 월 계획 ${Number(mrow.planned_hours)}h` : '') + ` · 달력은 출결 조회 ${fmtFetched(st.fetched)} 기준`
         : '이번 달 일별 자료가 없어요 — 오늘 › 출결 결과 올리기로 올리면 표시돼요.';
       const y = Number(ym.slice(0, 4)), m = Number(ym.slice(5));
@@ -3634,9 +3671,9 @@
         if (st.fetched && (!fetched || st.fetched > fetched)) fetched = st.fetched;
         if (st.act < st.reg) items.push({ name: rows[0].name, st });
       });
-      const synced = notionSyncedAt(dc.ym);
+      const synced = monthSyncedAt(dc.ym);
       $('d-short-n').textContent = items.length ? items.length + '명' : '';
-      $('d-short-hint').textContent = dc.byName.size ? `노션 실적 대비 오늘까지 등록된 정규시간 · 노션 반영 ${fmtFetched(synced)}` : '';
+      $('d-short-hint').textContent = dc.byName.size ? `월 실적 대비 오늘까지 등록된 정규시간 · 실적 반영 ${fmtFetched(synced)}` : '';
       $('d-meta-fetch').textContent = dc.byName.size ? `출결 조회 ${fmtFetched(fetched)}` : '';
       $('d-short-card').hidden = !!dc.byName.size && !items.length;
       setDashCnt('short', dc.byName.size ? items.length : null);
@@ -3655,18 +3692,26 @@
       });
     }
 
-    // ===== 학생 › 출석 진도 — 이번 달은 정규시간 기준(attendance_daily), 지난달·일별 자료 없는 학생은 노션 월 실적 =====
+    // ===== 학생 › 출석 진도 — 이번 달은 정규시간 기준(attendance_daily), 지난달·일별 자료 없는 학생은 월 실적(sql/61) =====
     let attnMonth = null, attnCache = null, attnComp = {};
     async function fetchAttn(force) {
       if (attnCache && !force) return true;
-      const [a, s] = await Promise.all([
-        supabase.from('attendance_monthly').select('name,month,planned_hours,actual_hours,units,updated_at').order('month'),
+      const sel = c => supabase.from('attendance_monthly').select(c).order('month');
+      let [a, s] = await Promise.all([
+        sel('name,month,track,planned_hours,actual_hours,auto_actual,source,note,units,updated_at,edited_by,edited_at'),
         supabase.from('students').select('name,company'),
       ]);
+      if (a.error) a = await sel('name,month,planned_hours,actual_hours,units,updated_at');   // sql/61 적용 전
       if (a.error) return false;
       attnCache = a.data || [];
       attnComp = {};
       (s.data || []).forEach(x => { attnComp[normNm(x.name)] = x.company || ''; });
+      // 직접 입력 — 학생 목록
+      const sn = $('at-in-name');
+      if (sn && !sn.options.length) {
+        [...new Set((s.data || []).map(x => (x.name || '').trim()).filter(Boolean))].sort((x, y) => x.localeCompare(y, 'ko'))
+          .forEach(n => { const o = document.createElement('option'); o.value = n; o.textContent = n; sn.appendChild(o); });
+      }
       return true;
     }
     const ATTN_STATE = { short: ['모자람', 'var(--danger-500)'], todo: ['진행 중', 'var(--accent)'], ok: ['채움', 'var(--text-primary)'], wait: ['집계 전', 'var(--text-muted)'] };
@@ -3680,90 +3725,124 @@
       const months = [...new Set(attnCache.map(r => String(r.month).slice(0, 7)))].sort();
       const nowYm = ymdLocal(0).slice(0, 7);
       if (!attnMonth || !months.includes(attnMonth)) attnMonth = months.includes(nowYm) ? nowYm : months[months.length - 1];
-      // 월 선택 칩
+      if ($('at-in-month') && !$('at-in-month').value) $('at-in-month').value = attnMonth || nowYm;
+      // 월 선택 칩 — OFF-JT 만 있는 달은 표시
       const chips = $('at-months'); chips.innerHTML = '';
       months.forEach(m => {
+        const tr = new Set(attnCache.filter(r => String(r.month).slice(0, 7) === m).map(trk));
         const b = document.createElement('button'); b.type = 'button';
         b.className = 'chip' + (attnMonth === m ? ' on' : '');
-        b.textContent = Number(m.slice(5)) + '월';
+        b.textContent = Number(m.slice(5)) + '월' + (tr.has('offjt') && !tr.has('ojt') ? ' OFF-JT' : '');
         b.addEventListener('click', () => { attnMonth = m; attnLoad(); });
         chips.appendChild(b);
       });
       const isDaily = attnMonth === dc.ym, isPast = attnMonth < nowYm;
-      const mrows = attnCache.filter(r => String(r.month).slice(0, 7) === attnMonth && Number(r.planned_hours) > 0).map(r => {
-        const planned = Number(r.planned_hours), actual = r.actual_hours == null ? null : Number(r.actual_hours);
-        const rows = isDaily ? (dc.byName.get(normNm(r.name)) || []) : [];
-        const d = rows.length ? curStat(r.name, rows, attnMonth) : null;
+      // 한 학생 한 줄(그 달 OFF-JT·OJT 행을 합침) — 행마다 track 별 값은 r.parts
+      const byName = new Map();
+      attnCache.filter(r => String(r.month).slice(0, 7) === attnMonth && Number(r.planned_hours) > 0).forEach(r => {
+        const k = normNm(r.name); if (!byName.has(k)) byName.set(k, []); byName.get(k).push(r);
+      });
+      const mrows = [...byName.values()].map(parts => {
+        const name = parts[0].name;
+        const planned = parts.reduce((s, r) => s + Number(r.planned_hours), 0);
+        const withA = parts.filter(r => r.actual_hours != null);
+        const actual = withA.length ? withA.reduce((s, r) => s + Number(r.actual_hours), 0) : null;
+        const rows = isDaily ? (dc.byName.get(normNm(name)) || []) : [];
+        const d = rows.length ? curStat(name, rows, attnMonth) : null;
         const done = d ? d.act : (actual || 0);
-        // 판정: 노션 실적이 오늘까지 정규보다 적으면 모자람(일별 자료 있는 이번 달), 없으면 월 계획 대비
+        // 판정: 월 실적이 오늘까지 정규보다 적으면 모자람(일별 자료 있는 이번 달), 없으면 월 계획 대비
         let state;
         if (d) state = d.act < d.reg ? 'short' : (d.act >= planned ? 'ok' : 'todo');
         else state = actual == null ? 'wait' : (actual >= planned ? 'ok' : (isPast ? 'short' : 'todo'));
-        return { name: r.name, company: attnComp[normNm(r.name)] || '-', units: r.units || '', planned, actual, d, state, done };
+        return { name, company: attnComp[normNm(name)] || '-', units: parts.map(r => r.units).filter(Boolean).join(' · '), planned, actual, d, state, done, parts, cum: cumOf(name) };
       });
       // 요약
       const n = k => mrows.filter(r => r.state === k).length;
-      const synced = notionSyncedAt(attnMonth);
+      const risk = mrows.filter(r => r.cum.best != null && r.cum.best < 80).length;
+      const synced = monthSyncedAt(attnMonth);
       $('at-sum').innerHTML =
         `<span class="note"><b style="font-size:16px;color:var(--danger-500)">${n('short')}</b>명 모자람</span>` +
         `<span class="note"><b style="font-size:16px;color:var(--accent)">${n('todo')}</b>명 진행 중</span>` +
         `<span class="note"><b style="font-size:16px;color:var(--text-primary)">${n('ok')}</b>명 채움</span>` +
         (n('wait') ? `<span class="note">${n('wait')}명 집계 전</span>` : '') +
-        `<span class="note">노션 실적 기준 · 노션 반영 ${fmtFetched(synced)}</span>`;
+        (risk ? `<span class="note"><b style="font-size:16px;color:var(--danger-500)">${risk}</b>명 전체 80% 위험</span>` : '') +
+        `<span class="note">실적 반영 ${fmtFetched(synced)}</span>`;
       // 목록 — 모자람 먼저, 그다음 달성률 낮은 순, 집계 전은 맨 아래
       const ORD = { short: 0, todo: 1, ok: 2, wait: 3 };
       mrows.sort((x, y) => (ORD[x.state] - ORD[y.state]) || ((x.done / x.planned) - (y.done / y.planned)) || x.name.localeCompare(y.name, 'ko'));
       list.innerHTML = '';
+      const cumTxt = (c, k) => c[k].total ? `${TRACK_LABEL[k]} ${c[k].a}/${c[k].p}h` + (c[k].total > c[k].p ? ` (전체 ${c[k].total}h)` : '') : '';
       mrows.forEach(r => {
         const [label, col] = ATTN_STATE[r.state];
         const pct = Math.min(100, Math.round(r.done / r.planned * 100));
-        const row = document.createElement(isDaily ? 'button' : 'div');
-        if (isDaily) { row.type = 'button'; row.title = r.name + ' 달력 보기'; row.addEventListener('click', () => openStuSheet(r.name)); }
+        const row = document.createElement('div');
         row.className = 'attn-row';
         const val = r.d ? `${r.d.act} / ${r.d.reg}h` : (r.actual == null ? '-' : `${r.actual} / ${r.planned}h`);
-        const sub = r.d ? `오늘까지 정규 · 월 ${r.planned}h` + (r.d.total < r.planned ? ` · 미등록 ${r.planned - r.d.total}h` : '') + (r.d.src === 'daily' ? ' · 노션 실적 없음' : '') : '';
+        const trTxt = r.parts.map(p => TRACK_LABEL[trk(p)] + (p.source === 'manual' ? ' 수정' : p.source === 'backfill' ? ' 이수 간주' : '')).join(' · ');
+        const sub = [trTxt,
+          r.d ? `오늘까지 정규 · 월 ${r.planned}h` + (r.d.total < r.planned ? ` · 미등록 ${r.planned - r.d.total}h` : '') + (r.d.src === 'daily' ? ' · 월 실적 없음' : '') : ''].filter(Boolean).join(' · ');
+        const c = r.cum;
+        const cumLine = [cumTxt(c, 'offjt'), cumTxt(c, 'ojt'),
+          c.pct != null ? `지난달까지 전체 ${c.pct}%` + (c.best != null && c.best < 80 ? ` · 끝까지 다 채워도 최대 ${c.best}% — 80% 밑` : '') : ''].filter(Boolean).join(' · ');
         row.innerHTML = `<span class="nm"><b>${esc(r.name)}</b> <span class="note">${esc(r.company)}</span>`
-          + (r.units ? `<br/><span class="note" style="font-size:12px">${esc(r.units)}</span>` : '') + '</span>'
+          + (r.units ? `<br/><span class="note" style="font-size:12px">${esc(r.units)}</span>` : '')
+          + `<br/><span class="note" style="font-size:12px;color:${c.best != null && c.best < 80 ? 'var(--danger-500)' : 'inherit'}">${esc(cumLine)}</span></span>`
           + `<span class="bar"><i style="width:${pct}%;background:${r.state === 'short' ? 'var(--danger-500)' : 'var(--accent)'}"></i></span>`
           + `<span class="val" style="color:${r.state === 'short' ? 'var(--danger-500)' : 'inherit'}">${val}</span>`
           + `<span class="note sub">${esc(sub)}</span>`
           + `<span class="st-dot" style="color:${col}">${label}</span>`;
+        const acts = document.createElement('span'); acts.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap';
+        if (isDaily) {
+          const cb = document.createElement('button'); cb.type = 'button'; cb.className = 'phone-btn'; cb.textContent = '달력';
+          cb.addEventListener('click', () => openStuSheet(r.name)); acts.appendChild(cb);
+        }
+        const eb = document.createElement('button'); eb.type = 'button'; eb.className = 'phone-btn'; eb.textContent = '수정';
+        eb.addEventListener('click', () => {
+          const p = r.parts[0];
+          $('at-input').open = true; $('at-in-name').value = r.name; $('at-in-month').value = attnMonth; $('at-in-track').value = trk(p);
+          $('at-in-plan').value = p.planned_hours ?? ''; $('at-in-act').value = p.actual_hours ?? ''; $('at-in-note').value = p.note || '';
+          $('at-in-plan').focus();
+        });
+        acts.appendChild(eb);
+        r.parts.filter(p => p.source === 'manual' && p.auto_actual != null).forEach(p => {
+          const rb = document.createElement('button'); rb.type = 'button'; rb.className = 'phone-btn';
+          rb.textContent = `엑셀 값으로(${Number(p.auto_actual)}h)`;
+          rb.title = `${TRACK_LABEL[trk(p)]} 실적을 올린 출결 계산값으로 되돌려요` + (p.edited_by ? ` — 마지막 수정 ${p.edited_by}` : '');
+          rb.addEventListener('click', async () => {
+            rb.disabled = true;
+            const { error } = await supabase.rpc('set_attendance_month', { p_name: r.name, p_month: attnMonth, p_track: trk(p), p_mode: 'revert' });
+            if (error) { alert('되돌리지 못했어요: ' + error.message); rb.disabled = false; return; }
+            logAction('출석 실적 되돌림', `${r.name} ${attnMonth} ${TRACK_LABEL[trk(p)]}`);
+            attnCache = null; attnLoad(true); dashShortLoad();
+          });
+          acts.appendChild(rb);
+        });
+        row.appendChild(acts);
         list.appendChild(row);
       });
       if (!mrows.length) list.innerHTML = '<p class="note">이 달 데이터가 없어요.</p>';
     }
+    // 시수 직접 입력 — 예정(시간표 월 배정)·실적·메모 (sql/61 set_attendance_month)
+    $('at-in-save')?.addEventListener('click', async () => {
+      const name = $('at-in-name').value, month = $('at-in-month').value, track = $('at-in-track').value;
+      const num = id => { const v = $(id).value.trim(); return v === '' ? null : Number(v); };
+      const plan = num('at-in-plan'), act = num('at-in-act'), note = $('at-in-note').value.trim() || null;
+      if (!name || !/^\d{4}-\d{2}$/.test(month)) { setStatus($('at-in-status'), '학생과 월을 고르세요.', 'error'); return; }
+      if (plan == null && act == null && note == null) { setStatus($('at-in-status'), '예정·실적·메모 중 하나는 넣어주세요.', 'error'); return; }
+      if ((plan != null && !(plan >= 0)) || (act != null && !(act >= 0))) { setStatus($('at-in-status'), '시간은 0 이상 숫자로 넣어주세요.', 'error'); return; }
+      $('at-in-save').disabled = true;
+      const { data, error } = await supabase.rpc('set_attendance_month', { p_name: name, p_month: month, p_track: track, p_planned: plan, p_actual: act, p_note: note });
+      $('at-in-save').disabled = false;
+      if (error) {
+        setStatus($('at-in-status'), /PGRST202|42883|function|schema cache/i.test(error.message || '') ? '서버 설정(sql/61) 적용 후 쓸 수 있어요.' : '저장 실패: ' + error.message, 'error');
+        return;
+      }
+      setStatus($('at-in-status'), `${name} ${month} ${TRACK_LABEL[track]} — 예정 ${data.planned ?? '-'}h · 실적 ${data.actual ?? '-'}h${data.source === 'manual' ? '(수정)' : ''}`, 'ok');
+      logAction('출석 시수 입력', `${name} ${month} ${TRACK_LABEL[track]}` + (plan != null ? ` 예정 ${plan}` : '') + (act != null ? ` 실적 ${act}` : ''));
+      $('at-in-act').value = '';
+      attnMonth = month; attnCache = null; attnLoad(true); dashShortLoad();
+    });
     $('at-refresh')?.addEventListener('click', () => { attnCache = null; attnLoad(true); });
-
-    // ===== 노션 출석진도 반영 — 노션 「OJT 월별 — 학생」 → attendance_monthly(sql/42) =====
-    // 노션 토큰은 서버 함수(sync-attendance) secret 에만 있고, upsert 는 호출자 권한의 RPC 로 수행.
-    (() => {
-      const btn = $('d-attn-sync'); if (!btn) return;
-      btn.addEventListener('click', async () => {
-        const st = $('d-attn-status');
-        btn.disabled = true; st.textContent = '노션에서 불러와 반영하는 중…';
-        try {
-          const { data: { session } } = await supabase.auth.getSession();
-          if (!session) { st.textContent = '로그인이 필요해요.'; btn.disabled = false; return; }
-          const res = await fetch(window.APP_CONFIG.SUPABASE_URL + '/functions/v1/sync-attendance', {
-            method: 'POST',
-            headers: { Authorization: 'Bearer ' + session.access_token, apikey: window.APP_CONFIG.SUPABASE_ANON_KEY },
-          });
-          const out = await res.json().catch(() => ({}));
-          if (!res.ok || !out.ok) {
-            st.textContent = out.error === 'no_notion_token'
-              ? '서버에 NOTION_TOKEN 시크릿이 아직 없어요 — 함수 설정(sync-attendance)을 확인해주세요.'
-              : (String(out.error || '').includes('not_admin') ? '관리자 계정으로만 반영할 수 있어요.'
-                : '반영 실패: ' + (out.error || res.status));
-          } else {
-            st.textContent = '완료 — 노션 ' + out.notion_rows + '행 → 신규 ' + out.inserted + ' · 갱신 ' + out.updated
-              + (out.skipped ? ' · 건너뜀 ' + out.skipped : '') + ' (' + new Date().toLocaleTimeString('ko-KR') + ')';
-            try { logAction('출석진도 반영', '노션 ' + out.notion_rows + '행'); } catch (_) {}
-            attnCache = null; dashShortLoad(); attnLoad(true);   // 반영한 노션 실적으로 오늘·진도 다시 그리기
-          }
-        } catch (e) { st.textContent = '반영 실패: ' + ((e && e.message) || e); }
-        btn.disabled = false;
-      });
-    })();
 
     // ===== [개편 4단계] 출결 결과 올리기 — 출결점검 scripts\app_export.py 결과 → attendance_daily(sql/55) =====
     // 파일은 이 PC에서 고른 JSON 그대로 RPC 로만 보낸다(비밀키 없음 — 관리자 로그인 세션). 올린 학생의 그 달 행은 서버가 통째로 교체.
@@ -3780,38 +3859,113 @@
       const fmt = s => new Date(s).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
       el.textContent = `이번 달 ${names.size}명 반영됨 · 조회 ${f.length ? fmt(f[f.length - 1]) : '-'} · 올린 시각 ${fmt(data[0].updated_at)}`;
     }
+    // 출석결과 엑셀(행정지원시스템 출석결과확인 [다운로드]→[엑셀] 저장본) 읽기 — 파일은 브라우저 안에서만 읽고 서버에 올리지 않는다.
+    // 칸 구조(2026-09 TPC로보틱스 저장본으로 확인, 출결점검 hrd-auto\parse_atend.py 와 같음):
+    //   1행 날짜 'YYYY-MM-DD(요)' — 7열부터 날짜마다 4열(OJT 시작·종료, Off-JT 시작·종료)
+    //   3행 'OJT (정규/보강)' · 'Off-JT (정규/보강)' 시간, 5행 정규 시작·종료 시각
+    //   학생 5행 블록: 1열 번호·2열 이름 / 그 날짜 열 = OJT 인정시간, +2열 = Off-JT 인정시간 / 3번째 줄 = 출석방식·입퇴실
+    let _xlsxLib = null;
+    function loadXlsx() {
+      if (window.XLSX) return Promise.resolve(window.XLSX);
+      if (_xlsxLib) return _xlsxLib;
+      _xlsxLib = new Promise((ok, no) => {
+        const s = document.createElement('script');
+        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+        s.onload = () => ok(window.XLSX); s.onerror = () => { _xlsxLib = null; no(new Error('엑셀 읽기 도구를 불러오지 못했어요 — 인터넷 연결을 확인해주세요.')); };
+        document.head.appendChild(s);
+      });
+      return _xlsxLib;
+    }
+    function parseAtendSheet(XLSX, buf, label, fetchedAt) {
+      const wb = XLSX.read(buf, { type: 'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const g = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, defval: '' });
+      const cell = (r, c) => String(((g[r] || [])[c]) ?? '').trim();
+      const days = [];
+      for (let c = 6; c < (g[0] || []).length; c += 4) {
+        const m = cell(0, c).match(/^(\d{4}-\d{2}-\d{2})/); if (m) days.push({ c, day: m[1] });
+      }
+      if (!days.length) throw new Error(`${label}: 출석결과 엑셀 형식이 아니에요(1행에 날짜가 없음)`);
+      const hrs = s => { const m = String(s).match(/\(\s*([\d.]+)\s*\//); return m ? Number(m[1]) : 0; };
+      const tm = s => { const m = String(s).match(/(\d{1,2}):(\d{2})/); return m ? m[1].padStart(2, '0') + ':' + m[2] : null; };
+      const today = ymdLocal(0), rows = [];
+      for (let r = 6; r < g.length; r++) {
+        if (!/^\d+$/.test(cell(r, 0))) continue;
+        const name = cell(r, 1); if (!name) continue;
+        days.forEach(({ c, day }) => {
+          [['ojt', c], ['offjt', c + 2]].forEach(([track, cc]) => {
+            const planned = hrs(cell(2, cc)); if (!(planned > 0)) return;
+            const judged = day < today, rec = Number(cell(r, cc)) || 0;
+            const io = track === 'ojt' ? cell(r + 2, c + 1) : '';
+            const [tin, tout] = io && io !== '-' ? io.split('~').map(x => x.trim()) : ['', ''];
+            rows.push({
+              name, day, track, start: tm(cell(4, cc)), end: tm(cell(4, cc + 1)), planned,
+              recognized: judged ? rec : null,
+              status: judged ? (rec >= planned ? 'ok' : rec > 0 ? 'short' : 'none') : 'planned',
+              in: tin || null, out: tout && tout !== '00:00' ? tout : null,
+              method: track === 'ojt' ? (cell(r + 2, c) || null) : null, course: label, fetched_at: fetchedAt,
+            });
+          });
+        });
+      }
+      if (!rows.length) throw new Error(`${label}: 학생 행이나 정규시간이 없어요`);
+      return rows;
+    }
     (() => {
       const file = $('d-daily-file'), go = $('d-daily-go'); if (!file || !go) return;
-      let payload = null;
+      let payloads = null;   // [{ month, rows }] — 달마다 한 번씩 올린다
       file.addEventListener('change', async () => {
-        payload = null; go.disabled = true; setStatus($('d-daily-status'), '', 'info'); $('d-daily-preview').textContent = '';
-        const f = file.files && file.files[0]; if (!f) return;
-        let j;
-        try { j = JSON.parse(await f.text()); } catch (_) { setStatus($('d-daily-status'), 'JSON 파일이 아니에요 — app_upload_YYYY-MM.json 을 골라주세요.', 'error'); return; }
-        const rows = Array.isArray(j && j.rows) ? j.rows : null;
-        if (!/^\d{4}-\d{2}$/.test((j && j.month) || '') || !rows || !rows.length) { setStatus($('d-daily-status'), '형식이 달라요 — month·rows 가 있는 app_upload 파일이어야 해요.', 'error'); return; }
+        payloads = null; go.disabled = true; setStatus($('d-daily-status'), '', 'info'); $('d-daily-preview').textContent = '';
+        const files = [...(file.files || [])]; if (!files.length) return;
+        const all = []; const errs = [];
+        for (const f of files) {
+          try {
+            if (/\.json$/i.test(f.name)) {
+              const j = JSON.parse(await f.text());
+              if (!/^\d{4}-\d{2}$/.test((j && j.month) || '') || !Array.isArray(j.rows) || !j.rows.length) throw new Error(`${f.name}: month·rows 가 있는 app_upload 파일이어야 해요`);
+              j.rows.forEach(r => all.push(r));
+            } else {
+              setStatus($('d-daily-status'), '엑셀 읽는 중…', 'info');
+              const XLSX = await loadXlsx();
+              const label = f.name.replace(/\.xlsx$/i, '');
+              parseAtendSheet(XLSX, new Uint8Array(await f.arrayBuffer()), label, new Date(f.lastModified).toISOString()).forEach(r => all.push(r));
+            }
+          } catch (e) { errs.push(e.message || String(e)); }
+        }
+        setStatus($('d-daily-status'), errs.join(' / '), errs.length ? 'error' : 'info');
+        if (!all.length) return;
         const norm = s => (s || '').replace(/\s+/g, '');
-        const names = [...new Set(rows.map(r => norm(r.name)).filter(Boolean))];
-        const cnt = {}; rows.forEach(r => { cnt[r.status] = (cnt[r.status] || 0) + 1; });
-        const fetched = rows.map(r => r.fetched_at).filter(Boolean).sort();
+        const byMonth = new Map();
+        all.forEach(r => { const m = String(r.day || '').slice(0, 7); if (!byMonth.has(m)) byMonth.set(m, []); byMonth.get(m).push(r); });
         // 명단에 없는 이름은 학생 앱에서 본인 조회가 안 되므로 미리 알린다(올리기는 막지 않음)
-        let miss = [];
-        try { const { data: st } = await supabase.from('students').select('name'); const have = new Set((st || []).map(s => norm(s.name))); miss = names.filter(n => !have.has(n)); } catch (_) {}
-        $('d-daily-preview').textContent = `${j.month} · 학생 ${names.length}명 · ${rows.length}일분 — `
-          + Object.keys(DAILY_LABEL).filter(k => cnt[k]).map(k => `${DAILY_LABEL[k]} ${cnt[k]}`).join(' · ')
-          + (fetched.length ? ` · 조회 ${fetched[0].slice(5, 16).replace('T', ' ')}~${fetched[fetched.length - 1].slice(11, 16)}` : '')
-          + (miss.length ? ` · 명단에 없는 이름 ${miss.length}명(${miss.join(', ')})` : '');
-        payload = { month: j.month, rows }; go.disabled = false;
+        let have = null;
+        try { const { data: st } = await supabase.from('students').select('name'); have = new Set((st || []).map(s => norm(s.name))); } catch (_) {}
+        const lines = [...byMonth.entries()].sort().map(([m, rows]) => {
+          const names = [...new Set(rows.map(r => norm(r.name)).filter(Boolean))];
+          const cnt = {}; rows.forEach(r => { cnt[r.status] = (cnt[r.status] || 0) + 1; });
+          const tr = { ojt: rows.filter(r => r.track !== 'offjt').length, offjt: rows.filter(r => r.track === 'offjt').length };
+          const miss = have ? names.filter(n => !have.has(n)) : [];
+          return `${m} · 학생 ${names.length}명 · ${rows.length}일분(` + (tr.ojt ? `OJT ${tr.ojt}` : '') + (tr.ojt && tr.offjt ? ' · ' : '') + (tr.offjt ? `OFF-JT ${tr.offjt}` : '') + ') — '
+            + Object.keys(DAILY_LABEL).filter(k => cnt[k]).map(k => `${DAILY_LABEL[k]} ${cnt[k]}`).join(' · ')
+            + (miss.length ? ` · 명단에 없는 이름 ${miss.length}명(${miss.join(', ')})` : '');
+        });
+        $('d-daily-preview').textContent = `파일 ${files.length - errs.length}개 — ` + lines.join(' / ');
+        payloads = [...byMonth.entries()].sort().map(([month, rows]) => ({ month, rows }));
+        go.disabled = false;
       });
       go.addEventListener('click', async () => {
-        if (!payload) return;
+        if (!payloads) return;
         go.disabled = true; setStatus($('d-daily-status'), '올리는 중…', 'info');
-        const { data, error } = await supabase.rpc('bulk_upsert_attendance_daily', { p_month: payload.month, p_rows: payload.rows });
-        if (error) { setStatus($('d-daily-status'), '올리기 실패: ' + (/not_admin/.test(error.message || '') ? '관리자 계정으로만 올릴 수 있어요.' : error.message), 'error'); go.disabled = false; return; }
-        setStatus($('d-daily-status'), `${payload.month} 반영 — 학생 ${data.students}명 · ${data.inserted}일분 저장` + (data.deleted ? ` (이전 ${data.deleted}일분 교체)` : '') + (data.skipped ? ` · 건너뜀 ${data.skipped}` : ''), 'ok');
-        try { logAction('출결 결과 올리기', payload.month + ' · ' + data.students + '명 ' + data.inserted + '일'); } catch (_) {}
-        payload = null; file.value = ''; $('d-daily-preview').textContent = '';
-        dailyLastLoad(); dailyCache = null; dashShortLoad();
+        const done = [];
+        for (const p of payloads) {
+          const { data, error } = await supabase.rpc('bulk_upsert_attendance_daily', { p_month: p.month, p_rows: p.rows });
+          if (error) { setStatus($('d-daily-status'), (done.length ? done.join(' / ') + ' / ' : '') + `${p.month} 올리기 실패: ` + (/not_admin/.test(error.message || '') ? '관리자 계정으로만 올릴 수 있어요.' : error.message), 'error'); go.disabled = false; return; }
+          done.push(`${p.month} 반영 — 학생 ${data.students}명 · ${data.inserted}일분` + (data.deleted ? ` (이전 ${data.deleted}일분 교체)` : '') + (data.skipped ? ` · 건너뜀 ${data.skipped}` : '') + (data.months != null ? ` · 월 실적 ${data.months}건 다시 계산` : ''));
+          try { logAction('출결 결과 올리기', p.month + ' · ' + data.students + '명 ' + data.inserted + '일'); } catch (_) {}
+        }
+        setStatus($('d-daily-status'), done.join(' / '), 'ok');
+        payloads = null; file.value = ''; $('d-daily-preview').textContent = '';
+        dailyLastLoad(); dailyCache = null; attnCache = null; dashShortLoad(); attnLoad(true);
       });
     })();
 
