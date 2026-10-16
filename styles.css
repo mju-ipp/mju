@@ -747,10 +747,13 @@ details.oj-u[open] > summary .oj-u-more{color:var(--text-muted)}
 .oj-est{margin:0 0 10px; font-size:13px}
 .oj-grp{padding:14px 16px}
 /* [sql/63] 홈 일정 카드 — 달 넘기기 달력(학생: OFF-JT 수업·OJT 훈련·월 예정·능력단위) */
-.hc-mh{font-size:13px; line-height:1.5; color:var(--text-secondary); margin:0 0 4px}
-.hc-mh b{color:var(--tint-fg); font-weight:700; margin-right:4px}
-.hc-mu{display:block; color:var(--text-primary)}
-.hc-mh + .cal-grid,.ph-note + .cal-grid{margin-top:10px}
+.hc-cal{grid-template-columns:minmax(0,.5fr) repeat(5,minmax(0,1fr)) minmax(0,.5fr); gap:2px}   /* 주말 칸 좁게 → 평일 수업 칸 넓게 */
+.hc-cal .cal-cell.offjt{justify-content:flex-start; align-items:stretch; padding:5px 3px 6px; min-width:0}
+.hc-cal .cal-cell.offjt > span:first-child{align-self:center}
+.hc-it{display:block; margin-top:4px; font-size:10px; line-height:1.25; letter-spacing:-.03em; text-align:center; word-break:keep-all; overflow-wrap:anywhere}
+.hc-it b{display:block; font-weight:700}
+.hc-it span{display:block; font-weight:500; color:var(--text-secondary)}
+.hc-it + .hc-it{padding-top:4px; border-top:1px dashed var(--border-default)}
 .hc-day{margin:10px 0 2px; padding:10px 12px; border:1px solid var(--tint-bg); border-radius:10px}
 .hc-day-t{margin:0 0 2px; font-size:14px; font-weight:700; color:var(--text-primary)}
 .hc-sub{margin:14px 0 2px; font-size:12.5px; font-weight:700; color:var(--text-muted)}

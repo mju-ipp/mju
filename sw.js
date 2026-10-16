@@ -16,7 +16,7 @@
  *   따라서 './firebase-messaging-sw.js' 를 다시 등록하는 코드를 넣지 말 것.
  *
  * 코드를 고친 뒤 반영이 안 되면 CACHE 버전 숫자를 올리세요(브라우저 캐시 갱신). */
-const CACHE = 'ilhak-v31';   // 홈 일정 카드 달 넘기기 달력 + 월별 예정·능력단위(sql/63) — 캐시 강제 갱신
+const CACHE = 'ilhak-v32';   // 홈 달력 수업 칸에 과목·능력단위 전부, 월 머리 문구 뺌 — 캐시 강제 갱신
 const ASSETS = ['./', './index.html', './install.html', './notice.html', './library.html', './calendar.html',
   './consult.html', './survey.html', './faq.html', './privacy.html',
   './qna.html', './mycompany.html',

@@ -756,20 +756,6 @@
       const sByDate = {};
       sDays.forEach(r => { (sByDate[r.day] = sByDate[r.day] || []).push(r); });
 
-      // 그 달 머리 — 구분별 예정·실적 + 능력단위(학생만)
-      function monthHead(ym) {
-        if (!sd) return '';
-        const mr = sRows.filter(r => String(r.month).slice(0, 7) === ym && (Number(r.planned) > 0 || r.units));
-        if (!mr.length) return '';
-        return mr.map(r => {
-          const t = r.track === 'offjt' ? 'offjt' : 'ojt';
-          const units = t === 'offjt' ? offUnitNames(sDays, ym).join(' · ') : (r.units || '');
-          const act = r.actual == null ? '' : ` · 실적 ${Number(r.actual)}h${ym === thisYm ? '(진행 중)' : ''}`;
-          return `<div class="hc-mh"><b>${TL[t]}</b> 예정 ${r.planned != null ? Number(r.planned) + 'h' : '미정'}${act}` +
-            (units ? `<span class="hc-mu">능력단위 — ${esc(units)}</span>` : '') + `</div>`;
-        }).join('') + (mr.some(r => r.track === 'offjt') ? `<p class="ph-note" style="margin:2px 0 0">OFF-JT 는 직무 수업일정 기준이에요.</p>` : '');
-      }
-
       // 날짜를 누르면 아래에 — 그날 수업(과목·능력단위 → 요소·수행과업) / 훈련(정규·인정) / 일정
       function dayDetail(ds) {
         const srs = sByDate[ds] || [], evts = byDate[ds] || [];
@@ -799,7 +785,6 @@
       }
 
       const dow = ['일', '월', '화', '수', '목', '금', '토'].map(d => `<span class="cal-dow">${d}</span>`).join('');
-      const short = s => s.replace(/\s+/g, '').slice(0, 4);
       function draw() {
         const y = Number(homeYm.slice(0, 4)), mo = Number(homeYm.slice(5)) - 1;
         const first = new Date(y, mo, 1), days = new Date(y, mo + 1, 0).getDate();
@@ -811,10 +796,9 @@
           const evts = byDate[ds] || [], srs = sByDate[ds] || [];
           const sch = srs.find(isSchedDay), att = srs.filter(r => !isSchedDay(r));
           let inner = `<span>${d}</span>`;
-          if (sch) {
-            const names = offItems(sch.course).map(x => x.s);
-            inner += names.slice(0, 2).map(s => `<span class="oj-s">${esc(short(s))}</span>`).join('') + (names.length > 2 ? `<span class="oj-s">+${names.length - 2}</span>` : '');
-          }
+          // 수업 칸 — 과목·능력단위를 줄임 없이 다 보여주고 칸이 내용만큼 늘어남('교안 참고' 같은 단위는 과목만)
+          if (sch) inner += offItems(sch.course).map(x =>
+            `<span class="hc-it"><b>${esc(x.s)}</b>${x.u && !/^교안/.test(x.u) ? `<span>${esc(x.u)}</span>` : ''}</span>`).join('');
           att.forEach(r => {
             const st = r.status || 'planned';
             inner += st === 'planned' ? `<span class="ojt-t">${esc(r.start || '')}</span>` : `<span class="ojt-st ${st}">${st === 'none' ? '없음' : (Number(r.recognized) || 0) + 'h'}</span>`;
@@ -832,9 +816,8 @@
               `<b>${y}년 ${mo + 1}월</b>` +
               `<button type="button" class="cal-nav" id="hc-next" aria-label="다음 달"${homeYm >= maxYm ? ' disabled' : ''}><i data-lucide="chevron-right"></i></button>` +
             `</div>` +
-            monthHead(homeYm) +
-            `<div class="cal-grid">${dow}</div>` +
-            `<div class="cal-grid" style="margin-bottom:4px">${cells}</div>` +
+            `<div class="cal-grid hc-cal">${dow}</div>` +
+            `<div class="cal-grid hc-cal" style="margin-bottom:4px">${cells}</div>` +
             (homeSel ? dayDetail(homeSel) : (sd && (sDays.some(r => r.day.slice(0, 7) === homeYm)) ? `<p class="ph-note" style="margin:6px 0 0">날짜를 누르면 그날 수업·훈련 내용이 나와요.</p>` : '')) +
             (homeYm === thisYm ? `<p class="hc-sub">다가오는 일정</p>` + listHtml : `<button type="button" class="hc-today" id="hc-today">이번 달로</button>`) +
             `<a href="./calendar.html" style="display:inline-flex;align-items:center;gap:4px;font-size:12.5px;font-weight:700;color:var(--link);margin-top:10px;text-decoration:none">전체 일정 보기 <i data-lucide="chevron-right" style="width:14px;height:14px"></i></a>` +
