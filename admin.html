@@ -1934,6 +1934,13 @@
     }
     const regInterest = r => Array.isArray(r.interest_jobs) ? r.interest_jobs.join(' · ') : (r.interest_jobs || '');
     let pushMap = {}, pushTotal = 0;   // 알림 켠 기기 현황 (sql/46) — 이름(공백제거)→기기수
+    // 학생 단계(sql/59) — 기수·유형으로 자동 판정, 행 편집에서 직접 지정 가능. 비콘 알림은 OJT 학생만 받는다.
+    const PHASE_LABEL = { offjt: 'OFF-JT', ojt: 'OJT', before: '시작 전', done: '종료' };
+    function phaseCell(r) {
+      if (!('phase' in r)) return '-';
+      const t = PHASE_LABEL[r.phase] || '-';
+      return r.phaseOv ? `${t} <span class="note" title="기수·유형 대신 직접 지정한 단계">지정</span>` : t;
+    }
     async function regLoad() {
       let rows;
       const { data: roster, error: rerr } = await supabase.rpc('admin_students');   // 전체 학생 명단(R15)
@@ -1941,11 +1948,13 @@
         rows = roster.map(s => ({ id: 'st:' + (s.name || '') + '|' + (s.phone || ''), name: s.name, phone: s.phone, target_type: 'student', job_key: s.job_key || null, company: s.company || null, type1: s.type1 || null, manager: s.manager || null, signed: !!s.signed }));
         // [보강] admin_students 가 id·status·기수를 미반환 → students 마스터 직접 조회(센터 SELECT 허용)로 상태 표시 + 실제 id(삭제용) 채움. 권한 없으면 조용히 스킵(기존 동작).
         try {
-          const { data: meta } = await supabase.from('students').select('id,name,phone,status,cohort');
+          // 단계(OFF-JT/OJT)는 sql/59 계산 칸 phase — 적용 전이면 칸 없이 다시 읽는다
+          let { data: meta, error: merr } = await supabase.from('students').select('id,name,phone,status,cohort,phase_override,phase');
+          if (merr) ({ data: meta } = await supabase.from('students').select('id,name,phone,status,cohort'));
           if (Array.isArray(meta)) {
             const mk = (n, p) => (n || '') + '|' + (p || ''); const mmap = {};
             meta.forEach(m => { mmap[mk(m.name, m.phone)] = m; });
-            rows.forEach(r => { const m = mmap[mk(r.name, r.phone)]; if (m) { r.dbId = m.id; r.status = m.status || r.status || null; r.cohort = m.cohort || r.cohort || null; } });
+            rows.forEach(r => { const m = mmap[mk(r.name, r.phone)]; if (m) { r.dbId = m.id; r.status = m.status || r.status || null; r.cohort = m.cohort || r.cohort || null; if ('phase' in m) { r.phase = m.phase; r.phaseOv = m.phase_override || ''; } } });
           }
         } catch (_) {}
         // 지원자(매칭 전)·기업담당자는 명단이 아닌 registrations 기준 — 표에 병합
@@ -2101,7 +2110,7 @@
       }
       $('rg-count').textContent = cntTxt + (rows.length !== segTotal ? ' · 필터 ' + rows.length + '명' : '');
       const cols = isStu
-        ? [['name', '이름'], ['manager', '담당직원'], ['job_key', '직무'], ['company', '기업'], ['cohort', '기수'], ['status', '상태'], ['signed', '가입']]
+        ? [['name', '이름'], ['manager', '담당직원'], ['job_key', '직무'], ['company', '기업'], ['cohort', '기수'], ['phase', '단계'], ['status', '상태'], ['signed', '가입']]
         : regSeg === 'applicant'
           ? [['name', '이름'], ['interest', '관심직무'], ['created_at', '등록일']]
           : ccReady
@@ -2135,7 +2144,7 @@
         const bell = ((r.target_type || 'student') === 'student' && _nb) ? ` <span class="mju-badge" title="알림 켠 기기 ${_nb}대">알림${_nb > 1 ? ' ' + _nb : ''}</span>` : '';
         const signed = (r.signed ? '<span class="mju-badge mju-badge--success">가입</span>' : '<span class="mju-badge mju-badge--neutral">미가입</span>') + bell;
         const vals = isStu
-          ? [esc(r.name || ''), esc(r.manager || '-'), esc(r.job_key || '-'), esc(r.company || '-'), esc(r.cohort || '-'), esc(r.status || '-'), signed]
+          ? [esc(r.name || ''), esc(r.manager || '-'), esc(r.job_key || '-'), esc(r.company || '-'), esc(r.cohort || '-'), phaseCell(r), esc(r.status || '-'), signed]
           : regSeg === 'applicant'
             ? [esc(r.name || ''), esc(r.interest || '-'), fmtD(r.created_at)]
             : ccReady
@@ -2262,7 +2271,7 @@
         const tdc = document.createElement('td');
         // [정합성] 가입자 생애주기 편집 — 기수/상태/담당/유형. update_student_lifecycle RPC(센터 스코프·스키마 안전).
         const editBtn = document.createElement('button'); editBtn.type = 'button'; editBtn.className = 'phone-btn';
-        editBtn.style.marginLeft = '4px'; editBtn.title = '기수·상태·담당·유형 수정'; editBtn.innerHTML = '<i data-lucide="pencil"></i>';
+        editBtn.style.marginLeft = '4px'; editBtn.title = '기수·상태·담당·유형·단계 수정'; editBtn.innerHTML = '<i data-lucide="pencil"></i>';
         let editorTr = null;
         editBtn.addEventListener('click', () => {
           if (editorTr) { editorTr.remove(); editorTr = null; return; }
@@ -2280,16 +2289,18 @@
             `<label class="note">상태 <select class="le-status">${opt(window.STATUSES, r.status || '')}</select></label>` +
             `<label class="note">담당 <select class="le-manager">${opt(window.MANAGERS, r.manager || '')}</select></label>` +
             `<label class="note">유형 <select class="le-type1">${opt(window.TYPES, r.type1 || '')}</select></label>` +
+            (('phase' in r) ? `<label class="note">단계 <select class="le-phase"><option value="">자동(기수·유형)</option>` +
+              ['offjt', 'ojt'].map(v => `<option value="${v}"${r.phaseOv === v ? ' selected' : ''}>${PHASE_LABEL[v]}</option>`).join('') + '</select></label>' : '') +
             '<button type="button" class="mju-btn mju-btn--sm le-save">저장</button>' +
             '<span class="le-msg note"></span></div>';
           editorTr.appendChild(td); tr.after(editorTr);
-          const elC = td.querySelector('.le-cohort'), elS = td.querySelector('.le-status'), elM = td.querySelector('.le-manager'), elT = td.querySelector('.le-type1');
-          const init = { cohort: elC.value.trim(), status: elS.value, manager: elM.value, type1: elT.value };   // 더티 트래킹 기준
+          const elC = td.querySelector('.le-cohort'), elS = td.querySelector('.le-status'), elM = td.querySelector('.le-manager'), elT = td.querySelector('.le-type1'), elP = td.querySelector('.le-phase');
+          const init = { cohort: elC.value.trim(), status: elS.value, manager: elM.value, type1: elT.value, phase_override: elP ? elP.value : '' };   // 더티 트래킹 기준
           td.querySelector('.le-save').addEventListener('click', async () => {
             // 바뀐 필드만 전송 — 마스터(admin_students) 경로는 status 등을 미반환하므로 전부 보내면 기존값을 ''로 덮어쓸 위험.
-            const curv = { cohort: elC.value.trim(), status: elS.value, manager: elM.value, type1: elT.value };
+            const curv = { cohort: elC.value.trim(), status: elS.value, manager: elM.value, type1: elT.value, phase_override: elP ? elP.value : '' };
             const patch = {};
-            ['cohort', 'status', 'manager', 'type1'].forEach(k => { if (curv[k] !== init[k]) patch[k] = curv[k]; });
+            ['cohort', 'status', 'manager', 'type1', 'phase_override'].forEach(k => { if (curv[k] !== init[k]) patch[k] = curv[k]; });
             const sb = td.querySelector('.le-save'), msg = td.querySelector('.le-msg');
             if (!Object.keys(patch).length) { msg.textContent = '변경된 내용이 없어요.'; return; }
             sb.disabled = true; msg.textContent = '저장 중...';
