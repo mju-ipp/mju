@@ -47,7 +47,7 @@
     const results = document.getElementById('results');
 
     // 익명이 절대 읽으면 안 되는 테이블들 (개인정보 포함)
-    const MUST_BE_BLOCKED = ['students', 'registrations', 'push_logs', 'push_tokens', 'consultations', 'consultation_messages', 'survey_responses', 'deletion_log', 'sync_log', 'notice_recipients', 'company_contacts', 'survey_answers', 'poll_votes', 'company_info', 'admin_users', 'student_codes', 'company_codes', 'unverified_signups', 'task_checks', 'attendance_monthly', 'attendance_daily', 'notice_reads', 'offjt_schedule', 'offjt_units'];
+    const MUST_BE_BLOCKED = ['students', 'registrations', 'push_logs', 'push_tokens', 'consultations', 'consultation_messages', 'survey_responses', 'deletion_log', 'sync_log', 'notice_recipients', 'company_contacts', 'survey_answers', 'poll_votes', 'company_info', 'admin_users', 'student_codes', 'company_codes', 'unverified_signups', 'task_checks', 'attendance_monthly', 'attendance_daily', 'notice_reads', 'offjt_schedule', 'offjt_units', 'chat_rooms', 'chat_messages'];
     // 익명이 "공개분만" 읽어야 하는 테이블 (의도된 공개 — 읽히는 게 정상)
     const PUBLIC_OK = ['notices', 'library', 'calendar_events', 'jobs', 'companies', 'surveys', 'polls', 'tasks', 'centers'];
     // 익명이 콘텐츠를 '삭제'할 수 없어야 하는 테이블 (삭제 경로 점검).
@@ -57,7 +57,7 @@
     //      삭제 구멍(to anon/public delete using(true))만 잡는다. 교차센터 admin 삭제(adminB→mju 0건)는
     //      STAGING_VERIFY §8 의 관리자 로그인 절차 + pglite 검증(docs/VERIFICATION.md)으로 별도 증명한다.
     //   비파괴: 존재하지 않는 sentinel center_id 로만 필터 → 매칭 0행이라 실제 데이터는 절대 지워지지 않는다.
-    const DELETE_BLOCKED = ['notices', 'library', 'calendar_events', 'consultations', 'consultation_messages', 'notice_recipients', 'task_checks'];
+    const DELETE_BLOCKED = ['notices', 'library', 'calendar_events', 'consultations', 'consultation_messages', 'notice_recipients', 'task_checks', 'chat_rooms', 'chat_messages'];
     const SENTINEL_CENTER = '00000000-0000-0000-0000-000000000000';
 
     document.getElementById('run').addEventListener('click', async () => {
