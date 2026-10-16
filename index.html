@@ -822,6 +822,21 @@
 
       // (10/16 사용자 요청) [날짜별 | 능력단위별] 전환은 뺌 — OFF-JT 단위·요소는 날짜를 누르면, OJT 단위는 아래 'OJT' 묶음에서
 
+      // (10/16 사용자 요청) 과목 이름은 단어 사이에서만 줄바꿈 — '모바일프로그래밍' → 모바일 / 프로그래밍.
+      // 붙여 쓴 이름이라 아는 낱말로 나눠 <wbr>, 칸(.hc-it keep-all)은 그 자리에서만 꺾임. 모르는 글자는 그대로(넘치면 anywhere)
+      const WORDS = ['프로그래밍', '데이터베이스', '의사소통', '클라우드', '프로젝트', '모바일', '인터넷', '시스템', '캡스톤', '디자인',
+        '생성형', '정역학', '기초', '능력', '직업', '윤리', '융합', '보안', '기계', '학습'];
+      function wordBreaks(name) {
+        const t = String(name || ''), parts = []; let i = 0, raw = '';
+        while (i < t.length) {
+          const w = WORDS.find(x => t.startsWith(x, i));
+          if (w) { if (raw) { parts.push(raw); raw = ''; } parts.push(w); i += w.length; }
+          else raw += t[i++];
+        }
+        if (raw) { if (parts.length && /^[\d\s]+$/.test(raw)) parts[parts.length - 1] += raw; else parts.push(raw); }   // '캡스톤디자인1' 의 1 은 앞 낱말에 붙임
+        return parts.map(esc).join('<wbr>');
+      }
+
       // 월~금 5칸(사용자 요청 — 수업·훈련은 평일만). 주말 일정은 아래 그 달 일정 목록에서
       const dow = ['월', '화', '수', '목', '금'].map(d => `<span class="cal-dow">${d}</span>`).join('');
       function draw() {
@@ -838,7 +853,7 @@
           const sch = srs.find(isSchedDay), att = srs.filter(r => !isSchedDay(r));
           let inner = `<span>${d}</span>`;
           // 수업 칸 — 과목 이름만 12px(DESIGN.md 하한), 칸이 내용만큼 늘어남. 능력단위·요소는 날짜를 누르면 아래에
-          if (sch) inner += offItems(sch.course).map(x => `<span class="hc-it">${esc(x.s)}</span>`).join('');
+          if (sch) inner += offItems(sch.course).map(x => `<span class="hc-it">${wordBreaks(x.s)}</span>`).join('');
           att.forEach(r => {
             const st = r.status || 'planned';
             inner += st === 'planned' ? `<span class="ojt-t">${esc(r.start || '')}</span>` : `<span class="ojt-st ${st}">${st === 'none' ? '없음' : (Number(r.recognized) || 0) + 'h'}</span>`;
