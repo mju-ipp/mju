@@ -16,7 +16,7 @@
  *   따라서 './firebase-messaging-sw.js' 를 다시 등록하는 코드를 넣지 말 것.
  *
  * 코드를 고친 뒤 반영이 안 되면 CACHE 버전 숫자를 올리세요(브라우저 캐시 갱신). */
-const CACHE = 'ilhak-v39';   // 명지대 나무 로고 틀 없이(남색/흰색) — 캐시 강제 갱신
+const CACHE = 'ilhak-v40';   // sw 가 같은 사이트 파일을 매번 확인(no-cache) + 배포 시 한 번 새로고침 — 캐시 강제 갱신
 const ASSETS = ['./', './index.html', './install.html', './notice.html', './library.html', './calendar.html',
   './consult.html', './survey.html', './faq.html', './privacy.html',
   './qna.html', './mycompany.html',
@@ -94,7 +94,8 @@ function bumpBadge() {
 
 // ── PWA 캐시부 ───────────────────────────────────────────────────────────────
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS)).catch(()=>{}));
+  // cache:'reload' — 브라우저 HTTP 캐시(GitHub Pages max-age 600)의 옛 파일을 새 캐시에 담지 않게
+  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS.map(u => new Request(u, { cache: 'reload' })))).catch(()=>{}));
   self.skipWaiting();
 });
 self.addEventListener('activate', (e) => {
@@ -104,6 +105,13 @@ self.addEventListener('activate', (e) => {
 self.addEventListener('fetch', (e) => {
   const req = e.request;
   if (req.method !== 'GET') return;
-  // 네트워크 우선, 실패 시 캐시 (공지 등 최신 데이터가 중요하므로)
-  e.respondWith(fetch(req).catch(() => caches.match(req)));
+  // 네트워크 우선, 실패 시 캐시 (공지 등 최신 데이터가 중요하므로).
+  // 같은 사이트 파일은 cache:'no-cache' 로 매번 서버에 확인(ETag — 안 바뀌었으면 304) —
+  // 그냥 fetch 하면 브라우저 HTTP 캐시(최대 10분)의 옛 app.js·styles.css 가 나와 배포가 늦게 보였음(10/16).
+  // 페이지 이동(navigate) 요청은 RequestInit 를 붙일 수 없어 주소로 다시 만든다.
+  let net;
+  if (new URL(req.url).origin !== self.location.origin) net = fetch(req);
+  else if (req.mode === 'navigate') net = fetch(req.url, { cache: 'no-cache', credentials: 'same-origin' });
+  else net = fetch(req, { cache: 'no-cache' });
+  e.respondWith(net.catch(() => caches.match(req)));
 });

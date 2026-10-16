@@ -309,6 +309,14 @@ if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('./sw.js').catch(() => {});
   });
+  // 새 sw 가 옛 sw 를 밀어내면(배포) 지금 화면은 옛 파일로 그려진 것 → 한 번만 새로고침해 바로 새 화면으로.
+  // 처음 설치(이전 sw 없음)에는 하지 않음. 무한 새로고침 방지로 이 탭 세션에서 1회.
+  const hadController = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadController) return;
+    try { if (sessionStorage.getItem('sw-reloaded')) return; sessionStorage.setItem('sw-reloaded', '1'); } catch (_) { return; }
+    location.reload();
+  });
 }
 
 // 알림을 이미 켠 기기에서 앱을 열 때 도는 정비 루틴 — 두 가지를 한다.
