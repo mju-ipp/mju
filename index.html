@@ -769,15 +769,18 @@
         return h + '</div>';
       }
 
-      const dow = ['일', '월', '화', '수', '목', '금', '토'].map(d => `<span class="cal-dow">${d}</span>`).join('');
+      // 월~금 5칸(사용자 요청 — 수업·훈련은 평일만). 주말 일정은 아래 '다가오는 일정' 목록과 '전체 일정'에서
+      const dow = ['월', '화', '수', '목', '금'].map(d => `<span class="cal-dow">${d}</span>`).join('');
       function draw() {
         const y = Number(homeYm.slice(0, 4)), mo = Number(homeYm.slice(5)) - 1;
-        const first = new Date(y, mo, 1), days = new Date(y, mo + 1, 0).getDate();
+        const days = new Date(y, mo + 1, 0).getDate();
         if (homeSel && homeSel.slice(0, 7) !== homeYm) homeSel = null;
-        let cells = '';
-        for (let i = 0; i < first.getDay(); i++) cells += '<span></span>';
+        let cells = '', lead = true, wkndEvts = 0;
         for (let d = 1; d <= days; d++) {
           const ds = `${y}-${pad(mo + 1)}-${pad(d)}`;
+          const wd = new Date(y, mo, d).getDay();
+          if (wd === 0 || wd === 6) { wkndEvts += (byDate[ds] || []).length; continue; }
+          if (lead) { for (let i = 1; i < wd; i++) cells += '<span></span>'; lead = false; }   // 그 달 첫 평일 앞 빈칸
           const evts = byDate[ds] || [], srs = sByDate[ds] || [];
           const sch = srs.find(isSchedDay), att = srs.filter(r => !isSchedDay(r));
           let inner = `<span>${d}</span>`;
@@ -802,6 +805,7 @@
             `</div>` +
             `<div class="cal-grid hc-cal">${dow}</div>` +
             `<div class="cal-grid hc-cal" style="margin-bottom:4px">${cells}</div>` +
+            (wkndEvts ? `<p class="ph-note" style="margin:6px 0 0">주말 일정 ${wkndEvts}건은 아래 목록·전체 일정에서 볼 수 있어요.</p>` : '') +
             (homeSel ? dayDetail(homeSel) : (sd && (sDays.some(r => r.day.slice(0, 7) === homeYm)) ? `<p class="ph-note" style="margin:6px 0 0">날짜를 누르면 그날 수업·훈련 내용이 나와요.</p>` : '')) +
             (homeYm === thisYm ? `<p class="hc-sub">다가오는 일정</p>` + listHtml : `<button type="button" class="hc-today" id="hc-today">이번 달로</button>`) +
             `<a href="./calendar.html" style="display:inline-flex;align-items:center;gap:4px;font-size:12.5px;font-weight:700;color:var(--link);margin-top:10px;text-decoration:none">전체 일정 보기 <i data-lucide="chevron-right" style="width:14px;height:14px"></i></a>` +

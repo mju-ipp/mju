@@ -757,7 +757,7 @@ details.oj-u[open] > summary .oj-u-more{color:var(--text-muted)}
 .oj-grp{padding:14px 16px}
 /* [sql/63] 홈 일정 카드 — 달 넘기기 달력(학생: OFF-JT 수업·OJT 훈련·월 예정·능력단위) */
 /* 주말 칸 좁게 + 카드 안쪽 여백까지 써서 평일 수업 칸 넓게 */
-.hc-cal{grid-template-columns:minmax(0,.35fr) repeat(5,minmax(0,1fr)) minmax(0,.35fr); gap:2px; margin-left:-10px; margin-right:-10px}
+.hc-cal{grid-template-columns:repeat(5,minmax(0,1fr)); gap:2px; margin-left:-10px; margin-right:-10px}   /* 월~금 5칸 */
 .hc-cal .cal-cell.offjt{justify-content:flex-start; align-items:stretch; padding:5px 1px 6px; min-width:0}
 .hc-cal .cal-cell.offjt > span:first-child{align-self:center}
 .hc-it{display:block; margin-top:4px; font-size:12px; font-weight:500; line-height:1.3; letter-spacing:-.04em; text-align:center; word-break:keep-all; overflow-wrap:anywhere}
