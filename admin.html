@@ -2872,11 +2872,12 @@
       if (!list) return;
       list.innerHTML = '<p class="note">불러오는 중...</p>'; setStatus($('d-tp-status'), '', 'info');
       // 창: 지난 7일(놓친 마감 포함) ~ 앞으로 31일, 마감 임박순 6건
-      const { data: tasks, error } = await supabase.from('tasks')
-        .select('id,title,kind,due_date,audience,published')
+      const tq = cols => supabase.from('tasks').select(cols)
         .eq('published', true)
         .gte('due_date', ymdLocal(-7)).lte('due_date', ymdLocal(31))
         .order('due_date', { ascending: true }).limit(6);
+      let { data: tasks, error } = await tq('id,title,kind,due_date,audience,published,auto_key');
+      if (error) ({ data: tasks, error } = await tq('id,title,kind,due_date,audience,published'));   // sql/60 적용 전
       if (error) { list.innerHTML = '<p class="note">할 일 목록을 불러오지 못했어요.</p>'; return; }
       if (!(tasks || []).length) {
         list.innerHTML = '<p class="note">이번 달 확인할 할 일이 없어요 — 설정 › 일정·할 일에서 할 일을 등록하면 여기에 진행률이 표시됩니다.</p>';
@@ -2890,6 +2891,13 @@
         const ddTxt = dd === null ? '' : dd < 0 ? `<span class="mju-badge mju-badge--coral">지남 D+${-dd}</span>` : dd === 0 ? '<span class="mju-badge mju-badge--coral">오늘 마감</span>' : `<span class="mju-badge ${dd <= 3 ? 'mju-badge--gold' : 'mju-badge--sky'}">D-${dd}</span>`;
         box.innerHTML = `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><b style="font-size:14px">${esc(t.title)}</b> <span class="mju-badge mju-badge--neutral">${esc(t.audience || '전체')}</span> ${ddTxt} <span class="note">${esc(t.due_date || '')}</span><span style="margin-left:auto" class="note tp-prog">집계 중…</span></div>`;
         list.appendChild(box);
+        // 월 학습활동서 할 일(sql/60) — 매월 1일 자동 생성, 마감 3일, 1일 전원·2일 미완료자에게 자동 알림
+        if (t.auto_key && t.auto_key.startsWith('diary:') && t.due_date) {
+          const dm = Number(t.due_date.slice(5, 7));
+          const an = document.createElement('div'); an.className = 'note'; an.style.margin = '4px 0 0';
+          an.textContent = `자동 할 일 · 알림 자동 발송: ${dm}/1 09시 전원, ${dm}/2 09시 완료 체크 안 한 학생`;
+          box.appendChild(an);
+        }
         try {
           const { data: p, error: pe } = await supabase.rpc('admin_task_progress', { p_task_id: t.id });
           const prog = box.querySelector('.tp-prog');
