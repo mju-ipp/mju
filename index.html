@@ -722,6 +722,22 @@
       const sByDate = {};
       sDays.forEach(r => { (sByDate[r.day] = sByDate[r.day] || []).push(r); });
 
+      // [sql/64] OJT 날 — 그 달 OJT 능력단위(월 행 units, '·' 로 나뉨)마다 학습안내서 시간·요소·수행과업(학생 과정 학습안내서 기준)
+      function ojtUnits(ym) {
+        const names = [...new Set(sRows.filter(r => r.track !== 'offjt' && String(r.month).slice(0, 7) === ym)
+          .flatMap(r => String(r.units || '').split('·').map(x => x.trim()).filter(Boolean)))];
+        if (!names.length) return '';
+        return `<p class="hc-sub" style="margin:10px 0 4px">${Number(ym.slice(5))}월 OJT 능력단위</p>` + names.map(u => {
+          const info = unitInfo('OJT', u), els = (info && info.elements) || [];
+          const meta = info && info.hours != null ? `<span class="oj-u-meta">학습안내서 ${Number(info.hours)}시간</span>` : '';
+          if (!els.length) return `<div class="oj-u"><span class="oj-u-n">${esc(u)}</span>${meta}</div>`;
+          return `<details class="oj-u"><summary><span class="oj-u-n">${esc(u)}</span>${meta}<span class="oj-u-more">요소 보기</span></summary>` +
+            `<p class="oj-copy">참고만 하고 <b>자기 말로</b> 바꿔 쓰세요 — 그대로 복사하면 공단 모니터링 대상이 돼요.</p>` +
+            els.map((el, i) => `<details class="oj-el"><summary>${i + 1}. ${esc(el.name)}</summary><ul>${(el.tasks || []).map(t => `<li>${esc(t)}</li>`).join('')}</ul></details>`).join('') +
+            `</details>`;
+        }).join('');
+      }
+
       // 날짜를 누르면 아래에 — 그날 수업(과목·능력단위 → 요소·수행과업) / 훈련(정규·인정) / 일정
       function dayDetail(ds) {
         const srs = sByDate[ds] || [], evts = byDate[ds] || [];
@@ -745,6 +761,7 @@
           h += `<div class="oj-u"><span class="oj-u-s">${TL[r.track === 'offjt' ? 'offjt' : 'ojt']}</span>` +
             `<span class="oj-u-n">${r.start ? `${esc(r.start)}–${esc(r.end)}` : '훈련'} · ${Number(r.planned) || 0}시간</span>` +
             `<span class="ojt-st ${st}" style="font-size:12.5px">${ST[st] || st}${st !== 'planned' && st !== 'none' ? ' ' + (Number(r.recognized) || 0) + '시간' : ''}</span></div>`;
+          if (r.track !== 'offjt') h += ojtUnits(ds.slice(0, 7));
         });
         evts.forEach(r => { h += `<div class="oj-u"><span class="oj-u-s">${esc(r.kind || '일정')}</span><span class="oj-u-n">${esc(r.title)}</span>${r.memo ? `<span class="oj-u-meta">${esc(r.memo)}</span>` : ''}</div>`; });
         return h + '</div>';
