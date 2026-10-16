@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>대화방 · 일학습병행 앱</title>
+  <link rel="manifest" href="./manifest.json" />
+  <meta name="theme-color" content="#fafaf8" />
+  <link rel="apple-touch-icon" href="./icons/icon-192.png" />
+  <link rel="stylesheet" href="./styles.css" />
+  <link rel="stylesheet" href="./student.css" /><!-- 학생 화면 디자인(관리자와 같은 계열) -->
+  <script src="./config.js"></script>
+  <style>
+    /* 방 목록 — 선 목록 행 */
+    .cr-list{border-top:1px solid var(--v-line)}
+    .cr-row{display:flex; align-items:center; gap:12px; width:100%; min-height:64px; padding:12px 4px; border:0; border-bottom:1px solid var(--v-line);
+      background:transparent; text-align:left; cursor:pointer; color:inherit; font:inherit}
+    .cr-row:hover{background:var(--v-sunken)}
+    .cr-ic{flex:none; width:36px; height:36px; border-radius:50%; display:grid; place-items:center; background:var(--v-cobalt-bg); color:var(--v-cobalt)}
+    .cr-ic svg{width:18px; height:18px}
+    .cr-main{flex:1; min-width:0}
+    .cr-t{display:flex; align-items:baseline; gap:6px; font-size:15px; font-weight:600; color:var(--v-ink)}
+    .cr-k{font-size:12px; font-weight:500; color:var(--v-mute)}
+    .cr-last{margin-top:2px; font-size:13px; color:var(--v-mute); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+    .cr-at{flex:none; font-size:12px; color:var(--v-mute)}
+    .cr-row::after{content:"›"; font-size:20px; line-height:1; color:var(--v-mute)}
+    /* 대화 화면 */
+    .cv-head{display:flex; align-items:center; gap:8px; margin-bottom:4px}
+    .cv-back{border:0; background:transparent; color:var(--v-cobalt); font:inherit; font-size:14px; font-weight:600; padding:8px 4px; cursor:pointer}
+    .cv-title{font-size:16px; font-weight:700; color:var(--v-ink)}
+    .cv-who{margin:0 4px 8px; font-size:12px; color:var(--v-mute)}
+    .cv-msgs{display:flex; flex-direction:column; gap:2px; padding:4px 0 12px}
+    .cv-day{align-self:center; margin:12px 0 6px; font-size:12px; color:var(--v-mute)}
+    .cv-m{max-width:82%; margin:4px 0}
+    .cv-m .n{display:block; margin:0 4px 2px; font-size:12px; font-weight:600; color:var(--v-mute)}
+    .cv-m .b{display:inline-block; padding:9px 12px; border-radius:14px; font-size:15px; line-height:1.5; white-space:pre-wrap; word-break:break-word;
+      background:var(--v-paper); border:1px solid var(--v-line); color:var(--v-ink)}
+    .cv-m .t{margin:0 6px; font-size:11.5px; color:var(--v-mute); white-space:nowrap}
+    .cv-m.mine{align-self:flex-end; text-align:right}
+    .cv-m.mine .b{background:var(--v-cobalt); border-color:var(--v-cobalt); color:#fff; border-bottom-right-radius:4px; text-align:left}
+    .cv-m.teacher .n{color:var(--v-cobalt)}
+    .cv-m.teacher .b{background:var(--v-cobalt-bg); border-color:transparent; border-bottom-left-radius:4px}
+    .cv-m:not(.mine):not(.teacher) .b{border-bottom-left-radius:4px}
+    .cv-empty{margin:24px 0; text-align:center; font-size:14px; color:var(--v-mute)}
+    .cv-compose{position:sticky; bottom:calc(64px + env(safe-area-inset-bottom)); display:flex; gap:8px; align-items:flex-end;
+      padding:10px 0; background:var(--v-bg); border-top:1px solid var(--v-line)}
+    .cv-compose textarea{flex:1; min-height:44px; max-height:140px; resize:none; padding:10px 12px; border:1px solid var(--v-line); border-radius:10px;
+      font:inherit; font-size:15px; background:var(--v-paper); color:var(--v-ink)}
+    .cv-compose button{flex:none; min-height:44px; padding:0 16px}
+    .cv-tools{display:flex; justify-content:space-between; align-items:center; margin-top:4px; font-size:12px; color:var(--v-mute)}
+    .cv-tools button{border:0; background:transparent; color:var(--v-cobalt); font:inherit; font-size:13px; font-weight:600; padding:8px 4px; cursor:pointer}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="ph-header">
+      <img class="wm" src="./assets/logo-mono-white.png" alt="" />
+      <div class="ph-lockup"><img src="./assets/logo-mono-white.png" alt="" /><span>일학습병행 공동훈련센터</span></div>
+      <div class="ph-title-row"><a class="ph-back" href="./index.html" aria-label="뒤로"><i data-lucide="chevron-left"></i></a><h1 class="ph-title">대화방</h1></div>
+      <p class="ph-sub" id="sub">우리 회사 방과 선생님 1:1</p>
+      <hr class="ph-gold" />
+    </header>
+
+    <main class="ph-body">
+      <div id="list"></div>
+      <div id="room" hidden></div>
+      <div class="status" id="st"></div>
+    </main>
+  </div>
+
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <script type="module">
+    // [sql/65] 대화방 — 기업방(같은 회사 학생 + 센터 선생님, 서로 글 다 보임) · 1:1(나 + 선생님).
+    // 자동 새로고침 없음(학생 함수 호출 제한·회사 와이파이 공용 IP) — 열 때·보낼 때·'새로 불러오기'·앱으로 돌아올 때만.
+    // 푸시(4단계)는 chat.html?room=<id> 로 들어옴.
+    import { supabase, configReady, setStatus, friendlyError, getProfile, esc } from './app.js';
+
+    const $ = id => document.getElementById(id);
+    const prof = getProfile();
+    const args = { p_code: prof.code || null, p_token: prof.token || null };
+    let rooms = [], me = {}, cur = null, lastLoad = 0;
+
+    const fmtAt = s => {
+      const d = new Date(s), now = new Date();
+      const same = d.toDateString() === now.toDateString();
+      return same ? d.toLocaleTimeString('ko-KR', { hour: 'numeric', minute: '2-digit' })
+                  : `${d.getMonth() + 1}/${d.getDate()}`;
+    };
+    const dayLabel = s => { const d = new Date(s); return `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일 (${'일월화수목금토'[d.getDay()]})`; };
+    const errText = e => /too_many_attempts/.test((e && e.message) || '') ? '잠시 후 다시 시도해주세요.' : friendlyError(e);
+
+    function fail(msg) { $('list').innerHTML = `<p class="cv-empty">${msg}</p>`; }
+
+    async function loadRooms() {
+      const { data, error } = await supabase.rpc('my_chats', args);
+      if (error) { fail(esc(errText(error))); return false; }
+      if (!data || !data.ok) { fail('학생 정보를 확인하지 못했어요. 홈에서 가입 정보를 확인해주세요.'); return false; }
+      rooms = data.rooms || []; me = data.me || {};
+      return true;
+    }
+
+    function drawList() {
+      $('room').hidden = true; $('list').hidden = false; cur = null;
+      history.replaceState(null, '', './chat.html');
+      $('sub').textContent = '우리 회사 방과 선생님 1:1';
+      $('list').innerHTML = `<div class="cr-list">` + rooms.map(r => {
+        const co = r.kind === 'company';
+        const last = r.last ? `${r.last.sender === 'teacher' ? '선생님' : r.last.name === me.name ? '나' : esc(r.last.name)}: ${esc(r.last.body)}` : (co ? '같은 회사 학생들과 선생님이 함께 보는 방이에요' : '선생님과 나만 보는 대화예요');
+        return `<button type="button" class="cr-row" data-id="${r.id}">` +
+          `<span class="cr-ic"><i data-lucide="${co ? 'users' : 'user'}"></i></span>` +
+          `<span class="cr-main"><span class="cr-t">${esc(r.title)}<span class="cr-k">${co ? '기업방' : '1:1'}</span></span>` +
+          `<span class="cr-last" style="display:block">${last}</span></span>` +
+          (r.last ? `<span class="cr-at">${fmtAt(r.last.at)}</span>` : '') + `</button>`;
+      }).join('') + `</div>`;
+      $('list').querySelectorAll('.cr-row').forEach(b => b.addEventListener('click', () => openRoom(b.dataset.id)));
+      window.lucide?.createIcons();
+    }
+
+    async function openRoom(id, keepScroll) {
+      cur = rooms.find(r => r.id === id);
+      if (!cur) { drawList(); return; }
+      history.replaceState(null, '', './chat.html?room=' + encodeURIComponent(id));
+      $('list').hidden = true; $('room').hidden = false;
+      const co = cur.kind === 'company';
+      $('sub').textContent = co ? '기업방 · 같은 회사 학생 모두와 선생님이 봐요' : '1:1 · 선생님과 나만 봐요';
+      if (!$('cv-msgs')) {
+        $('room').innerHTML =
+          `<div class="cv-head"><button type="button" class="cv-back" id="cv-back">‹ 목록</button><span class="cv-title" id="cv-title"></span></div>` +
+          `<div class="cv-msgs" id="cv-msgs" aria-live="polite"></div>` +
+          `<div class="cv-compose"><textarea id="cv-text" rows="1" maxlength="2000" placeholder="메시지 입력" aria-label="메시지"></textarea>` +
+          `<button type="button" class="mju-btn" id="cv-send">보내기</button></div>` +
+          `<div class="cv-tools"><span id="cv-at"></span><button type="button" id="cv-reload">새로 불러오기</button></div>`;
+        $('cv-back').addEventListener('click', async () => { await loadRooms(); drawList(); });
+        $('cv-send').addEventListener('click', send);
+        $('cv-reload').addEventListener('click', () => openRoom(cur.id));
+        const ta = $('cv-text');
+        ta.addEventListener('input', () => { ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 140) + 'px'; });
+      }
+      $('cv-title').textContent = cur.title;
+      const box = $('cv-msgs');
+      const { data, error } = await supabase.rpc('my_chat_messages', { ...args, p_room: id });
+      lastLoad = Date.now();
+      if (error || !data || !data.ok) { box.innerHTML = `<p class="cv-empty">${esc(error ? errText(error) : '이 방을 열 수 없어요.')}</p>`; return; }
+      const ms = data.messages || [];
+      let day = '';
+      box.innerHTML = ms.length ? ms.map(m => {
+        const d = new Date(m.at).toDateString(), sep = d !== day ? `<span class="cv-day">${dayLabel(m.at)}</span>` : '';
+        day = d;
+        const cls = m.mine ? 'mine' : m.sender === 'teacher' ? 'teacher' : 'other';
+        const t = `<span class="t">${new Date(m.at).toLocaleTimeString('ko-KR', { hour: 'numeric', minute: '2-digit' })}</span>`;
+        return sep + `<div class="cv-m ${cls}">${m.mine ? '' : `<span class="n">${esc(m.name)}</span>`}` +
+          (m.mine ? t + `<span class="b">${esc(m.body)}</span>` : `<span class="b">${esc(m.body)}</span>` + t) + `</div>`;
+      }).join('') : `<p class="cv-empty">${co ? '아직 글이 없어요. 같은 회사 학생들과 선생님이 함께 보는 방이에요.' : '아직 글이 없어요. 선생님께 편하게 물어보세요.'}</p>`;
+      $('cv-at').textContent = `${new Date().toLocaleTimeString('ko-KR', { hour: 'numeric', minute: '2-digit' })} 기준`;
+      if (!keepScroll) requestAnimationFrame(() => window.scrollTo(0, document.body.scrollHeight));
+    }
+
+    async function send() {
+      const ta = $('cv-text'), text = ta.value.trim();
+      if (!text || !cur) return;
+      $('cv-send').disabled = true;
+      const { data, error } = await supabase.rpc('post_chat_message', { ...args, p_room: cur.id, p_text: text });
+      $('cv-send').disabled = false;
+      if (error) { setStatus($('st'), errText(error), 'error'); return; }
+      if (!data || !data.ok) {
+        setStatus($('st'), data && data.reason === 'rate' ? '잠깐 너무 많이 보냈어요. 10분 뒤에 다시 보내주세요.'
+          : data && data.reason === 'length' ? '2000자까지 보낼 수 있어요.' : '보내지 못했어요.', 'error');
+        return;
+      }
+      setStatus($('st'), '', 'info');
+      ta.value = ''; ta.style.height = 'auto';
+      openRoom(cur.id);
+    }
+
+    // 앱으로 돌아오면(다른 앱 갔다가) 1분 넘었을 때만 새로 불러옴
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible' && cur && Date.now() - lastLoad > 60000) openRoom(cur.id, true);
+    });
+
+    (async () => {
+      window.lucide?.createIcons();
+      if (prof.target_type !== 'student' || (!prof.code && !prof.token)) { fail('학생으로 가입한 기기에서만 쓸 수 있어요.'); return; }
+      if (!configReady()) { fail('연결 설정이 필요해요.'); return; }
+      $('list').innerHTML = `<p class="cv-empty">불러오는 중…</p>`;
+      if (!(await loadRooms())) return;
+      const want = new URLSearchParams(location.search).get('room');
+      if (want && rooms.some(r => r.id === want)) openRoom(want); else drawList();
+    })();
+  </script>
+</body>
+</html>

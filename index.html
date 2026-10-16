@@ -78,6 +78,8 @@
         </div>
         <p class="menu-group-label">소통·참여</p>
         <div class="menu-grid">
+          <!-- [sql/65] 대화방(기업방·1:1) — 학생에게만 -->
+          <a href="./chat.html" id="m-chat" class="menu-tile" style="display:none"><span class="mi"><i data-lucide="messages-square"></i></span><span class="ml">대화방 (우리 회사·선생님)</span></a>
           <a href="./consult.html"  class="menu-tile"><span class="mi"><i data-lucide="message-circle"></i></span><span class="ml">1:1 상담</span></a>
           <!-- (2026-08-19) 투표 기능 폐지 — 복원 시 vote.html 복구 + 이 타일·admin 투표 탭·sw 캐시 목록 되살리기 -->
           <a href="./survey.html" id="m-survey" class="menu-tile"><span class="mi"><i data-lucide="clipboard-list"></i></span><span class="ml">만족도 조사</span></a>
@@ -349,6 +351,7 @@
         }
         // 학생: 내 출석 진도 카드 (sql/42·44 — 코드 또는 토큰, RPC·데이터 없으면 조용히 미표시)
         if (_prof.target_type === 'student') document.getElementById('w24').style.display = '';
+        if (_prof.target_type === 'student' && (_prof.code || _prof.token)) document.getElementById('m-chat').style.display = '';
         if (_prof.target_type === 'student' && (_prof.code || _prof.token)) renderOjtPlan(_prof);
         if (_prof.target_type === 'student' && (_prof.code || _prof.token)) renderAttendance(_prof);
         renderSchedule(_prof);
