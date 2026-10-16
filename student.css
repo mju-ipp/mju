@@ -128,6 +128,33 @@ body{background:var(--v-bg); color:var(--v-ink); font-variant-numeric:tabular-nu
 .is-home .menu-tile .mbadge{position:static}
 .is-home .menu-tile::after{content:"›"; font-size:20px; line-height:1; color:var(--v-mute)}
 
+/* OJT 월별 능력단위 — 달마다 접는 줄(이번 달 펼침), 단위 → 요소 */
+.op{border-top:1px solid var(--v-line)}
+.op-m{border-bottom:1px solid var(--v-line)}
+.op-m > summary{list-style:none; cursor:pointer; display:flex; align-items:baseline; gap:10px; min-height:48px; padding:12px 4px; box-sizing:border-box}
+.op-m > summary::-webkit-details-marker{display:none}
+.op-m > summary::after{content:"›"; margin-left:auto; font-size:18px; line-height:1; color:var(--v-mute); transition:transform .15s}
+.op-m[open] > summary::after{transform:rotate(90deg)}
+.op-mo{font-size:15px; font-weight:600; color:var(--v-ink)}
+.op-mo i{font-style:normal; font-size:12px; font-weight:600; color:var(--v-cobalt); margin-left:4px}
+.op-p{font-size:14px; color:var(--v-ink)}
+.op-c{font-size:12px; color:var(--v-mute)}
+.op-mo,.op-p,.op-c{white-space:nowrap}
+.op-m > summary{flex-wrap:wrap; row-gap:2px}
+.op-m.past .op-mo,.op-m.past .op-p{color:var(--v-mute)}
+.op-u{display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 8px; padding:8px 4px 8px 16px}
+details.op-u{display:block}
+details.op-u > summary{list-style:none; cursor:pointer; display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 8px}
+details.op-u > summary::-webkit-details-marker{display:none}
+details.op-u > summary::after{content:"요소 보기"; margin-left:auto; font-size:12px; font-weight:600; color:var(--v-cobalt)}
+details.op-u[open] > summary::after{content:"접기"; color:var(--v-mute)}
+.op-n{font-size:14px; color:var(--v-ink)}
+.op-h{font-size:12px; color:var(--v-mute)}
+.op-u + .op-u{border-top:1px dashed var(--v-line)}
+.op-m > :last-child{margin-bottom:8px}
+.op-none{margin:0 0 10px 16px; font-size:13px; color:var(--v-mute)}
+.op-note{margin:8px 4px 0; font-size:12px; color:var(--v-mute)}
+
 /* 고용24 학습일지 안내 — 선 목록 위에 한 묶음(경로 + 로그인 버튼) */
 .w24{padding:14px 4px 4px; border-top:1px solid var(--v-line)}
 .w24-t{margin:0; font-size:15px; font-weight:600; color:var(--v-ink, inherit)}

@@ -60,6 +60,8 @@
       <div id="home" style="display:none">
         <div class="greet-row"><span class="greet" id="home-name"></span></div>
         <!-- 학생: 고용24 학습일지(학습활동서) — 화면 주소로 바로 가는 링크는 로그인 전이면 메인으로 튕겨서(10/16 확인) 로그인 + 메뉴 경로 안내 -->
+        <!-- 학생: OJT 월별 능력단위·예정 시수(renderOjtPlan) — 고용24 학습일지 쓸 때 보는 자리 -->
+        <div id="ojt-plan" style="display:none"></div>
         <div id="w24" style="display:none">
           <p class="menu-group-label" style="margin-top:14px">고용24</p>
           <div class="w24">
@@ -347,6 +349,7 @@
         }
         // 학생: 내 출석 진도 카드 (sql/42·44 — 코드 또는 토큰, RPC·데이터 없으면 조용히 미표시)
         if (_prof.target_type === 'student') document.getElementById('w24').style.display = '';
+        if (_prof.target_type === 'student' && (_prof.code || _prof.token)) renderOjtPlan(_prof);
         if (_prof.target_type === 'student' && (_prof.code || _prof.token)) renderAttendance(_prof);
         renderSchedule(_prof);
         document.getElementById('resignup').addEventListener('click', _resignup);
@@ -414,6 +417,43 @@
     function isSchedDay(r) { return /^수업일정/.test(r.course || ''); }
 
     // 학생 홈 — 내 출석 진도 카드 (sql/42·44; 초대코드 또는 서명토큰으로 본인 확인 — iOS 설치앱 복원 프로필은 토큰만 있음)
+    // [10/16 사용자 요청] 고용24 위에 OJT 월별 능력단위·예정 시수 — 월 행(attendance_monthly track=ojt)의 예정·units,
+    // 단위 시간은 학습안내서(sql/64 my_offjt_units subject 'OJT'). 월마다 단위별 배정 시간은 저장돼 있지 않아 단위 전체 시간을 적음.
+    async function renderOjtPlan(prof) {
+      if (!configReady() || (!prof.code && !prof.token)) return;
+      let sd; try { sd = await stuData(prof); } catch (_) { return; }
+      if (!sd || !sd.ok) return;
+      const rows = sd.rows.filter(r => r.track !== 'offjt' && (Number(r.planned) > 0 || r.units))
+        .sort((a, b) => (String(a.month) < String(b.month) ? -1 : 1));
+      if (!rows.length) return;
+      const e = x => { const d = document.createElement('div'); d.textContent = x == null ? '' : String(x); return d.innerHTML; };
+      const info = u => (sd.units || []).find(x => x.subject === 'OJT' && x.unit === u) || null;
+      const _t = new Date(), curYm = _t.getFullYear() + '-' + String(_t.getMonth() + 1).padStart(2, '0');
+      const unitHtml = u => {
+        const i = info(u), els = (i && i.elements) || [];
+        const h = i && i.hours != null ? `<span class="op-h">${Number(i.hours)}시간</span>` : '';
+        if (!els.length) return `<div class="op-u"><span class="op-n">${e(u)}</span>${h}</div>`;
+        return `<details class="op-u"><summary><span class="op-n">${e(u)}</span>${h}</summary>` +
+          `<p class="oj-copy">참고만 하고 <b>자기 말로</b> 바꿔 쓰세요 — 그대로 복사하면 공단 모니터링 대상이 돼요.</p>` +
+          els.map((el, k) => `<details class="oj-el"><summary>${k + 1}. ${e(el.name)}</summary><ul>${(el.tasks || []).map(t => `<li>${e(t)}</li>`).join('')}</ul></details>`).join('') +
+          `</details>`;
+      };
+      const box = document.getElementById('ojt-plan');
+      box.innerHTML = `<p class="menu-group-label" style="margin-top:14px">OJT 월별 능력단위</p>` +
+        `<div class="op">` + rows.map(r => {
+          const ym = String(r.month).slice(0, 7), y = Number(ym.slice(0, 4)), m = Number(ym.slice(5));
+          const units = [...new Set(String(r.units || '').split('·').map(x => x.trim()).filter(Boolean))];
+          const cls = 'op-m' + (ym === curYm ? ' now' : ym < curYm ? ' past' : '');
+          return `<details class="${cls}"${ym === curYm ? ' open' : ''}><summary>` +
+            `<span class="op-mo">${y !== _t.getFullYear() ? y + '년 ' : ''}${m}월${ym === curYm ? ' <i>이번 달</i>' : ''}</span>` +
+            `<span class="op-p">예정 ${r.planned != null ? Number(r.planned) + '시간' : '—'}</span>` +
+            `<span class="op-c">${units.length}개 단위</span></summary>` +
+            (units.length ? units.map(unitHtml).join('') : `<p class="op-none">능력단위가 아직 없어요.</p>`) + `</details>`;
+        }).join('') + `</div>` +
+        `<p class="op-note">단위 옆 시간은 그 능력단위 전체 시간(학습안내서)이에요. 여러 달에 걸치면 달마다 같은 시간이 보여요.</p>`;
+      box.style.display = '';
+    }
+
     async function renderAttendance(prof) {
       if (!configReady() || (!prof.code && !prof.token)) return;
       let rows = null, daysRes = null, sd;
