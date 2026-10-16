@@ -517,7 +517,7 @@
               <button class="mju-btn mju-btn--full" id="qa-add" style="margin-top:12px">FAQ 공개</button>
               <div class="status" id="qa-status"></div>
             </div>
-            <div class="card"><p class="ph-card-title">등록된 콘텐츠</p><div class="status" id="rc-status"></div><div id="rc-list"></div></div>
+            <div class="card"><p class="ph-card-title">등록된 FAQ</p><div class="status" id="rc-status"></div><div id="rc-list"></div></div>
           </div>
         </div>
       </div>
@@ -613,6 +613,28 @@
         <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:14px">
           <button class="mju-btn mju-btn--secondary" id="qv-cancel">취소</button>
           <button class="mju-btn mju-btn--gold" id="qv-save">공개하기</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- FAQ 수정 모달 -->
+    <div class="modal-veil" id="qe-veil" style="display:none" role="dialog" aria-modal="true" aria-labelledby="qe-h">
+      <div class="modal" style="width:560px">
+        <h3 id="qe-h">FAQ 수정</h3>
+        <p style="margin:0 0 10px">저장하면 학생 화면(자주 묻는 질문)에 바로 반영돼요.</p>
+        <label style="font-size:13px;font-weight:700" for="qe-aud">대상</label>
+        <select id="qe-aud" class="ph-select" style="margin:4px 0 10px"><option value="all">전체</option><option value="student">학생</option></select>
+        <label style="font-size:13px;font-weight:700" for="qe-cat">카테고리</label>
+        <input type="text" id="qe-cat" list="qe-cats" style="width:100%;margin:4px 0 10px;padding:10px 12px;border:1px solid var(--line);border-radius:9px" />
+        <datalist id="qe-cats"></datalist>
+        <label style="font-size:13px;font-weight:700" for="qe-q">질문</label>
+        <textarea id="qe-q" class="ph-ta" rows="2" style="width:100%;margin:4px 0 10px"></textarea>
+        <label style="font-size:13px;font-weight:700" for="qe-a">답변</label>
+        <textarea id="qe-a" class="ph-ta" rows="9" style="width:100%"></textarea>
+        <div class="status" id="qe-status"></div>
+        <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:14px">
+          <button class="mju-btn mju-btn--secondary" id="qe-cancel">취소</button>
+          <button class="mju-btn mju-btn--gold" id="qe-save">저장</button>
         </div>
       </div>
     </div>
@@ -835,6 +857,7 @@
       'qa-cat', 'qa-q', 'qa-a', 'cl-reply', 'as-name', 'ac-name', 'gr-to', 'cc-slug', 'cc-name', 'ga-email'];
     const MODAL_DRAFTS = {
       'qv-veil': ['qv-q', 'qv-a', 'qv-cat'],
+      'qe-veil': ['qe-q', 'qe-a', 'qe-cat'],
       'pv-veil': ['pv-title', 'pv-body'],
       'cn-veil': ['cn-ntitle', 'cn-body'],
       'ci-veil': ['ci-schedule', 'ci-beacon', 'ci-commute', 'ci-extra'],
@@ -3023,35 +3046,72 @@
       ['qa-cat', 'qa-q', 'qa-a'].forEach(id => { $(id).value = ''; });
       rcLoad();
     });
-    // 등록된 콘텐츠 목록 — (학생 전용 전환) FAQ만. 복원 시 채용공고·선배 사례 항목 되살리기
+    // 등록된 FAQ 전체 — 카테고리별로 묶어 수정·내리기·삭제. (학생 전용 전환) 채용공고·선배 사례 목록은 제거, 복원은 git 이력 참조
+    let qeRow = null;
+    function openQeModal(r) {
+      qeRow = r;
+      $('qe-aud').value = r.audience === 'student' ? 'student' : 'all';
+      $('qe-cat').value = r.category || ''; $('qe-q').value = r.question || ''; $('qe-a').value = r.answer || '';
+      setStatus($('qe-status'), '', 'info');
+      openModal('qe-veil');
+    }
+    $('qe-cancel').addEventListener('click', () => { closeModal('qe-veil'); });
+    $('qe-veil').addEventListener('click', e => { if (e.target === $('qe-veil')) closeModal('qe-veil'); });
+    $('qe-save').addEventListener('click', async () => {
+      if (!qeRow) return;
+      const q = $('qe-q').value.trim(), a = $('qe-a').value.trim();
+      if (!q || !a) { setStatus($('qe-status'), '질문·답변을 입력하세요.', 'error'); return; }
+      $('qe-save').disabled = true;
+      const ok = await updRow('qna_posts', { audience: $('qe-aud').value, category: $('qe-cat').value.trim() || null, question: q, answer: a }, qeRow.id, $('qe-status'));
+      $('qe-save').disabled = false;
+      if (!ok) return;
+      logAction('FAQ수정', q.slice(0, 30));
+      ['qe-cat', 'qe-q', 'qe-a'].forEach(id => { $(id).value = ''; });   // 이탈 가드 오탐 방지
+      closeModal('qe-veil'); qeRow = null;
+      rcLoad();
+    });
     async function rcLoad() {
       const el = $('rc-list'); el.innerHTML = '';
-      const groups = [
-        ['FAQ', 'qna_posts', r => r.question, 'qa'],
-      ];
-      for (const [label, table, fmt] of groups) {
-        let res;
-        try { res = await supabase.from(table).select('*').order('created_at', { ascending: false }).limit(15); } catch (e) { res = { error: e }; }
+      let res;
+      try { res = await supabase.from('qna_posts').select('*').order('created_at', { ascending: true }).limit(500); } catch (e) { res = { error: e }; }
+      if (res.error) { const p = document.createElement('p'); p.className = 'note'; p.textContent = tblMissing(res.error.message) ? '이 기능은 아직 준비되지 않았어요 — 시스템 담당자에게 서버 설정 적용을 요청해주세요.' : '목록을 불러오지 못했어요.'; el.appendChild(p); return; }
+      const rows = res.data || [];
+      if (!rows.length) { const p = document.createElement('p'); p.className = 'note'; p.textContent = '없음'; el.appendChild(p); return; }
+      const byCat = {};
+      rows.forEach(r => { (byCat[r.category || '기타'] ||= []).push(r); });
+      $('qe-cats').innerHTML = Object.keys(byCat).map(c => `<option value="${esc(c)}"></option>`).join('');
+      const sum = document.createElement('p'); sum.className = 'note';
+      const off = rows.filter(r => !r.published).length;
+      sum.textContent = `${rows.length}건` + (off ? ` (내려짐 ${off}건)` : '') + ' · 학생 화면에는 올라간 글만 보여요';
+      el.appendChild(sum);
+      const btnCss = 'padding:4px 10px;font-size:12.5px;border:1px solid var(--line);border-radius:8px;background:var(--surface-card);cursor:pointer;white-space:nowrap';
+      Object.entries(byCat).forEach(([cat, list]) => {
         const h = document.createElement('p');
-        h.style.cssText = 'margin:12px 0 4px;font-size:12px;font-weight:800;color:var(--text-muted)';
-        h.textContent = label; el.appendChild(h);
-        if (res.error) { const p = document.createElement('p'); p.className = 'note'; p.textContent = tblMissing(res.error.message) ? '이 기능은 아직 준비되지 않았어요 — 시스템 담당자에게 서버 설정 적용을 요청해주세요.' : '목록을 불러오지 못했어요.'; el.appendChild(p); continue; }
-        if (!(res.data || []).length) { const p = document.createElement('p'); p.className = 'note'; p.textContent = '없음'; el.appendChild(p); continue; }
-        res.data.forEach(r => {
-          const e = document.createElement('div'); e.textContent = fmt(r);
-          const row = document.createElement('div'); row.style.cssText = 'padding:7px 0;border-bottom:1px solid var(--gray-100);display:flex;justify-content:space-between;gap:8px;align-items:center;font-size:13.5px';
+        h.style.cssText = 'margin:14px 0 4px;font-size:12px;font-weight:800;color:var(--text-muted)';
+        h.textContent = `${cat} · ${list.length}`; el.appendChild(h);
+        list.forEach(r => {
+          // 좁은 화면에서는 버튼이 질문 아래 줄로 내려가게(질문은 말줄임 없이 줄바꿈)
+          const row = document.createElement('div'); row.style.cssText = 'padding:7px 0;border-bottom:1px solid var(--gray-100);display:flex;flex-wrap:wrap;justify-content:space-between;gap:6px 8px;align-items:center;font-size:13.5px';
+          const aud = r.audience === 'all' ? ' <span class="mju-badge mju-badge--neutral">전체</span>' : '';
           const st = r.published ? '' : ' <span class="mju-badge mju-badge--neutral">내려짐</span>';
-          row.innerHTML = `<div style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.innerHTML}${st}</div>`;
-          const tg = document.createElement('button'); tg.textContent = r.published ? '내리기' : '올리기';
-          tg.style.cssText = 'padding:4px 10px;font-size:12.5px;border:1px solid var(--line);border-radius:8px;background:var(--surface-card);cursor:pointer;white-space:nowrap';
+          row.innerHTML = `<div style="min-width:0;flex:1 1 220px;line-height:1.45">${esc(r.question)}${aud}${st}</div>`;
+          const btns = document.createElement('div'); btns.style.cssText = 'display:flex;gap:6px;flex-shrink:0;margin-left:auto';
+          const ed = document.createElement('button'); ed.type = 'button'; ed.textContent = '수정'; ed.style.cssText = btnCss;
+          ed.addEventListener('click', () => openQeModal(r));
+          const tg = document.createElement('button'); tg.type = 'button'; tg.textContent = r.published ? '내리기' : '올리기'; tg.style.cssText = btnCss;
           tg.addEventListener('click', async () => {
             tg.disabled = true;
-            await updRow(table, { published: !r.published }, r.id, $('rc-status'));
+            await updRow('qna_posts', { published: !r.published }, r.id, $('rc-status'));
             rcLoad();
           });
-          row.appendChild(tg); el.appendChild(row);
+          btns.append(ed, tg, mkDelBtn('삭제', async () => {
+            const { data: del, error: derr } = await supabase.from('qna_posts').delete().eq('id', r.id).select('id');
+            if (derr || !del || !del.length) throw new Error('FAQ를 삭제하지 못했어요 — 권한을 확인하세요.' + (derr ? ' (' + derr.message + ')' : ''));
+            logAction('FAQ삭제', (r.question || '').slice(0, 30)); rcLoad();
+          }, 'FAQ: ' + (r.question || '')));
+          row.appendChild(btns); el.appendChild(row);
         });
-      }
+      });
     }
 
     // ===== 학습기업 진행단계 + 기업 코드 =====
