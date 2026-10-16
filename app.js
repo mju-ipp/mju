@@ -311,6 +311,10 @@ if ('serviceWorker' in navigator) {
   });
   // 새 sw 가 옛 sw 를 밀어내면(배포) 지금 화면은 옛 파일로 그려진 것 → 한 번만 새로고침해 바로 새 화면으로.
   // 처음 설치(이전 sw 없음)에는 하지 않음. 무한 새로고침 방지로 이 탭 세션에서 1회.
+  // 열어 둔 채 다른 앱으로 갔다가 돌아오면(설치 앱은 거의 이렇게 씀) 새 배포가 있는지 확인 → 있으면 아래 controllerchange 로 새로고침
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') navigator.serviceWorker.getRegistration().then(r => r && r.update()).catch(() => {});
+  });
   const hadController = !!navigator.serviceWorker.controller;
   navigator.serviceWorker.addEventListener('controllerchange', () => {
     if (!hadController) return;
