@@ -16,7 +16,7 @@
  *   따라서 './firebase-messaging-sw.js' 를 다시 등록하는 코드를 넣지 말 것.
  *
  * 코드를 고친 뒤 반영이 안 되면 CACHE 버전 숫자를 올리세요(브라우저 캐시 갱신). */
-const CACHE = 'ilhak-v54';   // 배포 시 자동 새로고침을 30초 간격 제한으로 — 캐시 강제 갱신
+const CACHE = 'ilhak-v55';   // 배포 시 자동 새로고침을 30초 간격 제한으로 — 캐시 강제 갱신
 const ASSETS = ['./', './index.html', './install.html', './notice.html', './library.html', './calendar.html',
   './consult.html', './chat.html', './survey.html', './faq.html', './privacy.html',
   './qna.html', './mycompany.html',
@@ -52,12 +52,15 @@ try {
 // SDK 를 못 불러온 경우에만 직접 push/notificationclick 을 처리한다(둘 다 걸면 배너가 2번 뜬다).
 if (!fcmReady) {
   self.addEventListener('push', (e) => {
-    let n = {};
-    try { const d = e.data ? e.data.json() : {}; n = d.notification || (d.data && d.data.notification) || {}; } catch (_) {}
+    let n = {}, link = APP_URL;
+    try {
+      const d = e.data ? e.data.json() : {}; n = d.notification || (d.data && d.data.notification) || {};
+      link = (d.fcmOptions && d.fcmOptions.link) || (d.data && d.data.link) || APP_URL;   // 대화방 = chat.html?room=<id>
+    } catch (_) {}
     const title = n.title || '일학습병행';
     const body = n.body || '';
     e.waitUntil((async () => {
-      await self.registration.showNotification(title, { body, icon: './assets/logo-mono-white.png', data: { link: APP_URL } });
+      await self.registration.showNotification(title, { body, icon: './assets/logo-mono-white.png', data: { link } });
       bumpBadge();
     })());
   });

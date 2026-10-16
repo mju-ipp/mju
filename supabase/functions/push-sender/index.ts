@@ -5,6 +5,9 @@
 //  · 그 외: push_tokens 전체에서 타겟 매칭(all/job/company/target/type/custom)
 //  · 클릭 시 https://mju-ipp.github.io/mju/notice.html 열림(신규 주소)
 //  · 무효 토큰(UNREGISTERED)은 자동 정리, push_logs 기록, pushed=true 는 발송 전에 선점 마킹(중복 발송 방지)
+//  · 대화방(2026-10-16, docs/CHAT.md 4단계): 선생님 글(chat_messages push_state='pending')만 발송.
+//      받는 기기는 sql/67 chat_push_pending 이 계산 — 기업방 = 그 기업 명단 학생, 1:1 = 그 학생,
+//      기기 = push_tokens.device_key = 학생 서명토큰. 클릭 시 chat.html?room=<id>. pending→sent 선점 후 발송.
 //  · 호출: pg_cron 5분 폴링 + 관리자 발행 즉시 킥(GET/POST 모두 처리, 멱등)
 //  · secret: FIREBASE_SERVICE_ACCOUNT (서비스 계정 JSON 전체)
 // =====================================================================
@@ -12,6 +15,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2'
 import { importPKCS8, SignJWT } from 'npm:jose@5'
 
 const APP_URL = 'https://mju-ipp.github.io/mju/notice.html'
+const CHAT_URL = 'https://mju-ipp.github.io/mju/chat.html'
 const CORS = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': '*', 'Access-Control-Allow-Methods': 'GET, POST, OPTIONS' }
 const json = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s, headers: { ...CORS, 'Content-Type': 'application/json' } })
 
@@ -56,15 +60,18 @@ async function fcmAccessToken(sa: { private_key: string; client_email: string; t
 
 const ICON = 'https://mju-ipp.github.io/mju/icons/icon-192.png'
 
-async function sendOne(access: string, project: string, token: string, title: string, body: string): Promise<'ok' | 'dead' | 'fail'> {
+// link: 알림을 누르면 열 주소 / tag: 같은 tag 알림은 한 장으로 바뀜(대화방은 방마다 하나, renotify 로 다시 울림)
+async function sendOne(access: string, project: string, token: string, title: string, body: string,
+                       link = APP_URL, tag?: string): Promise<'ok' | 'dead' | 'fail'> {
   const r = await fetch(`https://fcm.googleapis.com/v1/projects/${project}/messages:send`, {
     method: 'POST', headers: { Authorization: `Bearer ${access}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ message: { token,
       notification: { title, body },
+      data: { link },   // 앱이 열려 있을 때 토스트·SDK 없는 sw.js 폴백이 같은 주소로 가게
       webpush: {
         headers: { TTL: '86400', Urgency: 'high' },   // 저전력·Doze 상태에서 묶여 지연되지 않게
-        notification: { title, body, icon: ICON, badge: ICON, lang: 'ko' },
-        fcm_options: { link: APP_URL } } } }),
+        notification: { title, body, icon: ICON, badge: ICON, lang: 'ko', ...(tag ? { tag, renotify: true } : {}) },
+        fcm_options: { link } } } }),
   })
   if (r.ok) return 'ok'
   const t = await r.text()
@@ -73,6 +80,9 @@ async function sendOne(access: string, project: string, token: string, title: st
   //    예전엔 포함돼 있어서, 본문이 빈 공지 하나로 수신자 전원의 토큰 행이 지워질 수 있었다.
   return /UNREGISTERED|NOT_FOUND|registration-token-not-registered/i.test(t) ? 'dead' : 'fail'
 }
+
+type ChatPush = { id: string; room_id: string; center_id: string; kind: 'company' | 'direct'; room_title: string; log_target: string;
+                  sender_name: string; body: string; tokens: { id: string; token: string }[] }
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
@@ -87,14 +97,19 @@ Deno.serve(async (req) => {
       .select('id,title,body,target_scope,target_value,center_id')
       .eq('published', true).eq('pushed', false).limit(10)
     if (ne) return json({ error: 'notices_read: ' + ne.message }, 500)
-    if (!notices?.length) return json({ ok: true, processed: 0 })
+    const { data: chats, error: me } = await db.rpc('chat_push_pending', { p_limit: 20 })
+    if (me) console.error('chat_push_pending', me.message)   // 대화방 쪽이 깨져도 공지 발송은 계속
+    const chatList = (me ? [] : chats || []) as ChatPush[]
+    if (!notices?.length && !chatList.length) return json({ ok: true, processed: 0 })
 
-    const { data: allTokens } = await db.from('push_tokens')
-      .select('id,token,device_key,target_type,job_key,company,type1,manager,center_id')
+    // 선점(pending→sent / pushed=true) 전에 토큰부터 받는다 — 인증이 실패하면 아무것도 표시하지 않고 다음 폴링에 다시
     const access = await fcmAccessToken(sa)
-
     const results: unknown[] = []
-    for (const n of notices) {
+
+    const { data: allTokens } = notices?.length
+      ? await db.from('push_tokens').select('id,token,device_key,target_type,job_key,company,type1,manager,center_id')
+      : { data: [] }
+    for (const n of notices || []) {
       // 선점 — 5분 폴링과 즉시 킥이 같은 순간 겹치면(비콘 09:00·16:00) 두 호출이 같은 공지를 읽는다.
       //   pushed=false → true 전환에 성공한 호출만 발송해 같은 알림이 두 번 나가지 않게 한다.
       //   대가: 발송 도중 함수가 죽으면 그 공지는 재시도되지 않는다(중복 발송보다 낫다).
@@ -137,6 +152,29 @@ Deno.serve(async (req) => {
         recipient_count: targets.length, success_count: ok, center_id: n.center_id,
       })
       results.push({ notice: n.title, recipients: targets.length, success: ok, cleaned: dead.length })
+    }
+
+    // 대화방 선생님 글 — 공지와 같은 선점 방식(pending→sent 에 성공한 호출만 발송)
+    for (const m of chatList) {
+      const { data: claimed, error: ce } = await db.from('chat_messages')
+        .update({ push_state: 'sent' }).eq('id', m.id).eq('push_state', 'pending').select('id')
+      if (ce || !claimed?.length) continue
+      const title = m.kind === 'company' ? `${m.room_title} 대화방` : m.room_title
+      const body = `${m.sender_name}: ${m.body}`.slice(0, 300)
+      const link = `${CHAT_URL}?room=${encodeURIComponent(m.room_id)}`
+      let ok = 0; const dead: string[] = []
+      for (const t of m.tokens || []) {
+        const r = await sendOne(access, sa.project_id, t.token, title, body, link, 'chat-' + m.room_id)
+        if (r === 'ok') ok++
+        else if (r === 'dead') dead.push(t.id)
+      }
+      if (dead.length) await db.from('push_tokens').delete().in('id', dead)
+      // 기록은 남기되 본문은 안 남김 — 1:1 대화 내용이 발송 기록 화면에 그대로 보이지 않게
+      await db.from('push_logs').insert({
+        scope: 'chat_' + m.kind, target: m.log_target || m.room_title, title, body: m.sender_name,
+        recipient_count: (m.tokens || []).length, success_count: ok, center_id: m.center_id,
+      })
+      results.push({ chat: m.room_title, recipients: (m.tokens || []).length, success: ok, cleaned: dead.length })
     }
     return json({ ok: true, processed: results.length, results })
   } catch (e) {

@@ -848,7 +848,7 @@
     function fmtTarget(scope, value) {
       if (scope === 'all') return '전체';
       if (scope === 'personal') return '개인 지정(비공개)';
-      if (scope !== 'custom') return ({ job: '직무', company: '기업', target: '대상', type: '유형' }[scope] || scope) + ': ' + value;
+      if (scope !== 'custom') return ({ job: '직무', company: '기업', target: '대상', type: '유형', chat_company: '대화방(기업)', chat_direct: '대화방(1:1)' }[scope] || scope) + ': ' + value;
       try {
         const s = JSON.parse(value || '{}'); const p = [];
         if (s.targets && s.targets.includes('student')) p.push('매칭학생 전체');
@@ -1995,7 +1995,8 @@
       const { data, error } = await supabase.rpc('admin_post_chat', { p_room: chCur.id, p_text: text });
       $('ch-send').disabled = false;
       if (error || !data || !data.ok) { setStatus($('ch-status'), '보내지 못했어요.' + (error ? ' (' + error.message + ')' : data && data.reason ? ' (' + data.reason + ')' : ''), 'error'); return; }
-      $('ch-text').value = ''; setStatus($('ch-status'), '보냈어요.', 'success');
+      $('ch-text').value = ''; setStatus($('ch-status'), '보냈어요. 알림은 ' + PUSH_ETA + ' 학생 기기로 가요.', 'success');
+      kickPush();   // 선생님 글 푸시(push-sender, sql/67) — 킥이 안 닿아도 5분 폴링이 보냄
       logAction('chat_post', chCur.title);
       const id = chCur.id; await chLoad(); chOpen(id);
     });

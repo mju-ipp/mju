@@ -346,7 +346,7 @@ if ('Notification' in window && Notification.permission === 'granted' && window.
 
       onMessage(messaging, (payload) => {
         const n = payload.notification || {};
-        showPushToast(n.title || '새 공지', n.body || '');
+        showPushToast(n.title || '새 공지', n.body || '', payload.data && payload.data.link);
         updateUnreadBadges();
       });
 
@@ -372,7 +372,7 @@ if ('Notification' in window && Notification.permission === 'granted' && window.
   })();
 }
 
-function showPushToast(title, body) {
+function showPushToast(title, body, link) {
   try {
     document.querySelector('[data-push-toast]')?.remove();
     const el = document.createElement('div');
@@ -384,7 +384,10 @@ function showPushToast(title, body) {
     const t = document.createElement('div'); t.style.cssText = 'font-weight:800;margin-bottom:2px'; t.textContent = title;
     const b = document.createElement('div'); b.style.cssText = 'opacity:.9'; b.textContent = body;
     el.append(t, b);   // textContent — 공지 본문이 마크업으로 해석되지 않게
-    el.addEventListener('click', () => { location.href = './notice.html'; });
+    // 대화방 알림은 data.link = chat.html?room=<id>(push-sender). 같은 오리진 주소만 따라감
+    let to = './notice.html';
+    try { const u = new URL(link || '', location.href); if (link && u.origin === location.origin) to = u.href; } catch (_) {}
+    el.addEventListener('click', () => { location.href = to; });
     document.body.appendChild(el);
     setTimeout(() => el.remove(), 6000);
   } catch (_) {}
