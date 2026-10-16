@@ -6,7 +6,7 @@
   <title>관리자 · 일학습병행 앱</title>
   <meta name="theme-color" content="#121318" />
   <link rel="stylesheet" href="./styles.css" />
-  <link rel="stylesheet" href="./admin.css?v=20261016-7" /><!-- 배포 때 v 를 올려 캐시된 옛 스타일과 새 HTML 이 섞이지 않게 -->
+  <link rel="stylesheet" href="./admin.css?v=20261016-8" /><!-- 배포 때 v 를 올려 캐시된 옛 스타일과 새 HTML 이 섞이지 않게 -->
   <script src="./config.js"></script>
   <style>
     .msg{max-width:80%;padding:9px 12px;border-radius:12px;margin:5px 0;font-size:14px;white-space:pre-wrap}
@@ -77,7 +77,7 @@
         <button class="adm-nav-item act" data-tab="dash" data-group="today" aria-current="page">오늘</button>
         <button class="adm-nav-item" data-tab="members" data-group="students">학생</button>
         <button class="adm-nav-item" data-tab="notice" data-group="send">보내기</button>
-        <button class="adm-nav-item" data-tab="consult" data-group="consult">상담</button>
+        <button class="adm-nav-item" data-tab="chat" data-group="consult">상담</button>
         <!-- (파일럿) '기업 관리'·'센터' 탭 숨김 — 복원 시 nav 버튼과 TAB_KEYS의 'stages','centers'를 되살리면 됨 -->
         <button class="adm-nav-item" data-tab="library" data-group="settings">설정</button>
       </nav>
@@ -395,6 +395,27 @@
         </div>
       </div>
 
+
+      <!-- [sql/65·66] 대화방 — 기업방(그 기업 학생 + 센터 선생님, 서로 다 봄) · 1:1. 선생님 글만 푸시(4단계). docs/CHAT.md -->
+      <div class="tabsec" id="sec-chat" style="display:none">
+        <h2 class="adm-h2">대화방</h2>
+        <div class="card">
+          <div class="ch-bar">
+            <div class="ch-seg" id="ch-scope" role="group" aria-label="보는 범위"><button type="button" class="chip" data-v="mine">내 담당</button><button type="button" class="chip" data-v="all">전체</button></div>
+            <div class="ch-seg" id="ch-kind" role="group" aria-label="방 종류"><button type="button" class="chip" data-v="company">기업방</button><button type="button" class="chip" data-v="direct">1:1</button></div>
+            <span class="ch-me" id="ch-me"></span>
+          </div>
+          <div id="ch-list"></div>
+        </div>
+        <div class="card" id="ch-room" hidden>
+          <div class="ch-rhead"><p class="ph-card-title" id="ch-title">대화방</p><button type="button" class="mju-btn mju-btn--secondary mju-btn--sm" id="ch-reload">새로 불러오기</button></div>
+          <p class="note" id="ch-members"></p>
+          <div id="ch-msgs" class="ch-msgs"></div>
+          <textarea id="ch-text" class="ph-ta" rows="2" maxlength="2000" style="min-height:64px" aria-label="보낼 글" placeholder="학생에게 보낼 글 — 보내면 푸시 알림이 가요"></textarea>
+          <button class="mju-btn mju-btn--full" id="ch-send" style="margin-top:10px">보내기</button>
+          <div class="status" id="ch-status"></div>
+        </div>
+      </div>
 
       <!-- 만족도 -->
       <div class="tabsec" id="sec-survey" style="display:none">
@@ -850,7 +871,7 @@
 
     // 탭 전환 — location.hash 기록·복원(새로고침·뒤로가기·링크 공유에도 탭 유지) + 활성화 시 해당 탭 재조회
     // ⚠️ 'onboard'는 단독 탭이 아니지만 제거 금지 — #onboard 해시 호환(showTab 재매핑)과 sec-onboard 끄기(display 루프)가 이 항목에 의존
-    const TAB_KEYS = ['dash', 'notice', 'library', 'calendar', 'consult', 'survey', 'members', 'attn', 'onboard', 'recruit']; // (파일럿) 'stages','centers','vote' 탭 제거 — 섹션·로직은 보존, 키만 빼서 진입 차단
+    const TAB_KEYS = ['dash', 'notice', 'library', 'calendar', 'consult', 'chat', 'survey', 'members', 'attn', 'onboard', 'recruit']; // (파일럿) 'stages','centers','vote' 탭 제거 — 섹션·로직은 보존, 키만 빼서 진입 차단
     // 탭별 로더 — 아침에 켜둔 콘솔이 로그인 시점 스냅샷에 고정되지 않게, 탭을 열 때마다 새로 조회
     const TAB_LOAD = {
       dash: () => dashLoad(),
@@ -859,6 +880,7 @@
       library: () => lLoad(),
       calendar: () => { cLoad(); tkLoad(); ojLoad().then(ouLoad).catch(() => {}); },
       consult: () => clLoad(),
+      chat: () => chLoad(),
       survey: () => { svEvLoadList(); svDispatch(); },   // [UX] 첫 진입도 빈 화면 없이 마지막 세그·학기 기준 자동 집계(세그 전환과 동일 동작)
       // 인라인 편집기(.le-save)가 열려 있으면 표 재조회를 건너뜀 — 탭 전환만으로 입력이 날아가지 않게
       members: () => { if (!document.querySelector('#rg-table .le-save')) regLoad(); uvLoad(); },
@@ -867,10 +889,11 @@
       stages: () => stLoad(),
     };
     // [개편 2단계] 메뉴 묶음 — 화면 키 → 묶음, 묶음별 하위 탭(순서 = 표시 순서). 새 메뉴 해시(#today 등)는 첫 화면 별칭.
-    const TAB_GROUP = { dash: 'today', members: 'students', onboard: 'students', attn: 'students', notice: 'send', consult: 'consult',
+    const TAB_GROUP = { dash: 'today', members: 'students', onboard: 'students', attn: 'students', notice: 'send', consult: 'consult', chat: 'consult',
       library: 'settings', calendar: 'settings', recruit: 'settings', survey: 'settings' };
     const GROUP_SUBS = {
       students: [['members', '명단'], ['onboard', '명단 등록·추가'], ['attn', '출석 진도']],
+      consult: [['chat', '대화방 (기업방·1:1)'], ['consult', '1:1 상담']],
       settings: [['library', '자료'], ['calendar', '일정·할 일'], ['recruit', 'FAQ'], ['survey', '만족도·설문']],
     };
     const TAB_ALIAS = { today: 'dash', students: 'members', send: 'notice', settings: 'library' };
@@ -930,7 +953,7 @@
     // 페이지 폼은 값만, 모달 폼은 '모달이 열려 있는 동안'만 검사 — 제출·취소 후 잔존 값이 상시 오탐하지 않게
     const DRAFT_IDS = ['n-title', 'n-body', 'po-q', 'po-desc', 'po-opts', 'l-title', 'l-url', 'c-title', 'c-memo',
       'ev-title', 'ev-desc', 'jp-company', 'jp-title', 'jp-region', 'jp-intro', 'jp-perks', 'sc-title', 'sc-company', 'sc-body',
-      'qa-cat', 'qa-q', 'qa-a', 'cl-reply', 'as-name', 'ac-name', 'gr-to', 'cc-slug', 'cc-name', 'ga-email'];
+      'qa-cat', 'qa-q', 'qa-a', 'cl-reply', 'ch-text', 'as-name', 'ac-name', 'gr-to', 'cc-slug', 'cc-name', 'ga-email'];
     const MODAL_DRAFTS = {
       'qv-veil': ['qv-q', 'qv-a', 'qv-cat'],
       'qe-veil': ['qe-q', 'qe-a', 'qe-cat'],
@@ -1891,6 +1914,98 @@
 
     // ===== 상담 (관리자) =====
     let curConsult = null, curLabel = '';
+    // ===== 대화방(sql/65·66) — 기업방·1:1 목록 → 대화. 목록·명단·알림 여부는 admin_chat_rooms 한 번, 글은 표 직접(센터 RLS) =====
+    // 보는 범위: 내 담당(명단 담당직원 = 내 이름) 기본, [전체]. 선택은 이 기기에 기억.
+    let chRooms = [], chMe = {}, chCur = null;
+    const chPref = (k, d) => { try { return localStorage.getItem('adm_ch_' + k) || d; } catch (_) { return d; } };
+    const chSave = (k, v) => { try { localStorage.setItem('adm_ch_' + k, v); } catch (_) {} };
+    let chScope = chPref('scope', 'mine'), chKind = chPref('kind', 'company');
+    const chAt = s => { const d = new Date(s), n = new Date(); return d.toDateString() === n.toDateString() ? d.toLocaleTimeString('ko-KR', { hour: 'numeric', minute: '2-digit' }) : `${d.getMonth() + 1}/${d.getDate()}`; };
+    async function chLoad() {
+      const el = $('ch-list');
+      const { data, error } = await supabase.rpc('admin_chat_rooms');
+      if (error || !data || !data.ok) { loadFail(el, '대화방을 불러오지 못했어요.' + (error ? ' (' + error.message + ')' : ''), chLoad); return; }
+      chRooms = data.rooms || []; chMe = data.me || {};
+      _chUnread = chRooms.reduce((a, r) => a + Number(r.unread || 0), 0); consultBadge();
+      if (chCur) { const r = chRooms.find(x => x.id === chCur.id); if (r) chCur = r; }
+      chDraw();
+    }
+    function chDraw() {
+      const el = $('ch-list'), myName = (chMe.name || '').trim();
+      document.querySelectorAll('#ch-scope .chip').forEach(b => b.classList.toggle('on', b.dataset.v === chScope));
+      document.querySelectorAll('#ch-kind .chip').forEach(b => b.classList.toggle('on', b.dataset.v === chKind));
+      $('ch-me').innerHTML = myName ? `학생에게 <b>${esc(myName)} 선생님</b>으로 보여요 · <button type="button" class="ch-link" id="ch-rename">이름 바꾸기</button>`
+        : `<b class="ch-warn">내 이름이 없어요</b> — 학생에게 '센터 선생님'으로 보여요 · <button type="button" class="ch-link" id="ch-rename">이름 넣기</button>`;
+      $('ch-rename').addEventListener('click', chRename);
+      const mine = r => !myName || r.members.some(m => (m.manager || '').trim() === myName);
+      const all = chRooms.filter(r => r.kind === chKind), rows = all.filter(r => chScope === 'all' || mine(r));
+      const hidden = all.length - rows.length;
+      el.innerHTML = (rows.length ? `<div class="ch-list">` + rows.map(r => {
+        const n = r.members.length, on = r.members.filter(m => m.push).length, co = r.kind === 'company';
+        const sub = co ? `학생 ${n}명 · 알림 받는 학생 ${on}/${n}` : `${esc(r.company || '')} · ${on ? '알림 받음' : '알림 안 받음'}`;
+        const last = r.last ? `${r.last.sender === 'teacher' ? esc(r.last.name) : esc(r.last.name)}: ${esc(r.last.body)}` : '아직 글이 없어요';
+        return `<button type="button" class="ch-row${chCur && chCur.id === r.id ? ' on' : ''}" data-id="${r.id}">` +
+          `<span class="ch-main"><span class="ch-t">${esc(r.title)}${Number(r.unread) ? `<span class="ch-new">새 글 ${r.unread}</span>` : ''}</span>` +
+          `<span class="ch-sub${on < n ? ' ch-subw' : ''}">${sub}</span><span class="ch-last">${last}</span></span>` +
+          `<span class="ch-at">${r.last ? chAt(r.last.at) : ''}</span></button>`;
+      }).join('') + `</div>` : `<p class="note">${chScope === 'mine' && myName ? `${esc(myName)} 담당 학생이 있는 방이 없어요.` : '방이 없어요 — 명단에 기업이 들어간 학생이 있어야 기업방이 생겨요.'}</p>`) +
+        (chScope === 'mine' && hidden > 0 ? `<p class="note" style="margin-top:8px">다른 선생님 담당 ${hidden}개는 [전체]에서 보여요.</p>` : '');
+      el.querySelectorAll('.ch-row').forEach(b => b.addEventListener('click', () => chOpen(b.dataset.id)));
+    }
+    async function chRename() {
+      const v = prompt("학생에게 보일 이름 (뒤에 '선생님'이 붙어요)", chMe.name || '');
+      if (v === null) return;
+      const { data, error } = await supabase.rpc('set_my_display_name', { p_name: v });
+      if (error || !data || !data.ok) { alert('이름을 저장하지 못했어요.' + (data && data.reason === 'length' ? ' (20자까지)' : '')); return; }
+      chMe.name = data.name; chDraw();
+    }
+    async function chOpen(id) {
+      chCur = chRooms.find(r => r.id === id); if (!chCur) return;
+      chDraw();
+      $('ch-room').hidden = false;
+      $('ch-title').textContent = (chCur.kind === 'company' ? '기업방 · ' : '1:1 · ') + chCur.title;
+      $('ch-members').innerHTML = chCur.kind === 'company'
+        ? '학생: ' + chCur.members.map(m => `${esc(m.name)}${m.push ? '' : ' <span class="ch-off">알림 꺼짐</span>'}`).join(', ') + ' — 이 방 글은 이 학생들 모두가 봐요.'
+        : `${esc(chCur.title)} 학생과 선생님만 보는 대화${chCur.members[0] && !chCur.members[0].push ? ' · <span class="ch-off">이 학생은 알림을 받지 않아요</span>' : ''}`;
+      const box = $('ch-msgs'); box.innerHTML = '<p class="note">불러오는 중…</p>';
+      const { data, error } = await supabase.from('chat_messages').select('id,sender,sender_name,body,hidden,created_at,push_state')
+        .eq('room_id', id).order('created_at', { ascending: true }).limit(500);
+      if (error) { loadFail(box, '글을 불러오지 못했어요.', () => chOpen(id)); return; }
+      box.innerHTML = (data || []).length ? data.map(m =>
+        `<div class="ch-m ${m.sender}${m.hidden ? ' hid' : ''}"><span class="n">${esc(m.sender_name)} · ${new Date(m.created_at).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: 'numeric', minute: '2-digit' })}` +
+        `${m.sender === 'teacher' ? (m.push_state === 'sent' ? ' · 알림 보냄' : m.push_state === 'pending' ? ' · 알림 대기' : '') : ''}${m.hidden ? ' · 숨김' : ''}</span>` +
+        `<span class="b">${esc(m.body)}</span>` +
+        `<button type="button" class="ch-link ch-hide" data-id="${m.id}" data-h="${m.hidden ? 0 : 1}">${m.hidden ? '다시 보이기' : '숨기기'}</button></div>`).join('')
+        : `<p class="note">아직 글이 없어요. 첫 글을 보내면 ${chCur.kind === 'company' ? '이 기업 학생들' : '이 학생'}에게 알림이 가요.</p>`;
+      box.querySelectorAll('.ch-hide').forEach(b => b.addEventListener('click', async () => {
+        const hide = b.dataset.h === '1';
+        if (hide && !confirm('이 글을 학생들에게서 숨길까요? (선생님 화면에는 남아요)')) return;
+        if (await updRow('chat_messages', { hidden: hide }, b.dataset.id, $('ch-status'))) chOpen(id);
+      }));
+      box.scrollTop = box.scrollHeight;
+      const opened = chCur;
+      supabase.rpc('admin_chat_read', { p_room: id }).then(() => {
+        if (Number(opened.unread)) { _chUnread = Math.max(0, _chUnread - Number(opened.unread)); opened.unread = 0; consultBadge(); chDraw(); }
+      });
+    }
+    $('ch-send').addEventListener('click', async () => {
+      const text = $('ch-text').value.trim();
+      if (!chCur || !text) return;
+      $('ch-send').disabled = true; setStatus($('ch-status'), '보내는 중…', 'info');
+      const { data, error } = await supabase.rpc('admin_post_chat', { p_room: chCur.id, p_text: text });
+      $('ch-send').disabled = false;
+      if (error || !data || !data.ok) { setStatus($('ch-status'), '보내지 못했어요.' + (error ? ' (' + error.message + ')' : data && data.reason ? ' (' + data.reason + ')' : ''), 'error'); return; }
+      $('ch-text').value = ''; setStatus($('ch-status'), '보냈어요.', 'success');
+      logAction('chat_post', chCur.title);
+      const id = chCur.id; await chLoad(); chOpen(id);
+    });
+    $('ch-reload').addEventListener('click', async () => { await chLoad(); if (chCur) chOpen(chCur.id); });
+    document.querySelectorAll('#ch-scope .chip').forEach(b => b.addEventListener('click', () => { chScope = b.dataset.v; chSave('scope', chScope); chDraw(); }));
+    document.querySelectorAll('#ch-kind .chip').forEach(b => b.addEventListener('click', () => { chKind = b.dataset.v; chSave('kind', chKind); chDraw(); }));
+
+    // '상담' 묶음 배지 = 미답변 상담 + 대화방 안 읽은 학생 글
+    let _clOpen = 0, _chUnread = 0;
+    function consultBadge() { setTabCnt('consult', _clOpen + _chUnread); }
     async function clLoad() {
       const el = $('cl-list');
       // 열림(미답변)은 전량 조회 — 최근순 50건 컷에 오래된 미답변이 조용히 사라지지 않게. 나머지는 최근 50건.
@@ -1902,7 +2017,7 @@
       const clRank = s => s === '열림' ? 0 : s === '종료' ? 2 : 1;
       const rows = [...(opens.data || []), ...(rest.data || [])].sort((a, b) => clRank(a.status) - clRank(b.status)); // 미답변(열림) 먼저, 종료는 맨 아래
       const open = (opens.data || []).length;
-      setTabCnt('consult', open);   // 탭 배지 — 다른 탭에서도 미답변이 보이게
+      _clOpen = open; consultBadge();   // 탭 배지 — 다른 탭에서도 미답변이 보이게(대화방 안 읽은 글과 합침)
       el.innerHTML = rows.length ? `<p class="note" style="margin:0 0 10px">미답변 <b style="color:var(--err)">${open}건</b> · 표시 ${rows.length}건 (미답변이 위에${(rest.data || []).length >= 50 ? ' · 종료는 최근 50건만' : ''})</p>` : '<p class="note">아직 들어온 상담이 없어요.</p>';
       rows.forEach(c => {
         const nm = document.createElement('span'); nm.textContent = (c.name || '익명') + (c.job_key ? ' · ' + c.job_key : '');
@@ -4422,7 +4537,7 @@
       } catch (_) { /* 폴백: 레거시 전체 콘솔 */ }
       applyRoleUI();
       await applyCenterVocab();   // [원장] 담당/유형/상태 등을 DB(centers.vocab)에서 먼저 배급 → 이후 모든 로더가 DB값 사용
-      dashLoad(); initPickers().then(fillRecruitPickers); nLoad(); plLoad(); lLoad(); cLoad(); tkLoad(); ojLoad().then(ouLoad).catch(() => {}); clLoad(); regLoad(); uvLoad(); rcLoad(); stLoad(); svEvLoadList(); poLoad(); populateAddStudentPickers();
+      dashLoad(); initPickers().then(fillRecruitPickers); nLoad(); plLoad(); lLoad(); cLoad(); tkLoad(); ojLoad().then(ouLoad).catch(() => {}); clLoad(); chLoad(); regLoad(); uvLoad(); rcLoad(); stLoad(); svEvLoadList(); poLoad(); populateAddStudentPickers();
       loadAttOptions().catch(() => {});   // [개편 7단계] 보내기 첨부 목록 — #notice 로 바로 열어도 채워지게
       attnLoad();   // 출석 진도도 첫 로드에 포함 — #attn 으로 바로 열거나 새로고침하면 빈 화면이던 것(기존 누락)
       // URL 해시의 탭 복원(새로고침·재로그인 후 작업 위치 유지) — 위에서 전체 로드했으니 중복 조회는 생략

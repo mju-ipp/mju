@@ -392,3 +392,34 @@ body.adm .ou-tbl input{margin:0; padding:6px 8px; font-size:13px; min-height:32p
 body.adm .ou-tbl td{vertical-align:middle}
 body.adm .ou-paste{margin-top:10px; padding:12px; border:1px solid var(--v-line); border-radius:8px; background:var(--v-paper)}
 body.adm .ou-paste textarea{width:100%; font-size:13px}
+
+/* ── 대화방(sql/65·66) — 기업방·1:1 목록 + 대화. 면 대신 1px 선, 강조는 코발트, 알림 꺼짐만 warn ── */
+body.adm .ch-bar{display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin-bottom:12px}
+body.adm .ch-seg{display:inline-flex; border:1px solid var(--v-line); border-radius:6px; overflow:hidden}
+body.adm .ch-seg .chip{border:0; border-radius:0; padding:8px 14px}
+body.adm .ch-seg .chip + .chip{border-left:1px solid var(--v-line)}
+body.adm .ch-me{margin-left:auto; font-size:13px; color:var(--v-mute)}
+body.adm .ch-warn{color:var(--v-warn)}
+body.adm .ch-link{border:0; background:transparent; padding:0; font:inherit; font-size:13px; color:var(--v-cobalt); cursor:pointer; text-decoration:underline}
+body.adm .ch-list{border-top:1px solid var(--v-line)}
+body.adm .ch-row{display:flex; gap:12px; align-items:flex-start; width:100%; padding:12px 8px; border:0; border-bottom:1px solid var(--v-line);
+  background:transparent; text-align:left; font:inherit; color:inherit; cursor:pointer}
+body.adm .ch-row:hover{background:#f1f1ed}
+body.adm .ch-row.on{background:var(--v-cobalt-bg)}
+body.adm .ch-main{flex:1; min-width:0; display:flex; flex-direction:column; gap:2px}
+body.adm .ch-t{font-weight:500; display:flex; align-items:center; gap:8px}
+body.adm .ch-new{font-size:12px; font-weight:500; color:#fff; background:var(--v-cobalt); border-radius:10px; padding:1px 8px}
+body.adm .ch-sub{font-size:12.5px; color:var(--v-mute)}
+body.adm .ch-sub.ch-subw{color:var(--v-warn)}
+body.adm .ch-last{font-size:13px; color:var(--v-mute); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+body.adm .ch-at{flex:none; font-size:12px; color:var(--v-mute)}
+body.adm .ch-rhead{display:flex; align-items:center; justify-content:space-between; gap:8px}
+body.adm .ch-off{color:var(--v-warn); font-size:12px}
+body.adm .ch-msgs{display:flex; flex-direction:column; gap:10px; max-height:60vh; overflow:auto; padding:8px 0 12px; border-top:1px solid var(--v-line); margin:8px 0 12px}
+body.adm .ch-m{max-width:80%; display:flex; flex-direction:column; gap:3px; align-self:flex-start; align-items:flex-start}
+body.adm .ch-m .n{font-size:12px; color:var(--v-mute)}
+body.adm .ch-m .b{padding:9px 12px; border:1px solid var(--v-line); border-radius:10px; background:var(--v-paper); white-space:pre-wrap; word-break:break-word}
+body.adm .ch-m.teacher{align-self:flex-end; align-items:flex-end}
+body.adm .ch-m.teacher .b{background:var(--v-cobalt-bg); border-color:transparent}
+body.adm .ch-m.hid .b{opacity:.45; text-decoration:line-through}
+body.adm .ch-m .ch-hide{font-size:12px; color:var(--v-mute)}
