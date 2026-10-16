@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>홈 화면에 추가 · 일학습병행 앱</title>
   <link rel="manifest" href="./manifest.json" />
-  <meta name="theme-color" content="#002968" />
+  <meta name="theme-color" content="#fafaf8" />
   <link rel="apple-touch-icon" href="./icons/icon-192.png" />
   <link rel="stylesheet" href="./styles.css" />
   <link rel="stylesheet" href="./student.css" /><!-- 학생 화면 디자인(관리자와 같은 계열) -->
@@ -169,7 +169,7 @@
 
     async function runDiag() {
       const line = (k, v, ok) =>
-        `<div><b>${k}</b> — <span style="color:${ok === null ? 'inherit' : (ok ? '#1baf7a' : '#eb6834')};font-weight:700">${v}</span></div>`;
+        `<div><b>${k}</b> — <span style="color:${ok === null ? 'inherit' : (ok ? 'var(--v-cobalt)' : 'var(--v-warn)')};font-weight:700">${v}</span></div>`;
       const rows = [];
       const standalone = isStandalone();
       rows.push(line('설치 상태', standalone ? '홈 화면 앱' : '브라우저 탭(← iOS는 이러면 알림 불가)', standalone));
