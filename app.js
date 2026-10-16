@@ -394,7 +394,7 @@ function showPushToast(title, body) {
       ['index.html', 'home', '홈'],
       ['notice.html', 'megaphone', '공지'],
       ['library.html', 'folder', '자료'],
-      ['calendar.html', 'calendar-days', '일정'],
+      // (10/16) '일정' 탭 폐지 — 홈 달력으로 합침(calendar.html 은 홈으로 넘김)
       ['consult.html', 'message-circle', '상담'],
     ];
     const nav = document.createElement('nav');

@@ -57,7 +57,7 @@
     const readBefore = getReadSet();   // 이번 방문 '이전'의 읽음 — unread 표시 기준
 
     // [관리자 개편 7단계] 공지 본문 끝 '첨부 · 자료|일정|설문: 이름' 줄 → 해당 화면 링크(본문은 그대로 이스케이프)
-    const ATT_HREF = { '자료': './library.html', '일정': './calendar.html', '설문': './survey.html' };
+    const ATT_HREF = { '자료': './library.html', '일정': './index.html#home-cal', '설문': './survey.html' };
     function bodyHtml(body) {
       const lines = String(body || '').split('\n');
       const att = [], txt = [];

@@ -63,7 +63,6 @@
         <div class="menu-grid">
           <a href="./notice.html"   class="menu-tile"><span class="mi"><i data-lucide="megaphone"></i></span><span class="ml">공지사항</span></a>
           <a href="./library.html"  class="menu-tile"><span class="mi"><i data-lucide="folder"></i></span><span class="ml">자료실</span></a>
-          <a href="./calendar.html" class="menu-tile"><span class="mi"><i data-lucide="calendar-days"></i></span><span class="ml">일정</span></a>
           <a href="./mycompany.html" id="m-myco" class="menu-tile" style="display:none"><span class="mi"><i data-lucide="building-2"></i></span><span class="ml">내 학습기업</span></a>
         </div>
         <p class="menu-group-label">소통·참여</p>
@@ -290,6 +289,7 @@
     let _stuData = null;     // stuData() 한 번만 부른 결과(Promise)
     let homeCalGo = null;    // 출석 진도 카드 월별 표 → 홈 달력 그 달로(renderSchedule 이 채움)
     let homeYm = null, homeSel = null;   // 홈 달력이 보여주는 달·펼친 날(완료 체크 후 다시 그려도 유지)
+    let homeView = 'day', homeKind = '';  // [날짜별|능력단위별] 전환 · 그 달 일정 목록의 종류 거르기(옛 일정 화면 기능을 홈으로)
     let _centerBlocked = false;
     if (configReady()) {
       try {
@@ -725,16 +725,36 @@
           : '';
         return `<div class="todo-item"><div style="flex:1"><div class="tt"${done ? ' style="text-decoration:line-through;color:var(--text-muted)"' : ''}>${esc(r.title)}</div><div class="td">${sub}${r.memo ? ' · ' + esc(r.memo) : ''}</div>${link}</div>${chk}${badge}</div>`;
       };
-      const datedRows = all.filter(r => r.event_date >= todayStr || (r.task_id && r.event_date >= weekAgoStr)).slice(0, 4)
-        .map(r => {
-          if (r.task_id && r.event_date < todayStr) {   // 놓친 마감 — 7일까지 노출(Q2)
-            const n = Math.round((new Date(todayStr + 'T00:00:00') - new Date(r.event_date + 'T00:00:00')) / 86400000);
-            return rowHtml(r, `<span class="dday urgent">지남 D+${n}</span>`);
-          }
-          const dd = dday(r.event_date); return rowHtml(r, `<span class="dday ${dd.cls}">${dd.label}</span>`);
-        }).join('');
-      const undatedRows = undated.slice(0, 2).map(t => rowHtml(t, `<span class="dday muted">미정</span>`)).join('');
-      const listHtml = (datedRows + undatedRows) || `<p class="note" style="margin:10px 0 0">예정된 일정이 없어요.</p>`;
+      // 그 달 일정 전체 목록 + 종류 거르기(옛 일정 화면 기능). 지난 일정은 '종료', 놓친 마감 할 일은 7일까지 '지남 D+n'(Q2)
+      const badgeOf = r => {
+        if (r.task_id && r.event_date < todayStr && r.event_date >= weekAgoStr) {
+          const n = Math.round((new Date(todayStr + 'T00:00:00') - new Date(r.event_date + 'T00:00:00')) / 86400000);
+          return `<span class="dday urgent">지남 D+${n}</span>`;
+        }
+        const dd = dday(r.event_date); return `<span class="dday ${dd.cls}">${dd.label}</span>`;
+      };
+      function monthList(ym) {
+        let rs = all.filter(r => r.event_date.slice(0, 7) === ym);
+        if (ym === thisYm) {
+          rs = all.filter(r => r.task_id && r.event_date < ym + '-01' && r.event_date >= weekAgoStr).concat(rs);   // 지난달 말 놓친 마감
+          // 다음 달 1~7일 마감 할 일도 이번 달 목록 끝에 — 옛 '다가오는 일정'처럼 월초 마감(학습활동서 3일 등)을 미리 보이게
+          const nextYm = ymAdd(ym, 1);
+          rs = rs.concat(all.filter(r => r.task_id && r.event_date.slice(0, 7) === nextYm && Number(r.event_date.slice(8)) <= 7));
+        }
+        const und = ym === thisYm ? undated : [];   // 마감 미정 할 일은 이번 달 목록 끝에
+        const kinds = [...new Set(rs.map(r => r.kind).concat(und.length ? ['할 일'] : []).filter(Boolean))];
+        if (homeKind && !kinds.includes(homeKind)) homeKind = '';
+        const shown = rs.filter(r => !homeKind || r.kind === homeKind);
+        const undShown = !homeKind || homeKind === '할 일' ? und : [];
+        const mo = Number(ym.slice(5));
+        const chips = kinds.length >= 2
+          ? `<div class="filter-chips hc-chips" role="group" aria-label="일정 종류">` + ['', ...kinds].map(k =>
+              `<button type="button" class="chip${homeKind === k ? ' on' : ''}" data-k="${esc(k)}" aria-pressed="${homeKind === k}">${k ? esc(k) : '전체'}</button>`).join('') + `</div>`
+          : '';
+        const rows = shown.map(r => rowHtml(r, badgeOf(r))).join('') + undShown.map(t => rowHtml(t, `<span class="dday muted">미정</span>`)).join('');
+        return `<p class="hc-sub">${mo}월 일정${shown.length + undShown.length ? ' ' + (shown.length + undShown.length) + '건' : ''}</p>` + chips +
+          (rows || `<p class="note" style="margin:10px 0 0">${homeKind ? '이 종류의 일정이 없어요.' : '이 달 일정이 없어요.'}</p>`);
+      }
 
       const byDate = {};
       all.forEach(r => { (byDate[r.event_date] = byDate[r.event_date] || []).push(r); });
@@ -769,7 +789,44 @@
         return h + '</div>';
       }
 
-      // 월~금 5칸(사용자 요청 — 수업·훈련은 평일만). 주말 일정은 아래 '다가오는 일정' 목록과 '전체 일정'에서
+      // 능력단위별 목록(옛 일정 화면 [능력단위별]) — 내 수업일정 날에서 과목 → 능력단위 → 수업 날짜를 모으고,
+      // 학습안내서 시간·요소는 my_offjt_units. 진행 = 지난 수업 횟수 ÷ 전체 수업 횟수(추정)
+      const schedDays = sDays.filter(isSchedDay).sort((a, b) => (a.day < b.day ? -1 : 1));
+      const FD = s => { const x = new Date(s + 'T00:00:00'); return `${x.getMonth() + 1}/${x.getDate()}(${'일월화수목금토'[x.getDay()]})`; };
+      function unitsView() {
+        const groups = [], gi = {};
+        const grp = s => gi[s] || (groups.push(gi[s] = { subject: s, units: [] }), gi[s]);
+        schedDays.forEach(r => {
+          if (/직업기초능력/.test(r.course)) {   // 직업기초능력 날: 뒤 칸은 하위 능력(직업윤리·문제해결 등)
+            const sub = offItems(r.course).filter(x => !/직업기초능력/.test(x.s)).map(x => x.u ? `${x.s}·${x.u}` : x.s).join(', ');
+            const g = grp('직업기초능력'); let u = g.units.find(y => y.unit === (sub || null));
+            if (!u) g.units.push(u = { unit: sub || null, dates: [] });
+            u.dates.push(r.day); return;
+          }
+          offItems(r.course).forEach(x => {
+            const name = x.u && !/^교안/.test(x.u) ? x.u : null;
+            const g = grp(x.s); let u = g.units.find(y => y.unit === name);
+            if (!u) g.units.push(u = { unit: name, dates: [] });
+            if (!u.dates.includes(r.day)) u.dates.push(r.day);
+          });
+        });
+        const wd = arr => [...new Set(arr.map(s => new Date(s + 'T00:00:00').getDay()))].sort((a, b) => a - b).map(d => '일월화수목금토'[d]).join('·');
+        return `<p class="ph-note oj-est">진행 = 지난 수업 횟수 ÷ 전체 수업 횟수로 <b>추정</b>한 값이에요. 출석 시간과 다를 수 있어요.</p>` +
+          groups.map(g => `<div class="hc-grp"><p class="hc-grp-t">${esc(g.subject)}</p>` + g.units.map(u => {
+            const n = u.dates.length, done = u.dates.filter(d => d < todayStr).length, pct = n ? Math.round(done / n * 100) : 0;
+            const info = u.unit ? unitInfo(g.subject, u.unit) : null, els = (info && info.elements) || [];
+            const meta = [info && info.hours != null ? `${Number(info.hours)}시간` : '', `${FD(u.dates[0])}–${FD(u.dates[n - 1])}`, wd(u.dates)].filter(Boolean).join(' · ');
+            const bar = `<div class="oj-prog"><div class="oj-bar" role="progressbar" aria-valuemin="0" aria-valuemax="${n}" aria-valuenow="${done}" aria-label="${esc(u.unit || g.subject)} 진행"><i style="width:${pct}%"></i></div><span>${done}/${n}회</span></div>`;
+            const head = (u.unit ? `<span class="oj-u-n">${esc(u.unit)}</span>` : '') + `<span class="oj-u-meta">${meta}</span>` + bar;
+            if (!els.length) return `<div class="oj-u">${head}</div>`;
+            return `<details class="oj-u"><summary>${head}<span class="oj-u-more">요소 ${els.length}</span></summary>` +
+              `<p class="oj-copy">참고만 하고 <b>자기 말로</b> 바꿔 쓰세요 — 그대로 복사하면 공단 모니터링 대상이 돼요.</p>` +
+              els.map((el, i) => `<details class="oj-el"><summary>${i + 1}. ${esc(el.name)}</summary><ul>${(el.tasks || []).map(t => `<li>${esc(t)}</li>`).join('')}</ul></details>`).join('') +
+              `</details>`;
+          }).join('') + `</div>`).join('');
+      }
+
+      // 월~금 5칸(사용자 요청 — 수업·훈련은 평일만). 주말 일정은 아래 그 달 일정 목록에서
       const dow = ['월', '화', '수', '목', '금'].map(d => `<span class="cal-dow">${d}</span>`).join('');
       function draw() {
         const y = Number(homeYm.slice(0, 4)), mo = Number(homeYm.slice(5)) - 1;
@@ -795,22 +852,30 @@
           const cls = 'cal-cell' + (evts.length ? ' has' : '') + (sch ? ' offjt' : att.length ? ' ojt' : '') + (ds < todayStr ? ' past' : '') + (ds === todayStr ? ' today' : '') + (ds === homeSel ? ' sel' : '');
           cells += any ? `<button type="button" class="${cls}" data-d="${ds}" aria-label="${fmtDate(ds)} 보기">${inner}</button>` : `<span class="${cls}">${inner}</span>`;
         }
+        const unitMode = homeView === 'unit' && schedDays.length;
         mount.innerHTML =
           `<div class="card accent">` +
             `<p class="ph-card-title"><i data-lucide="calendar-days"></i> 일정</p>` +
-            `<div class="cal-head" style="margin-bottom:8px">` +
-              `<button type="button" class="cal-nav" id="hc-prev" aria-label="이전 달"${homeYm <= minYm ? ' disabled' : ''}><i data-lucide="chevron-left"></i></button>` +
-              `<b>${y}년 ${mo + 1}월</b>` +
-              `<button type="button" class="cal-nav" id="hc-next" aria-label="다음 달"${homeYm >= maxYm ? ' disabled' : ''}><i data-lucide="chevron-right"></i></button>` +
-            `</div>` +
-            `<div class="cal-grid hc-cal">${dow}</div>` +
-            `<div class="cal-grid hc-cal" style="margin-bottom:4px">${cells}</div>` +
-            (wkndEvts ? `<p class="ph-note" style="margin:6px 0 0">주말 일정 ${wkndEvts}건은 아래 목록·전체 일정에서 볼 수 있어요.</p>` : '') +
-            (homeSel ? dayDetail(homeSel) : (sd && (sDays.some(r => r.day.slice(0, 7) === homeYm)) ? `<p class="ph-note" style="margin:6px 0 0">날짜를 누르면 그날 수업·훈련 내용이 나와요.</p>` : '')) +
-            (homeYm === thisYm ? `<p class="hc-sub">다가오는 일정</p>` + listHtml : `<button type="button" class="hc-today" id="hc-today">이번 달로</button>`) +
-            `<a href="./calendar.html" style="display:inline-flex;align-items:center;gap:4px;font-size:12.5px;font-weight:700;color:var(--link);margin-top:10px;text-decoration:none">전체 일정 보기 <i data-lucide="chevron-right" style="width:14px;height:14px"></i></a>` +
+            // OFF-JT 수업이 있는 학생만 [날짜별 | 능력단위별]
+            (schedDays.length ? `<div class="oj-seg" role="tablist" aria-label="일정 보기">` +
+              `<button type="button" role="tab" data-v="day" aria-selected="${!unitMode}" class="${unitMode ? '' : 'on'}">날짜별</button>` +
+              `<button type="button" role="tab" data-v="unit" aria-selected="${!!unitMode}" class="${unitMode ? 'on' : ''}">능력단위별</button></div>` : '') +
+            (unitMode ? unitsView() :
+              `<div class="cal-head" style="margin-bottom:8px">` +
+                `<button type="button" class="cal-nav" id="hc-prev" aria-label="이전 달"${homeYm <= minYm ? ' disabled' : ''}><i data-lucide="chevron-left"></i></button>` +
+                `<b>${y}년 ${mo + 1}월</b>` +
+                `<button type="button" class="cal-nav" id="hc-next" aria-label="다음 달"${homeYm >= maxYm ? ' disabled' : ''}><i data-lucide="chevron-right"></i></button>` +
+              `</div>` +
+              `<div class="cal-grid hc-cal">${dow}</div>` +
+              `<div class="cal-grid hc-cal" style="margin-bottom:4px">${cells}</div>` +
+              (wkndEvts ? `<p class="ph-note" style="margin:6px 0 0">주말 일정 ${wkndEvts}건은 아래 목록에 있어요.</p>` : '') +
+              (homeSel ? dayDetail(homeSel) : (sd && (sDays.some(r => r.day.slice(0, 7) === homeYm)) ? `<p class="ph-note" style="margin:6px 0 0">날짜를 누르면 그날 수업·훈련 내용이 나와요.</p>` : '')) +
+              monthList(homeYm) +
+              (homeYm !== thisYm ? `<button type="button" class="hc-today" id="hc-today">이번 달로</button>` : '')) +
           `</div>`;
         window.lucide?.createIcons();
+        mount.querySelectorAll('.oj-seg button').forEach(b => b.addEventListener('click', () => { homeView = b.dataset.v; draw(); }));
+        mount.querySelectorAll('.hc-chips .chip').forEach(b => b.addEventListener('click', () => { homeKind = b.dataset.k; draw(); }));
         mount.querySelector('#hc-prev')?.addEventListener('click', () => { homeYm = ymAdd(homeYm, -1); homeSel = null; draw(); });
         mount.querySelector('#hc-next')?.addEventListener('click', () => { homeYm = ymAdd(homeYm, 1); homeSel = null; draw(); });
         mount.querySelector('#hc-today')?.addEventListener('click', () => { homeYm = thisYm; homeSel = null; draw(); });
@@ -832,8 +897,11 @@
       }
       // 처음: 오늘에 수업·훈련·일정이 있으면 펼쳐 둠
       if (homeSel == null && homeYm === thisYm && ((sByDate[todayStr] || []).length || (byDate[todayStr] || []).length)) homeSel = todayStr;
-      homeCalGo = (ym) => { homeYm = ym < minYm ? minYm : ym > maxYm ? maxYm : ym; homeSel = null; draw(); mount.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
+      homeCalGo = (ym) => { homeYm = ym < minYm ? minYm : ym > maxYm ? maxYm : ym; homeSel = null; homeView = 'day'; draw(); mount.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
+      const firstDraw = !mount.firstChild;
       draw();
+      // 옛 일정 화면(calendar.html)·공지 '일정' 첨부로 들어오면 #home-cal — 달력으로 바로 이동(처음 그릴 때만)
+      if (firstDraw && location.hash === '#home-cal') mount.scrollIntoView({ block: 'start' });
     }
 
     // 기업 드롭다운만 노션 동기화(companies)에서 채움 (직무는 매칭학생 확인 후 '본인 직무'만 동적 노출)
