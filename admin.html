@@ -6,7 +6,7 @@
   <title>관리자 · 일학습병행 앱</title>
   <meta name="theme-color" content="#121318" />
   <link rel="stylesheet" href="./styles.css" />
-  <link rel="stylesheet" href="./admin.css?v=20261016-1" /><!-- 배포 때 v 를 올려 캐시된 옛 스타일과 새 HTML 이 섞이지 않게 -->
+  <link rel="stylesheet" href="./admin.css?v=20261016-2" /><!-- 배포 때 v 를 올려 캐시된 옛 스타일과 새 HTML 이 섞이지 않게 -->
   <script src="./config.js"></script>
   <style>
     .msg{max-width:80%;padding:9px 12px;border-radius:12px;margin:5px 0;font-size:14px;white-space:pre-wrap}
@@ -318,6 +318,56 @@
             <p class="ph-card-title">등록된 할 일</p>
             <div id="tk-list"></div>
           </div>
+        </div>
+        <!-- [OFF-JT 새 3단계] 직무별 수업일정 + 능력단위 시간표 (sql/62, docs/OFFJT.md) — 학생 일정 화면의 '내 수업' 원천 -->
+        <div class="card" id="oj-card" style="margin-top:18px">
+          <p class="ph-card-title">OFF-JT 수업일정 (직무별)</p>
+          <p class="note" style="margin:0 0 8px">직무 폴더의 <b>수업일정 엑셀</b>을 그대로 올려요(파일은 브라우저 안에서만 읽음). 학생은 일정 화면에서 <b>자기 직무</b> 것만 보고, 기업을 적어 올린 달은 그 기업 학생에게만 그 일정이 보여요. 월별 수정본(<code>_4월.xlsx</code>)은 고른 달만 바뀌어요.</p>
+          <div class="oj-drop" id="oj-drop">
+            <label class="phone-btn file-btn"><input type="file" id="oj-file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" aria-label="수업일정 엑셀" />파일 고르기</label>
+            <span class="note" style="margin:0">또는 여기에 끌어놓기</span>
+            <span class="note" id="oj-fname" style="margin:0"></span>
+          </div>
+          <div class="adm-2col" style="gap:12px;margin-top:6px">
+            <div>
+              <label for="oj-job">직무 <span class="req">*</span></label>
+              <select id="oj-job" class="ph-select"><option value="">직무 고르기</option></select>
+            </div>
+            <div>
+              <label for="oj-co">기업 (선택 — 비우면 직무 공통, 여러 곳은 쉼표)</label>
+              <input type="text" id="oj-co" list="oj-co-list" placeholder="예: 멜콘" />
+              <datalist id="oj-co-list"></datalist>
+            </div>
+          </div>
+          <div id="oj-months" class="oj-months"></div>
+          <label id="oj-guess-wrap" style="display:none"><input type="checkbox" id="oj-guess" checked> 날짜 숫자가 비어 옆 칸으로 <b>추정</b>한 날도 올리기</label>
+          <div id="oj-preview"></div>
+          <button class="mju-btn mju-btn--full" id="oj-go" disabled style="margin-top:10px">고른 달 올리기</button>
+          <div class="status" id="oj-status"></div>
+          <div id="oj-have" style="margin-top:14px"></div>
+
+          <p class="ph-card-title" style="margin-top:22px">능력단위 시간표 · 요소·수행과업</p>
+          <p class="note" style="margin:0 0 8px">학습안내서 1쪽의 과목·능력단위·시간을 직무마다 한 번 넣어요. 올린 수업일정에 나온 이름이 미리 채워져 있어 <b>시간만</b> 넣으면 돼요. 학습안내서 표는 그림이라 요소·수행과업은 <b>[요소 붙여넣기]</b>로 넣어요(ncs.go.kr 능력단위 화면에서 복사해도 됨).</p>
+          <div class="adm-2col" style="gap:12px">
+            <div><label for="ou-job">직무</label><select id="ou-job" class="ph-select"><option value="">직무 고르기</option></select></div>
+            <div><label for="ou-year">기수 연도</label><input type="number" id="ou-year" min="2020" max="2100" step="1" /></div>
+          </div>
+          <div id="ou-table" style="margin-top:8px"></div>
+          <div id="ou-paste" class="ou-paste" hidden>
+            <p class="ph-card-title" style="margin:0 0 4px" id="ou-paste-title"></p>
+            <p class="note" style="margin:0 0 6px">요소마다 <code>1. 요소 이름</code> 한 줄, 그 아래 줄마다 수행과업 한 문장. 빈 줄·<code>-</code> 머리표·<code>1.1</code> 번호는 알아서 정리돼요.</p>
+            <textarea id="ou-paste-text" rows="9" placeholder="1. 개발환경 구축하기&#10;응용소프트웨어 개발에 필요한 하드웨어 및 소프트웨어의 필요 사항을 검토하고 …&#10;…&#10;2. 공통 모듈 구현하기&#10;…"></textarea>
+            <div id="ou-paste-preview" class="note" style="margin:6px 0"></div>
+            <div style="display:flex;gap:8px">
+              <button class="mju-btn mju-btn--sm" id="ou-paste-ok" type="button">이 단위에 넣기</button>
+              <button class="mju-btn mju-btn--secondary mju-btn--sm" id="ou-paste-cancel" type="button">닫기</button>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:10px">
+            <button class="mju-btn mju-btn--secondary mju-btn--sm" id="ou-add" type="button">줄 추가</button>
+            <button class="mju-btn mju-btn--sm" id="ou-save" type="button" disabled>시간표 저장</button>
+          </div>
+          <div class="status" id="ou-status"></div>
         </div>
       </div>
 
@@ -791,7 +841,7 @@
       notice: () => { nLoad(); plLoad(); loadAttOptions().catch(() => {}); },
       vote: () => poLoad(),
       library: () => lLoad(),
-      calendar: () => { cLoad(); tkLoad(); },
+      calendar: () => { cLoad(); tkLoad(); ojLoad().then(ouLoad).catch(() => {}); },
       consult: () => clLoad(),
       survey: () => { svEvLoadList(); svDispatch(); },   // [UX] 첫 진입도 빈 화면 없이 마지막 세그·학기 기준 자동 집계(세그 전환과 동일 동작)
       // 인라인 편집기(.le-save)가 열려 있으면 표 재조회를 건너뜀 — 탭 전환만으로 입력이 날아가지 않게
@@ -3969,6 +4019,204 @@
       });
     })();
 
+    // ===== [OFF-JT 새 3단계] 직무별 수업일정 엑셀 → offjt_schedule, 능력단위 시간표 → offjt_units (sql/62) =====
+    //   엑셀 읽기 규칙은 offjt-xlsx.js(2026년 37개 파일로 node 시험). 올리기는 upload_offjt_schedule(고른 달만 교체).
+    const OJ_MON = s => `${+s.slice(5, 7)}월`;
+    const OJ_FD = s => { const d = new Date(s + 'T00:00:00'); return `${d.getMonth() + 1}/${d.getDate()}(${'일월화수목금토'[d.getDay()]})`; };
+    let ojParsed = null, ojLib = null;
+    const ojMod = () => ojLib || (ojLib = import('./offjt-xlsx.js?v=20261016-1'));
+    const ojCenterQ = q => (window.ADMIN_CENTER_ID ? q.eq('center_id', window.ADMIN_CENTER_ID) : q);
+    async function ojFillJobs() {
+      const list = await loadJobs().catch(() => []);
+      ['oj-job', 'ou-job'].forEach(id => {
+        const sel = $(id); if (!sel || sel.options.length > 1) return;
+        list.forEach(n => { const o = document.createElement('option'); o.value = n; o.textContent = n; sel.appendChild(o); });
+      });
+      const cos = await loadCompanies().catch(() => []);
+      const dl = $('oj-co-list'); if (dl && !dl.children.length) cos.forEach(n => { const o = document.createElement('option'); o.value = n; dl.appendChild(o); });
+    }
+    async function ojLoad() {
+      await ojFillJobs();
+      const box = $('oj-have'); if (!box) return;
+      const { data, error } = await ojCenterQ(supabase.from('offjt_schedule').select('job_key,company,day')).order('day').limit(20000);
+      if (error) { box.innerHTML = /offjt_schedule|does not exist|schema cache/i.test(error.message || '') ? '<p class="note">수업일정 표가 아직 없어요(sql/62 적용 전).</p>' : `<p class="note">올라간 수업일정을 못 읽었어요: ${esc(error.message)}</p>`; return; }
+      if (!data || !data.length) { box.innerHTML = '<p class="note">아직 올라간 수업일정이 없어요.</p>'; return; }
+      const g = new Map();   // 직무 → 기업 → 달 → 날짜 수
+      data.forEach(r => {
+        const k = r.job_key + '\u0000' + (r.company || '');
+        if (!g.has(k)) g.set(k, new Map());
+        const m = g.get(k), ym = r.day.slice(0, 7);
+        if (!m.has(ym)) m.set(ym, new Set());
+        m.get(ym).add(r.day);
+      });
+      box.innerHTML = '<p class="note" style="margin:0 0 4px"><b>올라간 수업일정</b></p><table class="rep"><tr><th>직무</th><th>기업</th><th>달별 수업일</th></tr>' +
+        [...g.entries()].sort().map(([k, m]) => { const [job, co] = k.split('\u0000');
+          return `<tr><td>${esc(job)}</td><td>${co ? esc(co) : '<span class="note">공통</span>'}</td><td>${[...m.entries()].map(([ym, s]) => `${OJ_MON(ym)} ${s.size}일`).join(' · ')}</td></tr>`; }).join('') + '</table>';
+    }
+    function ojRender() {
+      const mbox = $('oj-months'), pv = $('oj-preview');
+      if (!ojParsed) { mbox.innerHTML = ''; pv.innerHTML = ''; $('oj-guess-wrap').style.display = 'none'; $('oj-go').disabled = true; return; }
+      const yms = Object.keys(ojParsed.months).sort();
+      const anyGuess = yms.some(ym => ojParsed.months[ym].days.some(d => d.guessed));
+      $('oj-guess-wrap').style.display = anyGuess ? '' : 'none';
+      if (!mbox.children.length) {
+        mbox.innerHTML = '<p class="note" style="margin:8px 0 4px">바꿀 달 (고른 달의 이 직무·기업 일정이 통째로 바뀜)</p>' + yms.map(ym => {
+          const m = ojParsed.months[ym];
+          return `<label class="oj-mon"><input type="checkbox" value="${ym}" checked> ${OJ_MON(ym)} · 수업 ${m.days.length}일` + (m.warnings.length ? ` · <span class="oj-warn">확인 ${m.warnings.length}</span>` : '') + '</label>';
+        }).join('');
+        mbox.querySelectorAll('input').forEach(i => i.addEventListener('change', ojRender));
+      }
+      const pick = [...mbox.querySelectorAll('input:checked')].map(i => i.value);
+      const withGuess = $('oj-guess').checked;
+      pv.innerHTML = yms.filter(ym => pick.includes(ym)).map(ym => {
+        const m = ojParsed.months[ym];
+        const rows = m.days.map(d => `<tr class="${d.guessed && !withGuess ? 'oj-off' : ''}"><td style="white-space:nowrap">${OJ_FD(d.day)}${d.guessed ? ' <span class="oj-warn">추정</span>' : ''}</td><td>` +
+          d.items.map(x => (x.is_basic ? `<span class="oj-basic">${esc(x.subject)}</span>` : `${esc(x.subject)} · ${esc(x.unit || '(능력단위 없음)')}`) + (x.is_new ? ' <b class="oj-new">★ 새 단위</b>' : '')).join('<br>') + '</td></tr>').join('');
+        return `<details class="oj-month" ${pick.length === 1 ? 'open' : ''}><summary><b>${OJ_MON(ym)}</b> · ${m.days.length}일 · 과목 ${m.days.reduce((a, d) => a + d.items.length, 0)}칸` +
+          `${m.days.some(d => d.items.some(x => x.is_new)) ? ' · ★ ' + m.days.filter(d => d.items.some(x => x.is_new)).map(d => OJ_FD(d.day)).join(', ') : ''}</summary>` +
+          (m.warnings.length ? `<ul class="oj-warns">${m.warnings.map(w => `<li>${esc(w)}</li>`).join('')}</ul>` : '') +
+          `<table class="rep"><tr><th>날짜</th><th>과목 · 능력단위</th></tr>${rows}</table></details>`;
+      }).join('');
+      $('oj-go').disabled = !pick.length || !$('oj-job').value;
+    }
+    async function ojReadFile(f) {
+      ojParsed = null; $('oj-months').innerHTML = ''; ojRender();
+      if (!f) return;
+      $('oj-fname').textContent = f.name;
+      if (!/\.xlsx$/i.test(f.name)) { setStatus($('oj-status'), '수업일정 .xlsx 파일만 읽을 수 있어요.', 'error'); return; }
+      setStatus($('oj-status'), '엑셀 읽는 중…', 'info');
+      try {
+        const [XLSX, mod] = await Promise.all([loadXlsx(), ojMod()]);
+        const p = mod.parseOffjtWorkbook(XLSX, XLSX.read(new Uint8Array(await f.arrayBuffer()), { type: 'array' }), f.name);
+        if (!Object.keys(p.months).length) throw new Error('달 시트(‘2026년 3월’ 제목 + 요일 머리)를 못 찾았어요 — 수업일정 엑셀이 맞는지 확인해주세요.');
+        ojParsed = p; ojParsed.mod = mod;
+        // 파일 이름의 기업 표시(예: '…2026_멜콘 3월.xlsx', '…_덱스,에스테이트.xlsx')를 기업 칸에 미리 채움 — 확인 후 올리기
+        const m = f.name.replace(/\.xlsx$/i, '').match(/20\d\d\s*_+\s*(.+)$/);
+        const co = m ? m[1].replace(/\s*_?\s*\d{1,2}\s*월\s*$/, '').trim() : '';
+        $('oj-co').value = co;
+        setStatus($('oj-status'), `읽음 — ${Object.keys(p.months).sort().map(OJ_MON).join('·')} · 능력단위 ${p.units.length}개` + (p.skipped.length ? ` · 달 시트가 아니라 건너뜀: ${p.skipped.join(', ')}` : '') + (co ? ` · 파일 이름대로 기업 칸을 채웠어요: ${co} (직무 공통 파일이면 지워주세요)` : ''), 'info');
+      } catch (e) { setStatus($('oj-status'), e.message || String(e), 'error'); }
+      ojRender();
+    }
+    (() => {
+      const file = $('oj-file'), drop = $('oj-drop'); if (!file || !drop) return;
+      file.addEventListener('change', () => ojReadFile(file.files && file.files[0]));
+      ['dragenter', 'dragover'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('on'); }));
+      ['dragleave', 'drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('on'); }));
+      drop.addEventListener('drop', e => ojReadFile(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]));
+      $('oj-job').addEventListener('change', ojRender);
+      $('oj-guess').addEventListener('change', ojRender);
+      $('oj-go').addEventListener('click', async () => {
+        const job = $('oj-job').value; if (!ojParsed || !job) return;
+        const months = [...$('oj-months').querySelectorAll('input:checked')].map(i => i.value);
+        if (!months.length) return;
+        const cos = $('oj-co').value.split(/[,，]/).map(s => s.trim()).filter(Boolean);
+        const known = new Set((await loadCompanies().catch(() => [])).map(s => s.replace(/㈜|\(주\)|주식회사|\s/g, '')));
+        const unknown = cos.filter(c => known.size && !known.has(c.replace(/㈜|\(주\)|주식회사|\s/g, '')));
+        const withGuess = $('oj-guess').checked;
+        const rows = ojParsed.mod.offjtRows(ojParsed, months).filter(r => withGuess || !ojParsed.months[r.day.slice(0, 7)].days.find(d => d.day === r.day).guessed);
+        const who = cos.length ? `${cos.join(', ')} 학생 전용` : '직무 공통';
+        if (!confirm(`${job} · ${who}\n${months.map(OJ_MON).join('·')} 수업일정을 이 파일 내용으로 바꿔요(${new Set(rows.map(r => r.day)).size}일).` + (unknown.length ? `\n\n⚠ 앱 기업 목록에 없는 이름: ${unknown.join(', ')} — 학생 기업 이름과 같아야 그 학생에게 보여요.` : '') + '\n\n올릴까요?')) return;
+        $('oj-go').disabled = true; setStatus($('oj-status'), '올리는 중…', 'info');
+        const { data, error } = await supabase.rpc('upload_offjt_schedule', { p_job: job, p_months: months, p_rows: rows, p_companies: cos.length ? cos : null, p_file: ojParsed.file });
+        if (error) { setStatus($('oj-status'), '올리기 실패: ' + (/not_admin/.test(error.message || '') ? '관리자 계정으로만 올릴 수 있어요.' : /function|schema cache|PGRST202/i.test(error.message || '') ? '서버에 sql/62 가 아직 적용되지 않았어요.' : error.message), 'error'); $('oj-go').disabled = false; return; }
+        setStatus($('oj-status'), `${job} · ${who} · ${months.map(OJ_MON).join('·')} 반영 — ${data.inserted}칸` + (data.deleted ? ` (이전 ${data.deleted}칸 교체)` : ''), 'ok');
+        try { logAction('OFF-JT 수업일정 올리기', `${job} · ${who} · ${months.join(',')} · ${data.inserted}칸`); } catch (_) {}
+        const y = +months[0].slice(0, 4);
+        ojParsed = null; file.value = ''; $('oj-fname').textContent = ''; $('oj-months').innerHTML = ''; ojRender(); ojLoad();
+        if ($('ou-job').value !== job || +$('ou-year').value !== y) { $('ou-job').value = job; $('ou-year').value = y; }
+        ouLoad();
+      });
+    })();
+
+    // 능력단위 시간표 — 저장된 시간표 ∪ 올라간 수업일정의 과목·능력단위(나온 순서) 로 줄을 채운다
+    let ouRows = [], ouPasteIdx = -1;
+    async function ouLoad() {
+      const job = $('ou-job').value, year = +$('ou-year').value, box = $('ou-table');
+      ouRows = []; ouPasteIdx = -1; $('ou-paste').hidden = true;
+      if (!job || !year) { box.innerHTML = '<p class="note">직무와 기수 연도를 고르면 시간표가 나와요.</p>'; $('ou-save').disabled = true; return; }
+      const from = `${year}-01-01`, to = `${year + 1}-01-01`;
+      const [u, s] = await Promise.all([
+        ojCenterQ(supabase.from('offjt_units').select('subject,unit,hours,sort,elements').eq('job_key', job).eq('year', year)).order('sort'),
+        ojCenterQ(supabase.from('offjt_schedule').select('subject,unit,day,seq,is_basic').eq('job_key', job).gte('day', from).lt('day', to)).order('day').order('seq').limit(20000),
+      ]);
+      if (u.error) { box.innerHTML = `<p class="note">시간표를 못 읽었어요: ${esc(u.error.message)}</p>`; return; }
+      const seen = new Set();
+      (u.data || []).forEach(r => { seen.add(r.subject + '|' + r.unit); ouRows.push({ subject: r.subject, unit: r.unit, hours: r.hours, elements: r.elements || [], saved: true }); });
+      const cnt = {};
+      (s.data || []).filter(r => !r.is_basic && r.unit).forEach(r => {
+        const k = r.subject + '|' + r.unit; cnt[k] = (cnt[k] || 0) + 1;
+        if (!seen.has(k)) { seen.add(k); ouRows.push({ subject: r.subject, unit: r.unit, hours: null, elements: [], saved: false }); }
+      });
+      ouRows.forEach(r => { r.sessions = cnt[r.subject + '|' + r.unit] || 0; });
+      ouRender();
+    }
+    function ouRender() {
+      const box = $('ou-table');
+      if (!ouRows.length) { box.innerHTML = '<p class="note">이 직무·연도의 수업일정이 아직 없어요 — 위에서 엑셀을 먼저 올리거나 [줄 추가]로 넣어주세요.</p>'; $('ou-save').disabled = true; return; }
+      box.innerHTML = '<table class="rep ou-tbl"><tr><th>과목</th><th>능력단위</th><th>시간</th><th>수업</th><th>요소·수행과업</th><th></th></tr>' + ouRows.map((r, i) =>
+        `<tr data-i="${i}"><td><input type="text" class="ou-s" value="${esc(r.subject)}" aria-label="과목"></td><td><input type="text" class="ou-u" value="${esc(r.unit)}" aria-label="능력단위"></td>` +
+        `<td><input type="number" class="ou-h" min="0" step="0.5" value="${r.hours ?? ''}" aria-label="시간" style="width:72px"></td>` +
+        `<td class="note" style="white-space:nowrap">${r.sessions ? r.sessions + '회' : '-'}</td>` +
+        `<td style="white-space:nowrap">${r.elements.length ? `요소 ${r.elements.length} · 문장 ${r.elements.reduce((a, e) => a + (e.tasks || []).length, 0)}` : '<span class="note">없음</span>'} <button type="button" class="mju-btn mju-btn--secondary mju-btn--sm ou-p">요소 붙여넣기</button></td>` +
+        `<td><button type="button" class="mju-btn mju-btn--coral-outline mju-btn--sm ou-x" aria-label="이 줄 빼기">빼기</button></td></tr>`).join('') + '</table>' +
+        '<p class="note" style="margin:4px 0 0">수업 = 올라간 수업일정에서 그 단위가 나온 횟수(학생 진행 막대의 분모). 시간이 비어 있으면 학생 화면에 시간이 안 보여요.</p>';
+      box.querySelectorAll('tr[data-i]').forEach(tr => {
+        const i = +tr.dataset.i;
+        tr.querySelector('.ou-s').addEventListener('input', e => { ouRows[i].subject = e.target.value; });
+        tr.querySelector('.ou-u').addEventListener('input', e => { ouRows[i].unit = e.target.value; });
+        tr.querySelector('.ou-h').addEventListener('input', e => { ouRows[i].hours = e.target.value === '' ? null : Number(e.target.value); });
+        tr.querySelector('.ou-x').addEventListener('click', () => { ouRows.splice(i, 1); ouPasteIdx = -1; $('ou-paste').hidden = true; ouRender(); });
+        tr.querySelector('.ou-p').addEventListener('click', () => {
+          ouPasteIdx = i; const r = ouRows[i];
+          $('ou-paste-title').textContent = `${r.subject} · ${r.unit} — 요소·수행과업`;
+          $('ou-paste-text').value = r.elements.map((e, n) => `${n + 1}. ${e.name}\n` + (e.tasks || []).join('\n')).join('\n\n');
+          $('ou-paste').hidden = false; ouPastePreview(); $('ou-paste-text').focus();
+        });
+      });
+      $('ou-save').disabled = false;
+    }
+    async function ouPastePreview() {
+      const mod = await ojMod();
+      const els = mod.parseElements($('ou-paste-text').value);
+      $('ou-paste-preview').innerHTML = els.length
+        ? `요소 ${els.length}개 · 수행과업 ${els.reduce((a, e) => a + e.tasks.length, 0)}문장 — ` + els.map(e => `<b>${esc(e.name)}</b>(${e.tasks.length})`).join(' · ')
+        : '아직 읽은 요소가 없어요.';
+      return els;
+    }
+    (() => {
+      if (!$('ou-job')) return;
+      $('ou-year').value = new Date().getMonth() >= 7 ? new Date().getFullYear() + 1 : new Date().getFullYear();   // 8월 이후면 다음 기수
+      $('ou-job').addEventListener('change', ouLoad);
+      $('ou-year').addEventListener('change', ouLoad);
+      $('ou-paste-text').addEventListener('input', ouPastePreview);
+      $('ou-paste-cancel').addEventListener('click', () => { $('ou-paste').hidden = true; ouPasteIdx = -1; });
+      $('ou-paste-ok').addEventListener('click', async () => {
+        if (ouPasteIdx < 0) return;
+        ouRows[ouPasteIdx].elements = await ouPastePreview();
+        $('ou-paste').hidden = true; ouPasteIdx = -1; ouRender();
+        setStatus($('ou-status'), '요소를 넣었어요 — [시간표 저장]을 눌러야 서버에 저장돼요.', 'info');
+      });
+      $('ou-add').addEventListener('click', () => {
+        if (!$('ou-job').value || !+$('ou-year').value) { setStatus($('ou-status'), '직무와 기수 연도를 먼저 골라주세요.', 'error'); return; }
+        ouRows.push({ subject: '', unit: '', hours: null, elements: [], sessions: 0 }); ouRender();
+      });
+      $('ou-save').addEventListener('click', async () => {
+        const job = $('ou-job').value, year = +$('ou-year').value; if (!job || !year) return;
+        const rows = ouRows.map((r, i) => ({ subject: (r.subject || '').trim(), unit: (r.unit || '').trim(), hours: r.hours, sort: i + 1, elements: r.elements || [] }))
+          .filter(r => r.subject && r.unit);
+        const dup = rows.map(r => r.subject + '|' + r.unit).filter((k, i, a) => a.indexOf(k) !== i);
+        if (dup.length) { setStatus($('ou-status'), '같은 과목·능력단위 줄이 두 번 있어요: ' + dup.map(k => k.replace('|', ' · ')).join(', '), 'error'); return; }
+        $('ou-save').disabled = true; setStatus($('ou-status'), '저장 중…', 'info');
+        const { data, error } = await supabase.rpc('set_offjt_units', { p_job: job, p_year: year, p_rows: rows });
+        $('ou-save').disabled = false;
+        if (error) { setStatus($('ou-status'), '저장 실패: ' + (/function|schema cache|PGRST202/i.test(error.message || '') ? '서버에 sql/62 가 아직 적용되지 않았어요.' : error.message), 'error'); return; }
+        setStatus($('ou-status'), `${job} · ${year} 시간표 ${data.saved}줄 저장` + (data.deleted ? ` (뺀 줄 ${data.deleted}개 삭제)` : ''), 'ok');
+        try { logAction('OFF-JT 능력단위 시간표 저장', `${job} · ${year} · ${data.saved}줄`); } catch (_) {}
+        ouLoad();
+      });
+    })();
+
     // [4단계] 역할 게이팅 — super 전용 '센터' 탭 가시성. (데이터 경계는 RLS(sql/21)가 강제; UI는 편의.)
     function applyRoleUI() {
       const cbtn = document.querySelector('.adm-nav-item[data-tab="centers"]');
@@ -4002,7 +4250,7 @@
       } catch (_) { /* 폴백: 레거시 전체 콘솔 */ }
       applyRoleUI();
       await applyCenterVocab();   // [원장] 담당/유형/상태 등을 DB(centers.vocab)에서 먼저 배급 → 이후 모든 로더가 DB값 사용
-      dashLoad(); initPickers().then(fillRecruitPickers); nLoad(); plLoad(); lLoad(); cLoad(); tkLoad(); clLoad(); regLoad(); uvLoad(); rcLoad(); stLoad(); svEvLoadList(); poLoad(); populateAddStudentPickers();
+      dashLoad(); initPickers().then(fillRecruitPickers); nLoad(); plLoad(); lLoad(); cLoad(); tkLoad(); ojLoad().then(ouLoad).catch(() => {}); clLoad(); regLoad(); uvLoad(); rcLoad(); stLoad(); svEvLoadList(); poLoad(); populateAddStudentPickers();
       loadAttOptions().catch(() => {});   // [개편 7단계] 보내기 첨부 목록 — #notice 로 바로 열어도 채워지게
       attnLoad();   // 출석 진도도 첫 로드에 포함 — #attn 으로 바로 열거나 새로고침하면 빈 화면이던 것(기존 누락)
       // URL 해시의 탭 복원(새로고침·재로그인 후 작업 위치 유지) — 위에서 전체 로드했으니 중복 조회는 생략

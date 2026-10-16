@@ -346,3 +346,20 @@ body.adm .mtbl .phone-btn{border-color:transparent; background:transparent; min-
 body.adm .mtbl .phone-btn:hover{border-color:var(--v-line); background:var(--v-paper)}
 body.adm .mtbl .phone-btn.phone-btn--danger{border-color:transparent}
 body.adm .mtbl .phone-btn.phone-btn--danger:hover{border-color:var(--v-warn)}
+/* [OFF-JT 새 3단계] 수업일정 올리기 · 능력단위 시간표 (sql/62) */
+body.adm .oj-drop{display:flex; align-items:center; gap:12px; flex-wrap:wrap; padding:14px; border:1px dashed var(--v-line); border-radius:8px; background:var(--v-paper)}
+body.adm .oj-drop.on{border-color:var(--v-cobalt); background:var(--v-cobalt-bg)}
+body.adm .oj-months{display:flex; flex-wrap:wrap; gap:4px 16px}
+body.adm .oj-months > p{flex-basis:100%}
+body.adm .oj-mon{display:inline-flex; align-items:center; gap:6px; font-size:13px; margin:0}
+body.adm .oj-warn{color:var(--v-warn); font-size:12px; font-weight:500}
+body.adm .oj-new{color:var(--v-cobalt); font-size:12px; font-weight:700}
+body.adm .oj-basic{color:var(--v-mute)}
+body.adm .oj-off td{opacity:.4; text-decoration:line-through}
+body.adm .oj-month{border-top:1px solid var(--v-line); padding:8px 0}
+body.adm .oj-month summary{cursor:pointer; font-size:14px}
+body.adm .oj-warns{margin:6px 0; padding-left:18px; font-size:12px; color:var(--v-warn)}
+body.adm .ou-tbl input{margin:0; padding:6px 8px; font-size:13px; min-height:32px}
+body.adm .ou-tbl td{vertical-align:middle}
+body.adm .ou-paste{margin-top:10px; padding:12px; border:1px solid var(--v-line); border-radius:8px; background:var(--v-paper)}
+body.adm .ou-paste textarea{width:100%; font-size:13px}

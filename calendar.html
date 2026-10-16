@@ -19,6 +19,12 @@
       <p class="ph-sub" id="who"></p>
     </header>
     <main class="ph-body">
+      <!-- [OFF-JT 새 3단계] 내 수업(직무별 수업일정, sql/62) — 일정이 올라온 학생에게만 보임 -->
+      <div class="oj-seg" id="oj-seg" role="tablist" aria-label="내 수업 보기" hidden>
+        <button type="button" role="tab" data-v="day" aria-selected="true" class="on">날짜별</button>
+        <button type="button" role="tab" data-v="unit" aria-selected="false">능력단위별</button>
+      </div>
+      <div id="oj-units" hidden></div>
       <div class="card" id="calCard" style="display:none;padding:14px">
         <!-- [개편 6단계] 내 정규 훈련시간(my_attendance_days, sql/55) — 이번 달만, 자료 없으면 요약·범례는 안 보임 -->
         <div class="ojt-sum" id="ojt-sum" hidden></div>
@@ -30,9 +36,11 @@
         <div class="cal-grid" id="cal-dow"></div>
         <div class="cal-grid" id="cal-cells"></div>
         <div class="ojt-legend" id="ojt-legend" hidden><span><i class="sw"></i>내 훈련 날</span><span class="ojt-st ok">인정</span><span class="ojt-st short">모자람</span><span class="ojt-st none">기록 없음</span></div>
+        <div class="ojt-legend" id="oj-legend" hidden><span><i class="sw oj"></i>내 수업 날</span><span><b class="oj-star">★</b> 새 능력단위 시작</span></div>
         <p class="note" style="margin:8px 0 0;text-align:center" id="cal-help">점이 있는 날짜를 누르면 아래 목록이 그 날짜로 좁혀져요.</p>
       </div>
       <div class="filter-chips" id="chips" style="display:none" role="group" aria-label="일정 종류 필터"></div>
+      <div id="oj-day"></div>
       <div id="ojt-day"></div>
       <div id="list"></div>
       <div id="empty" class="empty-state" style="display:none">
@@ -80,9 +88,11 @@
     const weekAgoStr = `${weekAgo.getFullYear()}-${pad(weekAgo.getMonth() + 1)}-${pad(weekAgo.getDate())}`;   // [TASKS v2 Q2] 지난 마감 노출 창
     let all = [], kindSel = '', daySel = '';
     let ojt = null;   // [개편 6단계] { ym, fetched, byDay } — 이번 달 내 정규 훈련시간
+    let offjt = null; // [OFF-JT 새 3단계] { byDay, groups, short } — 내 직무 수업일정(sql/62)
+    let ojView = 'day';
     let calY = now.getFullYear(), calM = now.getMonth();             // 표시 중인 달
     let loadedFrom = null;                                            // 가장 이른 조회 시작일
-    const minD = new Date(now.getFullYear(), now.getMonth() - 3, 1); // 과거 3개월까지만
+    let minD = new Date(now.getFullYear(), now.getMonth() - 3, 1);   // 과거 3개월까지만(내 수업이 있으면 그 첫 달까지)
     const monthStart = (y, m) => { const d = new Date(y, m, 1); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-01`; };
 
     // [개편 6단계] 고른 날짜가 내 훈련 날이면 목록 위에 정규시간·인정·입퇴실
@@ -98,8 +108,93 @@
         `<p class="ph-note" style="margin:4px 0 0">${rec}${io ? ' · ' + io : ''}</p>` +
         (r.status === 'short' || r.status === 'none' ? `<p class="ph-note" style="margin:4px 0 0">출석 기록이 모자란 날이에요. 처리 방법은 담당자가 안내하고, 궁금하면 상담으로 물어봐 주세요.</p>` : '') + `</div>`;
     }
+    // ── [OFF-JT 새 3단계] 내 수업 ──
+    const FD = s => { const x = new Date(s + 'T00:00:00'); return `${x.getMonth() + 1}/${x.getDate()}(${'일월화수목금토'[x.getDay()]})`; };
+    const COPY_NOTE = '참고만 하고 자기 말로 바꿔 쓰세요 — 그대로 복사하면 공단 모니터링 대상이 돼요';
+    // 능력단위 → 요소 목록 → 요소를 누르면 수행과업 문장(학습안내서). 요소가 없으면 펼치지 않음.
+    function unitBlock(subject, unit, isNew, extra, inGroup) {   // inGroup = 능력단위별 목록(과목 제목이 이미 위에 있음)
+      const g = offjt.groups.find(x => x.subject === subject);
+      const u = g && g.units.find(x => x.unit === unit);
+      const els = (u && u.elements) || [];
+      const head = (inGroup ? '' : `<span class="oj-u-s">${esc(subject)}</span>`) + `<span class="oj-u-n">${esc(unit || '')}</span>` + (isNew ? '<span class="oj-new">★ 새 능력단위 시작</span>' : '') + (extra || '');
+      if (!els.length) return `<div class="oj-u">${head}</div>`;
+      return `<details class="oj-u"><summary>${head}<span class="oj-u-more">요소 ${els.length}</span></summary>` +
+        `<p class="oj-copy">${COPY_NOTE}</p>` +
+        els.map((e, i) => `<details class="oj-el"><summary>${i + 1}. ${esc(e.name)}</summary><ul>${(e.tasks || []).map(t => `<li>${esc(t)}</li>`).join('')}</ul></details>`).join('') +
+        `</details>`;
+    }
+    function renderOffjtDay() {
+      const box = document.getElementById('oj-day');
+      const items = daySel && offjt && offjt.byDay[daySel];
+      if (!items) { box.innerHTML = ''; return; }
+      const diaries = items.filter(x => !x.is_basic && x.unit).length;
+      box.innerHTML = `<div class="card oj-daycard"><p class="ph-card-title" style="margin:0 0 2px">${FD(daySel)} 내 수업</p>` +
+        `<p class="ph-note" style="margin:0 0 8px">${diaries ? `학습활동서 ${diaries}개 — 과목마다 하나씩` : '직업기초능력 수업'}</p>` +
+        items.map(x => x.is_basic ? `<div class="oj-u"><span class="oj-u-s">${esc(x.subject)}</span></div>` : unitBlock(x.subject, x.unit, x.is_new)).join('') + `</div>`;
+    }
+    function renderOffjtUnits() {
+      const box = document.getElementById('oj-units');
+      if (!offjt) { box.innerHTML = ''; return; }
+      const wd = arr => [...new Set(arr.map(s => new Date(s + 'T00:00:00').getDay()))].sort((a, b) => ((a + 6) % 7) - ((b + 6) % 7)).map(d => '일월화수목금토'[d]).join('·');
+      box.innerHTML = `<p class="ph-note oj-est">진행 = 지난 수업 횟수 ÷ 전체 수업 횟수로 <b>추정</b>한 값이에요. 출석 시간과 다를 수 있어요.</p>` +
+        offjt.groups.map(g => `<div class="card oj-grp"><p class="ph-card-title" style="margin:0 0 6px">${esc(g.subject)}</p>` + g.units.map(u => {
+          const n = u.dates.length, done = u.dates.filter(d => d < todayStr).length, pct = n ? Math.round(done / n * 100) : 0;
+          const meta = [u.hours ? `${Number(u.hours)}시간` : '', n ? `${FD(u.dates[0])}–${FD(u.dates[n - 1])}` : '일정 없음', n ? wd(u.dates) : ''].filter(Boolean).join(' · ');
+          const bar = n ? `<div class="oj-prog"><div class="oj-bar" role="progressbar" aria-valuemin="0" aria-valuemax="${n}" aria-valuenow="${done}" aria-label="${esc(u.unit || g.subject)} 진행"><i style="width:${pct}%"></i></div><span>${done}/${n}회</span></div>` : '';
+          return u.basic ? `<div class="oj-u"><span class="oj-u-meta">${meta}</span>${bar}</div>`
+            : unitBlock(g.subject, u.unit, false, `<span class="oj-u-meta">${meta}</span>${bar}`, true);
+        }).join('') + `</div>`).join('');
+    }
+    function setOjView(v) {
+      ojView = v;
+      document.querySelectorAll('#oj-seg button').forEach(b => { const on = b.dataset.v === v; b.classList.toggle('on', on); b.setAttribute('aria-selected', on ? 'true' : 'false'); });
+      const unitMode = v === 'unit';
+      document.getElementById('oj-units').hidden = !unitMode;
+      ['calCard', 'chips', 'oj-day', 'ojt-day', 'list', 'empty'].forEach(id => { document.getElementById(id).classList.toggle('oj-hide', unitMode); });
+      if (unitMode) renderOffjtUnits();
+    }
+    document.querySelectorAll('#oj-seg button').forEach(b => b.addEventListener('click', () => setOjView(b.dataset.v)));
+    // 과목 줄임(달력 칸용) — 다른 과목과 겹치는 앞부분(예: '반도체')은 떼고 3글자
+    function shortNames(subjects) {
+      const out = {};
+      subjects.forEach(s => {
+        let cut = 0;
+        subjects.forEach(o => { if (o === s) return; let k = 0; while (k < s.length && s[k] === o[k]) k++; if (k >= 2 && k > cut) cut = k; });
+        const rest = s.slice(cut).replace(/^[\s·_-]+/, '');
+        out[s] = (rest.length >= 2 ? rest : s).slice(0, 3);
+      });
+      return out;
+    }
+    async function loadOffjt() {
+      if (profile.target_type !== 'student' || (!profile.code && !profile.token)) return;
+      try {
+        const res = await supabase.rpc('my_offjt_schedule', { p_code: profile.code || null, p_token: profile.token || null });
+        const d = res.data;
+        if (res.error || !d || d.ok !== true || !Array.isArray(d.days) || !d.days.length) return;
+        const byDay = {}, groups = [], gi = {};
+        const grp = s => gi[s] || (groups.push(gi[s] = { subject: s, units: [] }), gi[s]);
+        // 시간표(sort 순) 먼저 → 수업일정에만 있는 단위는 나온 순서대로 뒤에
+        (d.units || []).forEach(u => { grp(u.subject).units.push({ unit: u.unit, hours: u.hours, elements: u.elements || [], dates: [] }); });
+        d.days.forEach(r => {
+          byDay[r.day] = r.items || [];
+          (r.items || []).forEach(x => {
+            const g = grp(x.subject);
+            let u = g.units.find(y => (x.is_basic ? y.basic : y.unit === x.unit));
+            if (!u) g.units.push(u = { unit: x.is_basic ? null : x.unit, basic: !!x.is_basic, hours: null, elements: [], dates: [] });
+            if (!u.dates.includes(r.day)) u.dates.push(r.day);
+          });
+        });
+        offjt = { byDay, groups, short: shortNames(groups.map(g => g.subject)) };
+        const first = new Date(d.days[0].day + 'T00:00:00');
+        const firstM = new Date(first.getFullYear(), first.getMonth(), 1);
+        if (firstM < minD) minD = firstM;
+        document.getElementById('oj-seg').hidden = false;
+      } catch (_) {}
+    }
+
     function renderList() {
       renderOjtDay();
+      renderOffjtDay();
       const shown = all.filter(r =>
         (!kindSel || r.kind === kindSel) &&
         (daySel ? r.event_date === daySel : (r.event_date >= todayStr || (r.is_task && r.event_date >= weekAgoStr))));   // 지난 마감 할 일은 7일까지 노출(Q2)
@@ -107,7 +202,7 @@
       const em = document.getElementById('empty');
       if (!shown.length) {
         // 내 훈련 날만 있고 센터 일정은 없는 날 — 빈 상태 안내는 띄우지 않음
-        em.style.display = (daySel && ojt && ojt.byDay[daySel]) ? 'none' : 'block';
+        em.style.display = (daySel && ((ojt && ojt.byDay[daySel]) || (offjt && offjt.byDay[daySel]))) ? 'none' : 'block';
         document.getElementById('emptyMsg').textContent = daySel ? '이 날짜에 해당하는 센터 일정이 없습니다.' : (kindSel ? '이 종류의 예정된 일정이 없습니다.' : '예정된 센터 일정이 없습니다.');
         return;
       }
@@ -171,15 +266,19 @@
         const ds = `${calY}-${pad(calM + 1)}-${pad(d)}`;
         const evts = byDate[ds] || [];
         const tr = ojt && ojt.byDay[ds];   // 내 훈련 날(이번 달만)
+        const oc = offjt && offjt.byDay[ds];   // 내 수업 날(OFF-JT)
         const b = document.createElement('button');
         b.type = 'button';
-        b.className = 'cal-cell' + (evts.length ? ' has' : '') + (tr ? ' ojt' : '') + (ds < todayStr ? ' past' : '') + (ds === todayStr ? ' today' : '') + (ds === daySel ? ' sel' : '');
-        b.innerHTML = `<span>${d}</span>`
+        b.className = 'cal-cell' + (evts.length ? ' has' : '') + (tr ? ' ojt' : '') + (oc ? ' offjt' : '') + (ds < todayStr ? ' past' : '') + (ds === todayStr ? ' today' : '') + (ds === daySel ? ' sel' : '');
+        const ocNames = oc ? [...new Set(oc.map(x => x.subject))] : [];
+        const ocNew = oc && oc.some(x => x.is_new);
+        b.innerHTML = `<span>${d}${ocNew ? '<b class="oj-star" aria-hidden="true">★</b>' : ''}</span>`
+          + (oc ? ocNames.slice(0, 2).map(s => `<span class="oj-s">${esc(offjt.short[s] || s.slice(0, 3))}</span>`).join('') + (ocNames.length > 2 ? `<span class="oj-s">+${ocNames.length - 2}</span>` : '') : '')
           + (tr ? `<span class="ojt-t">${esc((tr.start || '').slice(0, 2))}–${esc((tr.end || '').slice(0, 2))}</span>` : '')
           + (tr && tr.status !== 'planned' ? `<span class="ojt-st ${tr.status}">${tr.status === 'none' ? '없음' : (Number(tr.recognized) || 0) + 'h'}</span>` : '')
           + `<span class="cal-dots">${evts.slice(0, 3).map(() => '<span class="cal-dot"></span>').join('')}</span>`;
-        if (evts.length || tr) {
-          b.setAttribute('aria-label', `${calM + 1}월 ${d}일` + (tr ? ` 내 훈련 ${tr.start}–${tr.end}` + (tr.status !== 'planned' ? ` ${OJT_LABEL[tr.status]}` : '') : '') + (evts.length ? ` 일정 ${evts.length}건` : ''));
+        if (evts.length || tr || oc) {
+          b.setAttribute('aria-label', `${calM + 1}월 ${d}일` + (oc ? ` 내 수업 ${ocNames.join(', ')}` + (ocNew ? ' 새 능력단위 시작' : '') : '') + (tr ? ` 내 훈련 ${tr.start}–${tr.end}` + (tr.status !== 'planned' ? ` ${OJT_LABEL[tr.status]}` : '') : '') + (evts.length ? ` 일정 ${evts.length}건` : ''));
           b.addEventListener('click', () => { daySel = (daySel === ds) ? '' : ds; renderCal(); renderList(); });
         } else b.disabled = true;
         cells.appendChild(b);
@@ -187,7 +286,10 @@
       const isOjtMonth = !!(ojt && ojt.ym === `${calY}-${pad(calM + 1)}`);
       document.getElementById('ojt-legend').hidden = !isOjtMonth;
       document.getElementById('ojt-sum').hidden = !isOjtMonth;
-      document.getElementById('cal-help').textContent = isOjtMonth ? '날짜를 누르면 그날 내 훈련과 일정이 아래에 보여요.' : '점이 있는 날짜를 누르면 아래 목록이 그 날짜로 좁혀져요.';
+      const ym = `${calY}-${pad(calM + 1)}`;
+      const isOcMonth = !!(offjt && Object.keys(offjt.byDay).some(k => k.startsWith(ym)));
+      document.getElementById('oj-legend').hidden = !isOcMonth;
+      document.getElementById('cal-help').textContent = isOcMonth ? '날짜를 누르면 그날 과목·능력단위가 아래에 보여요.' : isOjtMonth ? '날짜를 누르면 그날 내 훈련과 일정이 아래에 보여요.' : '점이 있는 날짜를 누르면 아래 목록이 그 날짜로 좁혀져요.';
       const prevStart = new Date(calY, calM - 1, 1);
       document.getElementById('cal-prev').disabled = prevStart < minD;
     }
@@ -284,9 +386,9 @@
         if (!msg.textContent || msg.textContent === '새로운 일정이 등록되면 여기에 표시됩니다.') msg.textContent = '일시적 오류로 불러오지 못했습니다. 잠시 후 새로고침해주세요.';
         return;
       }
-      await loadOjt();
+      await Promise.all([loadOjt(), loadOffjt()]);
       renderCal();
-      if (!all.length && !ojt) {
+      if (!all.length && !ojt && !offjt) {
         const em = document.getElementById('empty'); em.style.display = 'block';
         if (!profile.name) document.getElementById('emptyMsg').innerHTML = '내 정보가 이 기기에 없어 맞춤 일정이 안 보일 수 있어요.<br/><a href="./index.html">홈에서 정보 입력하기</a>';
         window.lucide?.createIcons();
