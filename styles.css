@@ -770,13 +770,3 @@ details.oj-u[open] > summary .oj-u-more{color:var(--text-muted)}
 .hc-grp + .hc-grp{border-top:1px solid var(--border-subtle)}
 .hc-grp-t{margin:6px 0 2px; font-size:15px; font-weight:700; color:var(--text-primary)}
 .hc-today{margin:12px 14px 0 0; min-height:36px; padding:0 14px; border:1px solid var(--border-default); border-radius:8px; background:var(--surface-card); font:inherit; font-size:13px; font-weight:600; color:var(--text-secondary); cursor:pointer}
-.att-plan{margin-top:12px; border-top:1px solid var(--border-subtle); padding-top:8px}
-.card > .att-plan:first-child{margin-top:0; border-top:0; padding-top:0}   /* 월별 표만 남은 묶음 — 위 선은 묶음 선 하나로 */
-.att-plan > summary{cursor:pointer; font-size:13.5px; font-weight:700; color:var(--text-primary); padding:6px 0}
-.att-plan table{width:100%; border-collapse:collapse; font-size:12.5px}
-.att-plan th{font-weight:600; color:var(--text-muted); text-align:left; padding:6px 4px; border-bottom:1px solid var(--border-subtle); white-space:nowrap}
-.att-plan td{padding:7px 4px; border-bottom:1px solid var(--border-subtle); vertical-align:top; color:var(--text-secondary)}
-.att-plan td:nth-child(-n+4){white-space:nowrap}
-.att-plan tbody tr{cursor:pointer}
-.att-plan tbody tr.on td{color:var(--tint-fg); font-weight:600}
-.att-plan tbody tr:focus-visible{outline:2px solid var(--focus-ring); outline-offset:-2px}
