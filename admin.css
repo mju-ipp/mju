@@ -230,7 +230,13 @@ body.adm .stu-cal .d .dn{font-size:12px}
 body.adm .stu-cal .d.today .dn{display:inline-grid; place-items:center; width:20px; height:20px; border-radius:50%; background:var(--v-ink); color:#fff}
 body.adm .stu-cal .d .t{display:block; margin-top:2px; font-size:12px; line-height:1.3; color:var(--v-cobalt); font-weight:500}
 body.adm .stu-cal .d .st-dot{display:flex; font-size:12px; gap:4px; margin-top:2px}
-body.adm .stu-cal .d .sj{display:block; margin-top:2px; font-size:12px; line-height:1.3; color:var(--v-cobalt); overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+/* OFF-JT 수업일정 달력 — 시트를 넓히고(주말 칸은 좁게) 칸이 과목·능력단위만큼 세로로 늘어남 */
+body.adm .stu-sheet.wide{width:880px}
+body.adm .stu-cal.sched{grid-template-columns:minmax(0,.45fr) repeat(5,minmax(0,1fr)) minmax(0,.45fr)}
+body.adm .stu-cal .d .sj{display:block; margin-top:4px; font-size:12px; line-height:1.35; word-break:keep-all; overflow-wrap:anywhere}
+body.adm .stu-cal .d .sj b{display:block; font-weight:600; color:var(--v-cobalt)}
+body.adm .stu-cal .d .sj .un{display:block; color:var(--v-ink)}
+body.adm .stu-cal .d .sj + .sj{padding-top:4px; border-top:1px dashed var(--v-line)}
 body.adm .stu-cal .d .st-dot::before{width:6px; height:6px}
 body.adm .stu-legend{display:flex; flex-wrap:wrap; gap:6px 16px; margin:10px 0 0; font-size:12px; color:var(--v-mute)}
 body.adm .stu-legend[hidden]{display:none}

@@ -6,7 +6,7 @@
   <title>관리자 · 일학습병행 앱</title>
   <meta name="theme-color" content="#121318" />
   <link rel="stylesheet" href="./styles.css" />
-  <link rel="stylesheet" href="./admin.css?v=20261016-3" /><!-- 배포 때 v 를 올려 캐시된 옛 스타일과 새 HTML 이 섞이지 않게 -->
+  <link rel="stylesheet" href="./admin.css?v=20261016-4" /><!-- 배포 때 v 를 올려 캐시된 옛 스타일과 새 HTML 이 섞이지 않게 -->
   <script src="./config.js"></script>
   <style>
     .msg{max-width:80%;padding:9px 12px;border-radius:12px;margin:5px 0;font-size:14px;white-space:pre-wrap}
@@ -3701,7 +3701,7 @@
         h += `<div class="d${(wd === 0 || wd === 6) ? ' off' : ''}${r ? ' plan' : ''}${key === today ? ' today' : ''}">${inner}</div>`;
       }
       const tail = (first + dim) % 7; if (tail) for (let i = tail; i < 7; i++) h += '<div class="d off"></div>';
-      $('stu-cal').innerHTML = h;
+      $('stu-cal').innerHTML = h; $('stu-cal').classList.remove('sched'); $('stu-sheet').classList.remove('wide');
       $('stu-legend').hidden = false;
       $('stu-days').innerHTML = st.bad.length
         ? '<p class="ph-card-title" style="margin:20px 0 4px;font-size:15px">모자란 날</p>' + st.bad.map(r =>
@@ -3725,7 +3725,12 @@
       if (error) { $('stu-lede').textContent = '조회에 실패했어요: ' + error.message; return; }
       const rows = (data || []).filter(r => normNm(r.name) === normNm(name));
       const sched = rows.length && rows.every(r => /^수업일정/.test(r.course || ''));
-      const subjOf = r => String(r.course || '').replace(/^수업일정\s*·\s*/, '').split(' / ').map(s => s.split('·')[0].trim()).filter(Boolean);
+      // '과목·능력단위 / 과목·능력단위' → [{ s: 과목, u: 능력단위 }] (첫 '·' 에서 나눔)
+      const itemsOf = r => String(r.course || '').replace(/^수업일정\s*·\s*/, '').split(' / ').map(x => {
+        const i = x.indexOf('·'); return i < 0 ? { s: x.trim(), u: '' } : { s: x.slice(0, i).trim(), u: x.slice(i + 1).trim() };
+      }).filter(x => x.s);
+      sh.classList.toggle('wide', !!sched);   // 수업일정 달력은 시트를 넓히고 칸이 내용만큼 늘어남
+      $('stu-cal').classList.toggle('sched', !!sched);
       const planned = row ? row.planned : null, actual = row ? row.actual : null;
       $('stu-lede').textContent = !rows.length ? '이 달 일별 자료가 없어요' + (planned ? ` — 월 예정 ${planned}h · 실적 ${actual ?? '-'}h 만 있어요.` : '.')
         : sched ? `수업 ${rows.length}일 · 월 ${planned ?? '-'}h — 직무 수업일정 엑셀 기준(이수 간주). 날짜별 시간은 없어요.`
@@ -3737,7 +3742,7 @@
       for (let d = 1; d <= dim; d++) {
         const key = ym + '-' + String(d).padStart(2, '0'), wd = (first + d - 1) % 7, r = byDay[key];
         let inner = `<span class="dn">${d}</span>`;
-        if (r && sched) inner += subjOf(r).map(s => `<span class="sj" title="${esc(s)}">${esc(s)}</span>`).join('');
+        if (r && sched) inner += itemsOf(r).map(x => `<span class="sj"><b>${esc(x.s)}</b>${x.u ? `<span class="un">${esc(x.u)}</span>` : ''}</span>`).join('');
         else if (r) {
           if (r.start_time) inner += `<span class="t">${hm(r.start_time)}–${hm(r.end_time)}</span>`;
           if (r.status && r.status !== 'planned') {
@@ -3749,11 +3754,7 @@
       }
       const tail = (first + dim) % 7; if (tail) for (let i = tail; i < 7; i++) h += '<div class="d off"></div>';
       $('stu-cal').innerHTML = h;
-      if (sched) {
-        const W = '일월화수목금토';
-        $('stu-days').innerHTML = '<p class="ph-card-title" style="margin:20px 0 4px;font-size:15px">날짜별 과목 · 능력단위</p>' + rows.map(r =>
-          `<div class="act-row"><span class="ak">${esc(mdOf(r.day))}(${W[new Date(r.day + 'T00:00').getDay()]})</span><span class="av">${esc(String(r.course).replace(/^수업일정\s*·\s*/, ''))}</span></div>`).join('');
-      } else {
+      if (!sched) {   // 수업일정 달력은 칸에 과목·능력단위가 다 나와서 아래 목록 없음
         $('stu-legend').hidden = !rows.length;
         const bad = rows.filter(r => r.status === 'short' || r.status === 'none');
         $('stu-days').innerHTML = bad.length
