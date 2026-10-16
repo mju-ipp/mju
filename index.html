@@ -683,7 +683,8 @@
             ? `<button type="button" class="task-chk done" data-task="${r.task_id}" data-done="1" aria-label="완료 해제">✓ 완료</button>`
             : `<button type="button" class="task-chk" data-task="${r.task_id}" aria-label="완료 체크">완료 체크</button>`)
           : '';
-        return `<div class="todo-item"><div style="flex:1"><div class="tt"${done ? ' style="text-decoration:line-through;color:var(--text-muted)"' : ''}>${esc(r.title)}</div><div class="td">${sub}${r.memo ? ' · ' + esc(r.memo) : ''}</div>${link}</div>${chk}${badge}</div>`;
+        // (10/16 사용자 요청) 목록은 제목·날짜만 — 메모(부연설명)는 빼고, 날짜를 누르면 아래 칸에서 볼 수 있음
+        return `<div class="todo-item"><div style="flex:1"><div class="tt"${done ? ' style="text-decoration:line-through;color:var(--text-muted)"' : ''}>${esc(r.title)}</div><div class="td">${sub}</div>${link}</div>${chk}${badge}</div>`;
       };
       // 그 달 일정 전체 목록 + 종류 거르기(옛 일정 화면 기능). 지난 일정은 '종료', 놓친 마감 할 일은 7일까지 '지남 D+n'(Q2)
       const badgeOf = r => {
