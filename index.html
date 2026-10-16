@@ -426,7 +426,7 @@
         const cd = sd.days.filter(r => r.day.slice(0, 7) === curYm);
         if (cd.length) daysRes = { days: cd, fetched_at: sd.fetched };
       } catch (_) { return; }
-      // [sql/61] 월 행마다 track(OFF-JT/OJT) — 없으면(적용 전) OJT. OFF-JT 와 OJT 를 따로 보여주고 전체 출석률(외부평가 응시 80%)을 덧붙인다.
+      // [sql/61] 월 행마다 track(OFF-JT/OJT) — 없으면(적용 전) OJT. 실적이 있는 가장 최근 달을 머리에 보여준다.
       const trk = r => r.track === 'offjt' ? 'offjt' : 'ojt';
       const done = rows.filter(r => r.actual != null && Number(r.planned) > 0);
       if (!done.length) return;
@@ -434,28 +434,8 @@
       const curT = trk(cur), TL = { offjt: 'OFF-JT', ojt: 'OJT' };
       const pct = Math.min(100, Math.round(Number(cur.actual) / Number(cur.planned) * 100));
       const mon = Number(String(cur.month).split('-')[1]) || '';
-      // 누적은 끝난 달(이번 달 전)만 — 진행 중인 달은 월 배정 대비 낮게 보여서 뺀다
       const _n = new Date(), nowYm = _n.getFullYear() + '-' + String(_n.getMonth() + 1).padStart(2, '0');
-      const cumOf = t => {
-        const d = done.filter(r => trk(r) === t && String(r.month) < nowYm), all = rows.filter(r => trk(r) === t && Number(r.planned) > 0);
-        const a = d.reduce((s, r) => s + Number(r.actual || 0), 0), p = d.reduce((s, r) => s + Number(r.planned || 0), 0);
-        return { a, p, total: all.reduce((s, r) => s + Number(r.planned || 0), 0), n: d.length };
-      };
-      const cs = { offjt: cumOf('offjt'), ojt: cumOf('ojt') };
-      const sumA = cs.offjt.a + cs.ojt.a, sumP = cs.offjt.p + cs.ojt.p;
-      const cum = sumP > 0 ? Math.round(sumA / sumP * 100) : 0;
-      // 지금 단계 줄 먼저, 다른 단계는 실적이 있을 때만(시작 전이면 숨김)
-      const trackLine = t => {
-        const c = cs[t]; if (!c.n) return '';
-        const p = c.p ? Math.round(c.a / c.p * 100) : 0;
-        return `<p class="ph-note" style="margin:6px 0 0">${TL[t]} 지난달까지 <b>${c.a}시간</b> / ${c.p}시간(${p}%)` + (c.total > c.p ? ` · 전체 ${c.total}시간 중` : '') + `</p>`;
-      };
-      const lines = [curT, curT === 'ojt' ? 'offjt' : 'ojt'].map(trackLine).join('');
-      let updTxt = '';
-      try { const u = new Date(cur.updated_at); if (!isNaN(u)) updTxt = `${u.getMonth() + 1}/${u.getDate()} 기준 · `; } catch (_) {}
-      // 이번 달 훈련 능력단위 — 출석 데이터(attendance_monthly.units, sql/47)에서 카드가 직접 표시
-      // (일정 의존 없음 — 달력을 비워도 동작. 데이터 원천은 훈련과정개발보고서 월차 배정)
-      const unitTitle = cur.units && cur.source !== 'backfill' ? `${mon}월 훈련 능력단위 — ${cur.units}` : '';
+      // (10/16 사용자 요청) 누적·전체 출석률·능력단위·기준 안내 문구는 홈에서 뺌 — 머리의 결론 문장·%·막대와 월별 표만
       // 다음(또는 오늘) 훈련 — 이번 달 정규시간 중 아직 전인 첫날
       let nextTxt = '';
       if (daysRes) {
@@ -476,15 +456,11 @@
         `<div class="hero-bar" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100" aria-label="${mon}월 출석"><i style="width:${pct}%"></i></div>` +
         (nextTxt ? `<p class="hero-sub">${nextTxt}</p>` : '');
       hero.hidden = false;
+      const plan = planTable(rows, sd, nowYm);
+      if (!plan) { window.lucide?.createIcons(); return; }
       const card = document.createElement('div');
       card.className = 'card accent';
-      card.innerHTML =
-        `<p class="ph-card-title"><i data-lucide="gauge"></i> 출석 진도</p>` +
-        lines +
-        (sumP > 0 ? `<p class="ph-note" style="margin:6px 0 0">지난달까지 전체 출석률 <b>${cum}%</b> — 외부평가 응시 기준 80%</p>` : '') +
-        (unitTitle ? `<p class="ph-note" style="margin:6px 0 0">${(() => { const e = document.createElement('div'); e.textContent = unitTitle; return e.innerHTML; })()}</p>` : '') +
-        `<p class="ph-note" style="margin:4px 0 0">${updTxt}${curT === 'offjt' ? '출석부·고용24' : '비콘 출퇴근'} 기록 기준이라 최종 확정치와 다를 수 있어요.</p>` +
-        planTable(rows, sd, nowYm);
+      card.innerHTML = plan;
       const anchor = document.getElementById('home-cal');
       anchor.parentNode.insertBefore(card, anchor.nextSibling);
       // 월별 표 줄 → 위 일정 달력을 그 달로
