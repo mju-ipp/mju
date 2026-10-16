@@ -299,7 +299,7 @@
     // [sql/63] 학생 홈 상태 — 아래 renderAttendance/renderSchedule 호출보다 먼저 선언(let 은 선언 줄 전에 읽으면 오류)
     let _stuData = null;     // stuData() 한 번만 부른 결과(Promise)
     let homeYm = null, homeSel = null;   // 홈 달력이 보여주는 달·펼친 날(완료 체크 후 다시 그려도 유지)
-    let homeView = 'day', homeKind = '';  // [날짜별|능력단위별] 전환 · 그 달 일정 목록의 종류 거르기(옛 일정 화면 기능을 홈으로)
+    let homeKind = '';  // 그 달 일정 목록의 종류 거르기(옛 일정 화면 기능을 홈으로)
     let _centerBlocked = false;
     if (configReady()) {
       try {
@@ -820,42 +820,7 @@
         return h + '</div>';
       }
 
-      // 능력단위별 목록(옛 일정 화면 [능력단위별]) — 내 수업일정 날에서 과목 → 능력단위 → 수업 날짜를 모으고,
-      // 학습안내서 시간·요소는 my_offjt_units. 진행 = 지난 수업 횟수 ÷ 전체 수업 횟수(추정)
-      const schedDays = sDays.filter(isSchedDay).sort((a, b) => (a.day < b.day ? -1 : 1));
-      const FD = s => { const x = new Date(s + 'T00:00:00'); return `${x.getMonth() + 1}/${x.getDate()}(${'일월화수목금토'[x.getDay()]})`; };
-      function unitsView() {
-        const groups = [], gi = {};
-        const grp = s => gi[s] || (groups.push(gi[s] = { subject: s, units: [] }), gi[s]);
-        schedDays.forEach(r => {
-          if (/직업기초능력/.test(r.course)) {   // 직업기초능력 날: 뒤 칸은 하위 능력(직업윤리·문제해결 등)
-            const sub = offItems(r.course).filter(x => !/직업기초능력/.test(x.s)).map(x => x.u ? `${x.s}·${x.u}` : x.s).join(', ');
-            const g = grp('직업기초능력'); let u = g.units.find(y => y.unit === (sub || null));
-            if (!u) g.units.push(u = { unit: sub || null, dates: [] });
-            u.dates.push(r.day); return;
-          }
-          offItems(r.course).forEach(x => {
-            const name = x.u && !/^교안/.test(x.u) ? x.u : null;
-            const g = grp(x.s); let u = g.units.find(y => y.unit === name);
-            if (!u) g.units.push(u = { unit: name, dates: [] });
-            if (!u.dates.includes(r.day)) u.dates.push(r.day);
-          });
-        });
-        const wd = arr => [...new Set(arr.map(s => new Date(s + 'T00:00:00').getDay()))].sort((a, b) => a - b).map(d => '일월화수목금토'[d]).join('·');
-        return `<p class="ph-note oj-est">진행 = 지난 수업 횟수 ÷ 전체 수업 횟수로 <b>추정</b>한 값이에요. 출석 시간과 다를 수 있어요.</p>` +
-          groups.map(g => `<div class="hc-grp"><p class="hc-grp-t">${esc(g.subject)}</p>` + g.units.map(u => {
-            const n = u.dates.length, done = u.dates.filter(d => d < todayStr).length, pct = n ? Math.round(done / n * 100) : 0;
-            const info = u.unit ? unitInfo(g.subject, u.unit) : null, els = (info && info.elements) || [];
-            const meta = [info && info.hours != null ? `${Number(info.hours)}시간` : '', `${FD(u.dates[0])}–${FD(u.dates[n - 1])}`, wd(u.dates)].filter(Boolean).join(' · ');
-            const bar = `<div class="oj-prog"><div class="oj-bar" role="progressbar" aria-valuemin="0" aria-valuemax="${n}" aria-valuenow="${done}" aria-label="${esc(u.unit || g.subject)} 진행"><i style="width:${pct}%"></i></div><span>${done}/${n}회</span></div>`;
-            const head = (u.unit ? `<span class="oj-u-n">${esc(u.unit)}</span>` : '') + `<span class="oj-u-meta">${meta}</span>` + bar;
-            if (!els.length) return `<div class="oj-u">${head}</div>`;
-            return `<details class="oj-u"><summary>${head}<span class="oj-u-more">요소 ${els.length}</span></summary>` +
-              `<p class="oj-copy">참고만 하고 <b>자기 말로</b> 바꿔 쓰세요 — 그대로 복사하면 공단 모니터링 대상이 돼요.</p>` +
-              els.map((el, i) => `<details class="oj-el"><summary>${i + 1}. ${esc(el.name)}</summary><ul>${(el.tasks || []).map(t => `<li>${esc(t)}</li>`).join('')}</ul></details>`).join('') +
-              `</details>`;
-          }).join('') + `</div>`).join('');
-      }
+      // (10/16 사용자 요청) [날짜별 | 능력단위별] 전환은 뺌 — OFF-JT 단위·요소는 날짜를 누르면, OJT 단위는 아래 'OJT' 묶음에서
 
       // 월~금 5칸(사용자 요청 — 수업·훈련은 평일만). 주말 일정은 아래 그 달 일정 목록에서
       const dow = ['월', '화', '수', '목', '금'].map(d => `<span class="cal-dow">${d}</span>`).join('');
@@ -883,15 +848,9 @@
           const cls = 'cal-cell' + (evts.length ? ' has' : '') + (sch ? ' offjt' : att.length ? ' ojt' : '') + (ds < todayStr ? ' past' : '') + (ds === todayStr ? ' today' : '') + (ds === homeSel ? ' sel' : '');
           cells += any ? `<button type="button" class="${cls}" data-d="${ds}" aria-label="${fmtDate(ds)} 보기">${inner}</button>` : `<span class="${cls}">${inner}</span>`;
         }
-        const unitMode = homeView === 'unit' && schedDays.length;
         mount.innerHTML =
           `<div class="card accent">` +
             `<p class="ph-card-title"><i data-lucide="calendar-days"></i> 일정</p>` +
-            // OFF-JT 수업이 있는 학생만 [날짜별 | 능력단위별]
-            (schedDays.length ? `<div class="oj-seg" role="tablist" aria-label="일정 보기">` +
-              `<button type="button" role="tab" data-v="day" aria-selected="${!unitMode}" class="${unitMode ? '' : 'on'}">날짜별</button>` +
-              `<button type="button" role="tab" data-v="unit" aria-selected="${!!unitMode}" class="${unitMode ? 'on' : ''}">능력단위별</button></div>` : '') +
-            (unitMode ? unitsView() :
               `<div class="cal-head" style="margin-bottom:8px">` +
                 `<button type="button" class="cal-nav" id="hc-prev" aria-label="이전 달"${homeYm <= minYm ? ' disabled' : ''}><i data-lucide="chevron-left"></i></button>` +
                 `<b>${y}년 ${mo + 1}월</b>` +
@@ -902,10 +861,9 @@
               (wkndEvts ? `<p class="ph-note" style="margin:6px 0 0">주말 일정 ${wkndEvts}건은 아래 목록에 있어요.</p>` : '') +
               (homeSel ? dayDetail(homeSel) : (sd && (sDays.some(r => r.day.slice(0, 7) === homeYm)) ? `<p class="ph-note" style="margin:6px 0 0">날짜를 누르면 그날 수업·훈련 내용이 나와요.</p>` : '')) +
               monthList(homeYm) +
-              (homeYm !== thisYm ? `<button type="button" class="hc-today" id="hc-today">이번 달로</button>` : '')) +
+              (homeYm !== thisYm ? `<button type="button" class="hc-today" id="hc-today">이번 달로</button>` : '') +
           `</div>`;
         window.lucide?.createIcons();
-        mount.querySelectorAll('.oj-seg button').forEach(b => b.addEventListener('click', () => { homeView = b.dataset.v; draw(); }));
         mount.querySelectorAll('.hc-chips .chip').forEach(b => b.addEventListener('click', () => { homeKind = b.dataset.k; draw(); }));
         mount.querySelector('#hc-prev')?.addEventListener('click', () => { homeYm = ymAdd(homeYm, -1); homeSel = null; draw(); });
         mount.querySelector('#hc-next')?.addEventListener('click', () => { homeYm = ymAdd(homeYm, 1); homeSel = null; draw(); });
