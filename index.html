@@ -444,7 +444,7 @@
         const ym = String(cur.month).slice(0, 7), us = unitsOf(cur);
         h += `<p class="menu-group-label" style="margin-top:14px">${ym === curYm ? '이번 달 OJT' : '다음 OJT'} · ${moName(ym)}${cur.planned != null ? ` 예정 ${Number(cur.planned)}시간` : ''}</p>` +
           `<div class="op-cur">` + (us.length ? us.map(big).join('') : `<p class="op-none">능력단위가 아직 없어요.</p>`) +
-          (us.some(u => ((info(u) || {}).elements || []).length) ? `<p class="oj-copy">요소를 누르면 수행과업이 나와요. 참고만 하고 <b>자기 말로</b> 바꿔 쓰세요 — 그대로 복사하면 공단 모니터링 대상이 돼요.</p>` : '') +
+          (us.some(u => ((info(u) || {}).elements || []).length) ? `<p class="oj-copy">참고만 하고 <b>자기 말로</b> 바꿔 쓰세요 — 그대로 복사하면 공단 모니터링 대상이 돼요.</p>` : '') +
           `</div>`;
       }
       h += `<details class="op-all"><summary>전체 월 보기</summary><div class="op-list">` + rows.map(r => {

@@ -135,8 +135,11 @@ body{background:var(--v-bg); color:var(--v-ink); font-variant-numeric:tabular-nu
 .op-bn span{font-weight:400; font-size:14px; color:var(--v-mute)}
 .op-els{margin:0; padding-left:22px}
 .op-els > li{font-size:14px; color:var(--v-ink); padding:3px 0}
-.op-els summary{cursor:pointer; list-style:none}
+.op-els summary{cursor:pointer; list-style:none; display:flex; align-items:baseline; gap:8px}
 .op-els summary::-webkit-details-marker{display:none}
+/* 펼칠 수 있다는 표시 — 오른쪽 ›, 펼치면 아래로 */
+.op-els summary::after{content:"›"; margin-left:auto; padding:0 4px; font-size:18px; line-height:1; color:var(--v-mute); transition:transform .15s}
+.op-els details[open] > summary::after{transform:rotate(90deg)}
 .op-els details[open] > summary{font-weight:600}
 .op-els ul{margin:6px 0 4px; padding-left:16px; font-size:13px; line-height:1.6; color:var(--v-mute)}
 .op-cur .oj-copy{margin:10px 0 0}
