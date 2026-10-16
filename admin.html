@@ -195,6 +195,11 @@
             <button type="button" class="chip" data-t="offjt">OFF-JT</button><button type="button" class="chip" data-t="ojt">OJT</button>
           </div>
           <div class="filter-chips" id="at-months" style="margin:10px 0 6px"></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 8px">
+            <select id="at-fmanager" class="ph-select" aria-label="담당 선생님 필터"><option value="">담당 전체</option></select>
+            <select id="at-fjob" class="ph-select" aria-label="직무 필터"><option value="">직무 전체</option></select>
+            <select id="at-ftype" class="ph-select" aria-label="유형 필터"><option value="">유형 전체</option></select>
+          </div>
           <div id="at-sum" style="display:flex;gap:14px;flex-wrap:wrap;margin:4px 0 10px"></div>
           <div id="at-list"></div>
           <details style="margin-top:14px" id="at-input">
@@ -3802,6 +3807,8 @@
 
     // ===== 학생 › 출석 진도 — 이번 달은 정규시간 기준(attendance_daily), 지난달·일별 자료 없는 학생은 월 실적(sql/61) =====
     let attnMonth = null, attnCache = null, attnComp = {}, attnTrack = null;   // attnTrack = [OFF-JT | OJT] 전환(한 번에 한 구분만)
+    let attnStu = {};   // 정규화 이름 → { manager, jobs, type } — 담당·직무·유형 거르기
+    ['at-fmanager', 'at-fjob', 'at-ftype'].forEach(id => $(id)?.addEventListener('input', () => attnLoad()));
     document.querySelectorAll('#at-track .chip').forEach(b => b.addEventListener('click', () => {
       if (attnTrack === b.dataset.t) return;
       attnTrack = b.dataset.t; attnMonth = null; attnLoad();
@@ -3811,13 +3818,21 @@
       const sel = c => supabase.from('attendance_monthly').select(c).order('month');
       let [a, s] = await Promise.all([
         sel('name,month,track,planned_hours,actual_hours,auto_actual,source,note,units,updated_at,edited_by,edited_at'),
-        supabase.from('students').select('name,company'),
+        supabase.from('students').select('name,company,manager,job_keys,type1'),
       ]);
       if (a.error) a = await sel('name,month,planned_hours,actual_hours,units,updated_at');   // sql/61 적용 전
       if (a.error) return false;
       attnCache = a.data || [];
-      attnComp = {};
-      (s.data || []).forEach(x => { attnComp[normNm(x.name)] = x.company || ''; });
+      attnComp = {}; attnStu = {};
+      (s.data || []).forEach(x => {
+        attnComp[normNm(x.name)] = x.company || '';
+        attnStu[normNm(x.name)] = { manager: x.manager || '', jobs: x.job_keys || [], type: x.type1 || '' };
+      });
+      // 거르기 칸 — 담당·직무·유형(명단 화면과 같은 방식, 고른 값 유지)
+      const sv = (f) => [...new Set((s.data || []).flatMap(f).filter(Boolean))].sort((x, y) => x.localeCompare(y, 'ko'));
+      fillSel('at-fmanager', sv(x => [x.manager]));
+      fillSel('at-fjob', sv(x => x.job_keys || []));
+      fillSel('at-ftype', sv(x => [x.type1]));
       // 직접 입력 — 학생 목록
       const sn = $('at-in-name');
       if (sn && !sn.options.length) {
@@ -3857,7 +3872,10 @@
       const isDaily = attnMonth === dc.ym && attnTrack === 'ojt', isPast = attnMonth < nowYm;
       // 한 학생 한 줄 — 고른 구분(track) 행만. r.parts = 그 행(들)
       const byName = new Map();
-      attnCache.filter(r => String(r.month).slice(0, 7) === attnMonth && trk(r) === attnTrack && Number(r.planned_hours) > 0).forEach(r => {
+      const fm = $('at-fmanager')?.value || '', fj = $('at-fjob')?.value || '', ft = $('at-ftype')?.value || '';
+      const pass = nm => { const s = attnStu[normNm(nm)] || { manager: '', jobs: [], type: '' };
+        return (!fm || s.manager === fm) && (!fj || s.jobs.includes(fj)) && (!ft || s.type === ft); };
+      attnCache.filter(r => String(r.month).slice(0, 7) === attnMonth && trk(r) === attnTrack && Number(r.planned_hours) > 0 && pass(r.name)).forEach(r => {
         const k = normNm(r.name); if (!byName.has(k)) byName.set(k, []); byName.get(k).push(r);
       });
       const mrows = [...byName.values()].map(parts => {
@@ -3902,7 +3920,9 @@
         const c = r.cum;
         const cumLine = [cumTxt(c, attnTrack),
           c.pct != null ? `지난달까지 전체(OFF-JT+OJT) ${c.pct}%` + (c.best != null && c.best < 80 ? ` · 끝까지 다 채워도 최대 ${c.best}% — 80% 밑` : '') : ''].filter(Boolean).join(' · ');
-        row.innerHTML = `<span class="nm"><b>${esc(r.name)}</b> <span class="note">${esc(r.company)}</span>`
+        const si = attnStu[normNm(r.name)] || {};
+        const meta = [r.company, (si.jobs || []).join('·'), si.type, si.manager && '담당 ' + si.manager].filter(x => x && x !== '-').join(' · ');
+        row.innerHTML = `<span class="nm"><b>${esc(r.name)}</b> <span class="note">${esc(meta || r.company)}</span>`
           + (r.units ? `<br/><span class="note" style="font-size:12px">${esc(r.units)}</span>` : '')
           + `<br/><span class="note" style="font-size:12px;color:${c.best != null && c.best < 80 ? 'var(--danger-500)' : 'inherit'}">${esc(cumLine)}</span></span>`
           + `<span class="bar"><i style="width:${pct}%;background:${r.state === 'short' ? 'var(--danger-500)' : 'var(--accent)'}"></i></span>`
@@ -3939,7 +3959,7 @@
         row.appendChild(acts);
         list.appendChild(row);
       });
-      if (!mrows.length) list.innerHTML = '<p class="note">이 달 데이터가 없어요.</p>';
+      if (!mrows.length) list.innerHTML = `<p class="note">${fm || fj || ft ? '고른 담당·직무·유형에 맞는 학생이 이 달에 없어요.' : '이 달 데이터가 없어요.'}</p>`;
     }
     // 시수 직접 입력 — 예정(시간표 월 배정)·실적·메모 (sql/61 set_attendance_month)
     $('at-in-save')?.addEventListener('click', async () => {
