@@ -431,9 +431,11 @@ function renderHeaderLockup() {
   try {
     const cc = (window.APP_CONFIG || {});
     const center = cc.CENTER_SHORT || cc.CENTER_NAME || '';   // chip은 짧은 식별명(기관) 우선
-    // 명지대 센터는 '일학습병행' 옆에 명지대 나무 로고(남색 타일 — 밝은 머리·먹색 머리 둘 다 보임), 다른 센터는 KDP 마크
+    // 명지대 센터는 '일학습병행' 옆에 명지대 나무 로고(틀 없이) — 밝은 머리는 남색, 먹색 머리·다크 모드는 흰색(CSS 가 골라 보임).
+    // 다른 센터는 KDP 마크.
     const mark = getCenter() === 'mju'
-      ? '<img class="mju-mark" src="./assets/logo-tile.png" alt="명지대학교" width="26" height="26" />'
+      ? '<img class="mju-mark mm-l" src="./assets/mju-tree.png" alt="명지대학교" width="27" height="28" />'
+        + '<img class="mju-mark mm-d" src="./assets/mju-tree-white.png" alt="" width="27" height="28" />'
       : KDP_MARK_SVG;
     document.querySelectorAll('.ph-lockup').forEach(el => {
       el.innerHTML = '<span class="kdp-mark">' + mark + '</span>'
