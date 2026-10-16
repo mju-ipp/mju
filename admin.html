@@ -3994,7 +3994,6 @@
       const ORD = { short: 0, todo: 1, ok: 2, wait: 3 };
       mrows.sort((x, y) => (ORD[x.state] - ORD[y.state]) || ((x.done / x.planned) - (y.done / y.planned)) || x.name.localeCompare(y.name, 'ko'));
       list.innerHTML = '';
-      const cumTxt = (c, k) => c[k].total ? `${TRACK_LABEL[k]} ${c[k].a}/${c[k].p}h` + (c[k].total > c[k].p ? ` (전체 ${c[k].total}h)` : '') : '';
       mrows.forEach(r => {
         const [label, col] = ATTN_STATE[r.state];
         const pct = Math.min(100, Math.round(r.done / r.planned * 100));
@@ -4004,14 +4003,11 @@
         const trTxt = r.parts.map(p => TRACK_LABEL[trk(p)] + (p.source === 'manual' ? ' 수정' : p.source === 'backfill' ? ' 이수 간주' : '')).join(' · ');
         const sub = [trTxt,
           r.d ? `오늘까지 정규 · 월 ${r.planned}h` + (r.d.total < r.planned ? ` · 미등록 ${r.planned - r.d.total}h` : '') + (r.d.src === 'daily' ? ' · 월 실적 없음' : '') : ''].filter(Boolean).join(' · ');
-        const c = r.cum;
-        const cumLine = [cumTxt(c, attnTrack),
-          c.pct != null ? `지난달까지 전체(OFF-JT+OJT) ${c.pct}%` + (c.best != null && c.best < 80 ? ` · 끝까지 다 채워도 최대 ${c.best}% — 80% 밑` : '') : ''].filter(Boolean).join(' · ');
+        // (10/16 사용자 요청) 학생 줄의 누적 줄('OJT 188/188h (전체 618h) · 지난달까지 전체 100%')은 뺌 — 80% 위험 인원은 위 요약에 남음
         const si = attnStu[normNm(r.name)] || {};
         const meta = [r.company, (si.jobs || []).join('·'), si.type, si.manager && '담당 ' + si.manager].filter(x => x && x !== '-').join(' · ');
         row.innerHTML = `<span class="nm"><b>${esc(r.name)}</b> <span class="note">${esc(meta || r.company)}</span>`
-          + (r.units ? `<br/><span class="note" style="font-size:12px">${esc(r.units)}</span>` : '')
-          + `<br/><span class="note" style="font-size:12px;color:${c.best != null && c.best < 80 ? 'var(--danger-500)' : 'inherit'}">${esc(cumLine)}</span></span>`
+          + (r.units ? `<br/><span class="note" style="font-size:12px">${esc(r.units)}</span>` : '') + `</span>`
           + `<span class="bar"><i style="width:${pct}%;background:${r.state === 'short' ? 'var(--danger-500)' : 'var(--accent)'}"></i></span>`
           + `<span class="val" style="color:${r.state === 'short' ? 'var(--danger-500)' : 'inherit'}">${val}</span>`
           + `<span class="note sub">${esc(sub)}</span>`
