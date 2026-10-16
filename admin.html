@@ -6,7 +6,7 @@
   <title>관리자 · 일학습병행 앱</title>
   <meta name="theme-color" content="#121318" />
   <link rel="stylesheet" href="./styles.css" />
-  <link rel="stylesheet" href="./admin.css?v=20261016-5" /><!-- 배포 때 v 를 올려 캐시된 옛 스타일과 새 HTML 이 섞이지 않게 -->
+  <link rel="stylesheet" href="./admin.css?v=20261016-6" /><!-- 배포 때 v 를 올려 캐시된 옛 스타일과 새 HTML 이 섞이지 않게 -->
   <script src="./config.js"></script>
   <style>
     .msg{max-width:80%;padding:9px 12px;border-radius:12px;margin:5px 0;font-size:14px;white-space:pre-wrap}
@@ -632,7 +632,13 @@
       <aside class="stu-sheet" id="stu-sheet" aria-label="학생 상세" aria-hidden="true">
         <div class="sh"><button type="button" class="x" id="stu-close">닫기</button><h3 id="stu-name"></h3><p id="stu-sub"></p></div>
         <div class="sb">
-          <p class="ph-card-title" style="margin:20px 0 4px" id="stu-month"></p>
+          <p class="note" id="stu-cum" style="margin:14px 0 0"></p>
+          <div class="stu-nav">
+            <button type="button" class="phone-btn" id="stu-prev" aria-label="이전 달">◀</button>
+            <p class="ph-card-title" id="stu-month"></p>
+            <button type="button" class="phone-btn" id="stu-next" aria-label="다음 달">▶</button>
+          </div>
+          <div class="filter-chips" id="stu-months" style="margin:0 0 8px"></div>
           <p class="note" id="stu-lede" style="margin:0 0 8px"></p>
           <div class="stu-cal" id="stu-cal"></div>
           <div class="stu-legend" id="stu-legend"><span><i class="sw"></i>훈련 날</span><span class="st-dot">인정</span><span class="st-dot" style="color:var(--danger-500)">모자람</span><span class="st-dot st-none">기록 없음</span></div>
@@ -3676,124 +3682,125 @@
       return { ...o, a, p, total, pct: p ? Math.round(a / p * 100) : null, best };
     }
 
-    // 학생 상세 — 이번 달 정규시간 달력(훈련 날 = 코발트 바탕 + 시간, 지난 날 = 점 + 인정시간)
-    function openStuSheet(name) {
-      const rows = (dailyCache && dailyCache.byName.get(normNm(name))) || [];
-      const ym = dailyCache ? dailyCache.ym : ymdLocal(0).slice(0, 7);
-      const st = curStat(name, rows, ym), mrow = st.mrow;
-      $('stu-name').textContent = name;
-      $('stu-sub').textContent = [attnComp[normNm(name)], mrow && mrow.units].filter(Boolean).join(' · ');
-      $('stu-month').textContent = Number(ym.slice(5)) + '월 정규시간';
-      $('stu-lede').textContent = rows.length
-        ? (st.src === 'month' ? `실적 ${st.act}h${mrow && mrow.manual ? '(수정)' : ''}` : `인정 ${st.act}h(월 실적 없음)`) + ` / 오늘까지 정규 ${st.reg}h · 등록 ${st.total}h`
-          + (mrow ? ` · 월 계획 ${Number(mrow.planned_hours)}h` : '') + ` · 달력은 출결 조회 ${fmtFetched(st.fetched)} 기준`
-        : '이번 달 일별 자료가 없어요 — 오늘 › 출결 결과 올리기로 올리면 표시돼요.';
-      const y = Number(ym.slice(0, 4)), m = Number(ym.slice(5));
-      const first = new Date(y, m - 1, 1).getDay(), dim = new Date(y, m, 0).getDate(), today = ymdLocal(0);
-      const byDay = {}; rows.forEach(r => { byDay[r.day] = r; });
-      let h = ['일', '월', '화', '수', '목', '금', '토'].map(w => `<div class="wd">${w}</div>`).join('');
-      for (let i = 0; i < first; i++) h += '<div class="d off"></div>';
-      for (let d = 1; d <= dim; d++) {
-        const key = ym + '-' + String(d).padStart(2, '0'), wd = (first + d - 1) % 7, r = byDay[key];
-        let inner = `<span class="dn">${d}</span>`;
-        if (r) {
-          inner += `<span class="t">${hm(r.start_time)}–${hm(r.end_time)}</span>`;
-          if (r.status && r.status !== 'planned') {
-            const c = r.status === 'ok' ? '' : r.status === 'short' ? ' st-short' : ' st-none';
-            inner += `<span class="st-dot${c}">${r.status === 'none' ? '없음' : (Number(r.recognized_hours) || 0) + 'h'}</span>`;
-          }
-        }
-        h += `<div class="d${(wd === 0 || wd === 6) ? ' off' : ''}${r ? ' plan' : ''}${key === today ? ' today' : ''}">${inner}</div>`;
-      }
-      const tail = (first + dim) % 7; if (tail) for (let i = tail; i < 7; i++) h += '<div class="d off"></div>';
-      $('stu-cal').innerHTML = h; $('stu-cal').classList.remove('sched'); $('stu-sheet').classList.remove('wide');
-      $('stu-legend').hidden = false;
-      $('stu-days').innerHTML = st.bad.length
-        ? '<p class="ph-card-title" style="margin:20px 0 4px;font-size:15px">모자란 날</p>' + st.bad.map(r =>
-            `<div class="act-row"><span class="ak">${esc(mdOf(r.day))}</span><span class="av" style="color:var(--danger-500)">${esc(badWhy(r))}</span><span class="at">정규 ${esc(hm(r.start_time))}–${esc(hm(r.end_time))} · ${Number(r.planned_hours)}h</span></div>`).join('')
-        : '';
-      const sh = $('stu-sheet'); sh.classList.add('open'); sh.setAttribute('aria-hidden', 'false'); $('stu-close').focus();
+    // 학생 상세 — 한 학생 달력에서 전 기간(OFF-JT 3~7월 → OJT)을 ◀ ▶·월 칩으로 넘겨 본다(attendance_daily, 그 달 전 구분).
+    //  · OFF-JT 수업일정 행(course '수업일정 · 과목·능력단위 / …')은 칸에 과목·능력단위 — 누르면 학습안내서 요소·수행과업(offjt_units)
+    //  · 그 밖(OJT·출결 엑셀 OFF-JT)은 정규시간 + 인정시간 점, 아래에 모자란 날
+    let stuTok = 0;
+    function openStuSheet(name) { openStuMonth(name, ymdLocal(0).slice(0, 7)); }   // 오늘 탭 [달력 보기] — 이번 달부터
+    function stuMonthsOf(name) {
+      const nowYm = ymdLocal(0).slice(0, 7), map = new Map();
+      (attnCache || []).forEach(r => {
+        if (normNm(r.name) !== normNm(name) || !(Number(r.planned_hours) > 0)) return;
+        const m = String(r.month).slice(0, 7); if (!map.has(m)) map.set(m, new Set()); map.get(m).add(trk(r));
+      });
+      if (dailyCache && dailyCache.byName.has(normNm(name)) && !map.has(nowYm)) map.set(nowYm, new Set(['ojt']));
+      return map;   // 'YYYY-MM' → Set(track)
     }
-    // 학생 상세 — 고른 달·구분의 달력(출석 진도 [달력]). 지난달·OFF-JT 도 그 달 attendance_daily 를 읽어 그린다.
-    // OFF-JT 수업일정 행(course '수업일정 · 과목·능력단위 / …')은 시간 대신 과목을 칸에, 날짜별 과목은 아래 목록에.
-    async function openStuMonth(name, ym, track, row) {
-      const y = Number(ym.slice(0, 4)), m = Number(ym.slice(5));
+    async function openStuMonth(name, ym) {
+      const tok = ++stuTok;
+      const sh = $('stu-sheet'); sh.classList.add('open', 'wide'); sh.setAttribute('aria-hidden', 'false');
+      if (!sh.contains(document.activeElement)) $('stu-close').focus();
+      try { await fetchAttn(); } catch (_) {}
+      if (tok !== stuTok) return;
+      const mm = stuMonthsOf(name); if (!mm.has(ym)) mm.set(ym, new Set());
+      const months = [...mm.keys()].sort(), idx = months.indexOf(ym);
+      const y = Number(ym.slice(0, 4)), m = Number(ym.slice(5)), nowYm = ymdLocal(0).slice(0, 7);
       const nx = new Date(y, m, 1), to = nx.getFullYear() + '-' + String(nx.getMonth() + 1).padStart(2, '0') + '-01';
       $('stu-name').textContent = name;
-      $('stu-sub').textContent = [attnComp[normNm(name)], TRACK_LABEL[track]].filter(Boolean).join(' · ');
-      $('stu-month').textContent = m + '월 ' + (track === 'offjt' ? 'OFF-JT 수업' : '정규시간');
+      const si = attnStu[normNm(name)] || {};
+      $('stu-sub').textContent = [attnComp[normNm(name)], (si.jobs || []).join('·'), si.type, si.manager && '담당 ' + si.manager].filter(Boolean).join(' · ');
+      const tracks = [...mm.get(ym)];
+      $('stu-month').textContent = `${y !== Number(nowYm.slice(0, 4)) ? y + '년 ' : ''}${m}월 ` + tracks.map(t => TRACK_LABEL[t]).join('·');
+      // 월 칩 — OFF-JT 달·OJT 달 묶음 표시, ◀ ▶
+      const chips = $('stu-months'); chips.innerHTML = '';
+      let lastT = null;
+      months.forEach(k => {
+        const t = mm.get(k).has('ojt') ? 'ojt' : mm.get(k).has('offjt') ? 'offjt' : null;
+        if (t && t !== lastT) { const l = document.createElement('span'); l.className = 'note'; l.style.alignSelf = 'center'; l.textContent = TRACK_LABEL[t]; chips.appendChild(l); lastT = t; }
+        const b = document.createElement('button'); b.type = 'button'; b.className = 'chip' + (k === ym ? ' on' : '');
+        b.textContent = Number(k.slice(5)) + '월'; b.setAttribute('aria-pressed', k === ym ? 'true' : 'false');
+        b.addEventListener('click', () => openStuMonth(name, k)); chips.appendChild(b);
+      });
+      $('stu-prev').disabled = idx <= 0; $('stu-next').disabled = idx < 0 || idx >= months.length - 1;
+      $('stu-prev').onclick = () => { if (idx > 0) openStuMonth(name, months[idx - 1]); };
+      $('stu-next').onclick = () => { if (idx < months.length - 1) openStuMonth(name, months[idx + 1]); };
+      // 누적(지난달까지) — 구분별 + 전체
+      const c = cumOf(name), ct = k => c[k].total ? `${TRACK_LABEL[k]} ${c[k].a}/${c[k].p}h` + (c[k].total > c[k].p ? `(전체 ${c[k].total}h)` : '') : '';
+      $('stu-cum').textContent = ['지난달까지', ct('offjt'), ct('ojt'), c.pct != null ? `전체 ${c.pct}%` + (c.best != null && c.best < 80 ? ` · 끝까지 채워도 최대 ${c.best}% — 80% 밑` : '') : ''].filter(Boolean).join(' · ');
       $('stu-lede').textContent = '불러오는 중…'; $('stu-cal').innerHTML = ''; $('stu-days').innerHTML = ''; $('stu-legend').hidden = true;
-      const sh = $('stu-sheet'); sh.classList.add('open'); sh.setAttribute('aria-hidden', 'false'); $('stu-close').focus();
       const { data, error } = await supabase.from('attendance_daily')
         .select('name,day,track,start_time,end_time,planned_hours,recognized_hours,in_time,out_time,status,course,fetched_at')
-        .eq('track', track).gte('day', ym + '-01').lt('day', to).order('day');
+        .gte('day', ym + '-01').lt('day', to).order('day');
+      if (tok !== stuTok) return;   // 그사이 다른 달을 눌렀으면 버림
       if (error) { $('stu-lede').textContent = '조회에 실패했어요: ' + error.message; return; }
       const rows = (data || []).filter(r => normNm(r.name) === normNm(name));
-      const sched = rows.length && rows.every(r => /^수업일정/.test(r.course || ''));
+      const isSched = r => /^수업일정/.test(r.course || '');
       // '과목·능력단위 / 과목·능력단위' → [{ s: 과목, u: 능력단위 }] (첫 '·' 에서 나눔)
       const itemsOf = r => String(r.course || '').replace(/^수업일정\s*·\s*/, '').split(' / ').map(x => {
         const i = x.indexOf('·'); return i < 0 ? { s: x.trim(), u: '' } : { s: x.slice(0, i).trim(), u: x.slice(i + 1).trim() };
       }).filter(x => x.s);
-      sh.classList.toggle('wide', !!sched);   // 수업일정 달력은 시트를 넓히고 칸이 내용만큼 늘어남
-      $('stu-cal').classList.toggle('sched', !!sched);
-      const planned = row ? row.planned : null, actual = row ? row.actual : null;
-      $('stu-lede').textContent = !rows.length ? '이 달 일별 자료가 없어요' + (planned ? ` — 월 예정 ${planned}h · 실적 ${actual ?? '-'}h 만 있어요.` : '.')
-        : sched ? `수업 ${rows.length}일 · 월 ${planned ?? '-'}h — 직무 수업일정 엑셀 기준(이수 간주). 날짜별 시간은 없어요.`
-        : `실적 ${actual ?? '-'}h / 월 예정 ${planned ?? '-'}h · 일별 ${rows.length}일`;
+      const schedRows = rows.filter(isSched), attRows = rows.filter(r => !isSched(r));
+      // 머리 줄 — 그 달 월 행(구분별 실적·예정), 이번 달 일별 출결은 오늘까지 정규
+      const mr = (attnCache || []).filter(r => normNm(r.name) === normNm(name) && String(r.month).slice(0, 7) === ym && Number(r.planned_hours) > 0);
+      const parts = mr.map(r => `${TRACK_LABEL[trk(r)]} 실적 ${r.actual_hours ?? '-'}h / 예정 ${Number(r.planned_hours)}h` + (r.source === 'manual' ? '(수정)' : ''));
+      if (attRows.length && ym === nowYm) { const st = dailyStats(attRows); parts.push(`오늘까지 정규 ${st.reg}h · 등록 ${st.total}h · 출결 조회 ${fmtFetched(st.fetched)}`); }
+      if (schedRows.length) parts.push(`수업 ${schedRows.length}일 — 직무 수업일정 엑셀 기준(이수 간주), 날짜별 시간 없음`);
+      if (!rows.length) parts.push('이 달 일별 자료가 없어요');
+      $('stu-lede').textContent = parts.join(' · ');
       const first = new Date(y, m - 1, 1).getDay(), dim = new Date(y, m, 0).getDate(), today = ymdLocal(0);
-      const byDay = {}; rows.forEach(r => { byDay[r.day] = r; });
+      const byDay = {}; rows.forEach(r => { (byDay[r.day] = byDay[r.day] || []).push(r); });
       let h = ['일', '월', '화', '수', '목', '금', '토'].map(w => `<div class="wd">${w}</div>`).join('');
       for (let i = 0; i < first; i++) h += '<div class="d off"></div>';
       for (let d = 1; d <= dim; d++) {
-        const key = ym + '-' + String(d).padStart(2, '0'), wd = (first + d - 1) % 7, r = byDay[key];
+        const key = ym + '-' + String(d).padStart(2, '0'), wd = (first + d - 1) % 7, rs = byDay[key] || [];
         let inner = `<span class="dn">${d}</span>`;
-        // 능력단위가 있는 칸은 버튼 — 누르면 아래에 학습안내서 요소·수행과업(offjt_units)
-        if (r && sched) inner += itemsOf(r).map(x => x.u
-          ? `<button type="button" class="sj" data-s="${esc(x.s).replace(/"/g, '&quot;')}" data-u="${esc(x.u).replace(/"/g, '&quot;')}"><b>${esc(x.s)}</b><span class="un">${esc(x.u)}</span></button>`
-          : `<span class="sj"><b>${esc(x.s)}</b></span>`).join('');
-        else if (r) {
+        rs.forEach(r => {
+          if (isSched(r)) {   // 능력단위가 있는 칸은 버튼
+            inner += itemsOf(r).map(x => x.u
+              ? `<button type="button" class="sj" data-s="${esc(x.s).replace(/"/g, '&quot;')}" data-u="${esc(x.u).replace(/"/g, '&quot;')}"><b>${esc(x.s)}</b><span class="un">${esc(x.u)}</span></button>`
+              : `<span class="sj"><b>${esc(x.s)}</b></span>`).join('');
+            return;
+          }
+          if (rs.length > 1) inner += `<span class="t" style="color:var(--v-mute)">${TRACK_LABEL[trk(r)]}</span>`;
           if (r.start_time) inner += `<span class="t">${hm(r.start_time)}–${hm(r.end_time)}</span>`;
           if (r.status && r.status !== 'planned') {
-            const c = r.status === 'ok' ? '' : r.status === 'short' ? ' st-short' : ' st-none';
-            inner += `<span class="st-dot${c}">${r.status === 'none' ? '없음' : (Number(r.recognized_hours) || 0) + 'h'}</span>`;
+            const cl = r.status === 'ok' ? '' : r.status === 'short' ? ' st-short' : ' st-none';
+            inner += `<span class="st-dot${cl}">${r.status === 'none' ? '없음' : (Number(r.recognized_hours) || 0) + 'h'}</span>`;
           }
-        }
-        h += `<div class="d${(wd === 0 || wd === 6) ? ' off' : ''}${r ? ' plan' : ''}${key === today ? ' today' : ''}">${inner}</div>`;
+        });
+        h += `<div class="d${(wd === 0 || wd === 6) ? ' off' : ''}${rs.length ? ' plan' : ''}${key === today ? ' today' : ''}">${inner}</div>`;
       }
       const tail = (first + dim) % 7; if (tail) for (let i = tail; i < 7; i++) h += '<div class="d off"></div>';
-      $('stu-cal').innerHTML = h;
-      if (sched) {
-        // 학습안내서 시간·요소 — 같은 연도 offjt_units 에서 과목·능력단위로 찾음(학생 직무 것 우선, 없으면 다른 직무의 같은 단위)
-        const { data: us } = await supabase.from('offjt_units').select('job_key,subject,unit,hours,elements').eq('year', y);
-        const jobs = (attnStu[normNm(name)] || {}).jobs || [];
-        const findU = (s, u) => { const c = (us || []).filter(x => x.subject === s && x.unit === u); return c.find(x => jobs.includes(x.job_key)) || c[0] || null; };
-        const W = '일월화수목금토';
-        $('stu-days').innerHTML = '<p class="note" style="margin:12px 0 0">능력단위를 누르면 학습안내서의 능력단위요소·수행과업이 여기에 나와요.</p>';
-        $('stu-cal').querySelectorAll('button.sj').forEach(b => b.addEventListener('click', () => {
-          const s = b.dataset.s, u = b.dataset.u, info = findU(s, u);
-          $('stu-cal').querySelectorAll('button.sj').forEach(x => x.classList.toggle('hl', x.dataset.s === s && x.dataset.u === u));
-          const days = rows.filter(r => itemsOf(r).some(x => x.s === s && x.u === u)).map(r => `${mdOf(r.day)}(${W[new Date(r.day + 'T00:00').getDay()]})`);
-          const els = (info && info.elements) || [];
-          $('stu-days').innerHTML =
-            `<div class="un-panel"><p class="ph-card-title" style="margin:0 0 2px;font-size:15px">${esc(u)}</p>` +
-            `<p class="note" style="margin:0 0 8px">${esc(s)}` + (info && info.hours != null ? ` · 학습안내서 ${Number(info.hours)}시간` : '') +
-            ` · ${m}월 수업 ${days.length}일 — ${esc(days.join(', '))}</p>` +
-            (els.length
-              ? '<p class="note" style="margin:0 0 6px">학생 화면엔 "참고만 하고 자기 말로 바꿔 쓰세요(그대로 복사하면 공단 모니터링 대상)" 안내와 함께 보여요.</p>' +
-                els.map((e, i) => `<div class="un-el"><b>${i + 1}. ${esc(e.name)}</b><ul>${(e.tasks || []).map(t => `<li>${esc(t)}</li>`).join('')}</ul></div>`).join('')
-              : `<p class="note" style="margin:0">이 능력단위의 요소·수행과업이 아직 입력되지 않았어요 — 설정 › 일정·할 일 › OFF-JT 수업일정의 '능력단위 시간표'에서 학습안내서 문장을 붙여넣으면 여기와 학생 일정 화면에 나와요.</p>`) +
-            '</div>';
-          $('stu-days').scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-        }));
-      }
-      if (!sched) {   // 수업일정 달력은 칸에 과목·능력단위가 다 나와서 아래 목록 없음
-        $('stu-legend').hidden = !rows.length;
-        const bad = rows.filter(r => r.status === 'short' || r.status === 'none');
-        $('stu-days').innerHTML = bad.length
-          ? '<p class="ph-card-title" style="margin:20px 0 4px;font-size:15px">모자란 날</p>' + bad.map(r =>
-              `<div class="act-row"><span class="ak">${esc(mdOf(r.day))}</span><span class="av" style="color:var(--danger-500)">${esc(badWhy(r))}</span><span class="at">${r.start_time ? '정규 ' + esc(hm(r.start_time)) + '–' + esc(hm(r.end_time)) + ' · ' : ''}${Number(r.planned_hours)}h</span></div>`).join('')
-          : '';
-      }
+      $('stu-cal').innerHTML = h; $('stu-cal').classList.add('sched');
+      $('stu-legend').hidden = !attRows.length;
+      const bad = attRows.filter(r => r.status === 'short' || r.status === 'none');
+      $('stu-days').innerHTML = (bad.length
+        ? '<p class="ph-card-title" style="margin:20px 0 4px;font-size:15px">모자란 날</p>' + bad.map(r =>
+            `<div class="act-row"><span class="ak">${esc(mdOf(r.day))}</span><span class="av" style="color:var(--danger-500)">${esc(badWhy(r))}</span><span class="at">${r.start_time ? '정규 ' + esc(hm(r.start_time)) + '–' + esc(hm(r.end_time)) + ' · ' : ''}${Number(r.planned_hours)}h</span></div>`).join('')
+        : '') + (schedRows.length ? '<div id="stu-unit"><p class="note" style="margin:12px 0 0">능력단위를 누르면 학습안내서의 능력단위요소·수행과업이 여기에 나와요.</p></div>' : '');
+      if (!schedRows.length) return;
+      // 학습안내서 시간·요소 — 같은 연도 offjt_units 에서 과목·능력단위로 찾음(학생 직무 것 우선, 없으면 다른 직무의 같은 단위)
+      const { data: us } = await supabase.from('offjt_units').select('job_key,subject,unit,hours,elements').eq('year', y);
+      if (tok !== stuTok) return;
+      const jobs = si.jobs || [];
+      const findU = (s, u) => { const cs = (us || []).filter(x => x.subject === s && x.unit === u); return cs.find(x => jobs.includes(x.job_key)) || cs[0] || null; };
+      const W = '일월화수목금토';
+      $('stu-cal').querySelectorAll('button.sj').forEach(b => b.addEventListener('click', () => {
+        const s = b.dataset.s, u = b.dataset.u, info = findU(s, u);
+        $('stu-cal').querySelectorAll('button.sj').forEach(x => x.classList.toggle('hl', x.dataset.s === s && x.dataset.u === u));
+        const days = schedRows.filter(r => itemsOf(r).some(x => x.s === s && x.u === u)).map(r => `${mdOf(r.day)}(${W[new Date(r.day + 'T00:00').getDay()]})`);
+        const els = (info && info.elements) || [];
+        $('stu-unit').innerHTML =
+          `<div class="un-panel"><p class="ph-card-title" style="margin:0 0 2px;font-size:15px">${esc(u)}</p>` +
+          `<p class="note" style="margin:0 0 8px">${esc(s)}` + (info && info.hours != null ? ` · 학습안내서 ${Number(info.hours)}시간` : '') +
+          ` · ${m}월 수업 ${days.length}일 — ${esc(days.join(', '))}</p>` +
+          (els.length
+            ? '<p class="note" style="margin:0 0 6px">학생 화면엔 "참고만 하고 자기 말로 바꿔 쓰세요(그대로 복사하면 공단 모니터링 대상)" 안내와 함께 보여요.</p>' +
+              els.map((e, i) => `<div class="un-el"><b>${i + 1}. ${esc(e.name)}</b><ul>${(e.tasks || []).map(t => `<li>${esc(t)}</li>`).join('')}</ul></div>`).join('')
+            : `<p class="note" style="margin:0">이 능력단위의 요소·수행과업이 아직 입력되지 않았어요 — 설정 › 일정·할 일 › OFF-JT 수업일정의 '능력단위 시간표'에서 학습안내서 문장을 붙여넣으면 여기와 학생 일정 화면에 나와요.</p>`) +
+          '</div>';
+        $('stu-unit').scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      }));
     }
     function closeStuSheet() { const sh = $('stu-sheet'); if (!sh) return; sh.classList.remove('open'); sh.setAttribute('aria-hidden', 'true'); }
     $('stu-close').addEventListener('click', closeStuSheet);
@@ -3957,10 +3964,10 @@
           + `<span class="note sub">${esc(sub)}</span>`
           + `<span class="st-dot" style="color:${col}">${label}</span>`;
         const acts = document.createElement('span'); acts.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap';
-        // 달력 — 이번 달 OJT 는 위에서 읽은 일별 자료, 그 밖(지난달·OFF-JT)은 그 달 일별 자료를 따로 읽음
+        // 달력 — 고른 달로 열고, 시트 안에서 ◀ ▶·월 칩으로 전 기간(OFF-JT → OJT)을 넘김
         const cb = document.createElement('button'); cb.type = 'button'; cb.className = 'phone-btn'; cb.textContent = '달력';
-        const m0 = attnMonth, t0 = attnTrack;
-        cb.addEventListener('click', () => isDaily ? openStuSheet(r.name) : openStuMonth(r.name, m0, t0, r));
+        const m0 = attnMonth;
+        cb.addEventListener('click', () => openStuMonth(r.name, m0));
         acts.appendChild(cb);
         const eb = document.createElement('button'); eb.type = 'button'; eb.className = 'phone-btn'; eb.textContent = '수정';
         eb.addEventListener('click', () => {

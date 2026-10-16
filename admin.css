@@ -232,6 +232,9 @@ body.adm .stu-cal .d .t{display:block; margin-top:2px; font-size:12px; line-heig
 body.adm .stu-cal .d .st-dot{display:flex; font-size:12px; gap:4px; margin-top:2px}
 /* OFF-JT 수업일정 달력 — 시트를 넓히고(주말 칸은 좁게) 칸이 과목·능력단위만큼 세로로 늘어남 */
 body.adm .stu-sheet.wide{width:880px}
+body.adm .stu-nav{display:flex; align-items:center; gap:8px; margin:12px 0 8px}
+body.adm .stu-nav .ph-card-title{margin:0; flex:1; text-align:center}
+body.adm .stu-nav .phone-btn:disabled{opacity:.35; cursor:default}
 body.adm .stu-cal.sched{grid-template-columns:minmax(0,.45fr) repeat(5,minmax(0,1fr)) minmax(0,.45fr)}
 body.adm .stu-cal .d .sj{display:block; margin-top:4px; font-size:12px; line-height:1.35; word-break:keep-all; overflow-wrap:anywhere}
 body.adm .stu-cal .d .sj b{display:block; font-weight:600; color:var(--v-cobalt)}
