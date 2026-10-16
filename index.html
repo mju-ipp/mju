@@ -429,28 +429,31 @@
       const e = x => { const d = document.createElement('div'); d.textContent = x == null ? '' : String(x); return d.innerHTML; };
       const info = u => (sd.units || []).find(x => x.subject === 'OJT' && x.unit === u) || null;
       const _t = new Date(), curYm = _t.getFullYear() + '-' + String(_t.getMonth() + 1).padStart(2, '0');
-      const unitHtml = u => {
+      // (10/16 사용자 선택) 이번 달만 크게 — 단위 · 시간, 요소는 펼친 채(요소를 누르면 수행과업). 다른 달은 '전체 월 보기'
+      const unitsOf = r => [...new Set(String(r.units || '').split('·').map(x => x.trim()).filter(Boolean))];
+      const cur = rows.find(r => String(r.month).slice(0, 7) === curYm) || rows.find(r => String(r.month).slice(0, 7) > curYm);
+      const moName = ym => { const y = Number(ym.slice(0, 4)), m = Number(ym.slice(5)); return `${y !== _t.getFullYear() ? y + '년 ' : ''}${m}월`; };
+      const big = u => {
         const i = info(u), els = (i && i.elements) || [];
-        const h = i && i.hours != null ? `<span class="op-h">${Number(i.hours)}시간</span>` : '';
-        if (!els.length) return `<div class="op-u"><span class="op-n">${e(u)}</span>${h}</div>`;
-        return `<details class="op-u"><summary><span class="op-n">${e(u)}</span>${h}</summary>` +
-          `<p class="oj-copy">참고만 하고 <b>자기 말로</b> 바꿔 쓰세요 — 그대로 복사하면 공단 모니터링 대상이 돼요.</p>` +
-          els.map((el, k) => `<details class="oj-el"><summary>${k + 1}. ${e(el.name)}</summary><ul>${(el.tasks || []).map(t => `<li>${e(t)}</li>`).join('')}</ul></details>`).join('') +
-          `</details>`;
+        return `<div class="op-big"><p class="op-bn">${e(u)}${i && i.hours != null ? `<span> · ${Number(i.hours)}시간</span>` : ''}</p>` +
+          (els.length ? `<ol class="op-els">${els.map(el => `<li><details><summary>${e(el.name)}</summary><ul>${(el.tasks || []).map(t => `<li>${e(t)}</li>`).join('')}</ul></details></li>`).join('')}</ol>` : '') +
+          `</div>`;
       };
+      let h = '';
+      if (cur) {
+        const ym = String(cur.month).slice(0, 7), us = unitsOf(cur);
+        h += `<p class="menu-group-label" style="margin-top:14px">${ym === curYm ? '이번 달 OJT' : '다음 OJT'} · ${moName(ym)}${cur.planned != null ? ` 예정 ${Number(cur.planned)}시간` : ''}</p>` +
+          `<div class="op-cur">` + (us.length ? us.map(big).join('') : `<p class="op-none">능력단위가 아직 없어요.</p>`) +
+          (us.some(u => ((info(u) || {}).elements || []).length) ? `<p class="oj-copy">요소를 누르면 수행과업이 나와요. 참고만 하고 <b>자기 말로</b> 바꿔 쓰세요 — 그대로 복사하면 공단 모니터링 대상이 돼요.</p>` : '') +
+          `</div>`;
+      }
+      h += `<details class="op-all"><summary>전체 월 보기</summary><div class="op-list">` + rows.map(r => {
+        const ym = String(r.month).slice(0, 7), us = unitsOf(r);
+        return `<div class="op-row${ym === curYm ? ' now' : ym < curYm ? ' past' : ''}"><span class="op-mo">${moName(ym)}</span><span class="op-p">${r.planned != null ? Number(r.planned) + 'h' : '—'}</span>` +
+          `<span class="op-us">${us.map(u => { const i = info(u); return `<span>${e(u)}${i && i.hours != null ? ` <small>${Number(i.hours)}h</small>` : ''}</span>`; }).join('') || '—'}</span></div>`;
+      }).join('') + `</div><p class="op-note">h 는 그 능력단위 전체 시간(학습안내서)이에요.</p></details>`;
       const box = document.getElementById('ojt-plan');
-      box.innerHTML = `<p class="menu-group-label" style="margin-top:14px">OJT 월별 능력단위</p>` +
-        `<div class="op">` + rows.map(r => {
-          const ym = String(r.month).slice(0, 7), y = Number(ym.slice(0, 4)), m = Number(ym.slice(5));
-          const units = [...new Set(String(r.units || '').split('·').map(x => x.trim()).filter(Boolean))];
-          const cls = 'op-m' + (ym === curYm ? ' now' : ym < curYm ? ' past' : '');
-          return `<details class="${cls}"${ym === curYm ? ' open' : ''}><summary>` +
-            `<span class="op-mo">${y !== _t.getFullYear() ? y + '년 ' : ''}${m}월${ym === curYm ? ' <i>이번 달</i>' : ''}</span>` +
-            `<span class="op-p">예정 ${r.planned != null ? Number(r.planned) + '시간' : '—'}</span>` +
-            `<span class="op-c">${units.length}개 단위</span></summary>` +
-            (units.length ? units.map(unitHtml).join('') : `<p class="op-none">능력단위가 아직 없어요.</p>`) + `</details>`;
-        }).join('') + `</div>` +
-        `<p class="op-note">단위 옆 시간은 그 능력단위 전체 시간(학습안내서)이에요. 여러 달에 걸치면 달마다 같은 시간이 보여요.</p>`;
+      box.innerHTML = h;
       box.style.display = '';
     }
 

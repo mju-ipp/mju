@@ -128,31 +128,36 @@ body{background:var(--v-bg); color:var(--v-ink); font-variant-numeric:tabular-nu
 .is-home .menu-tile .mbadge{position:static}
 .is-home .menu-tile::after{content:"›"; font-size:20px; line-height:1; color:var(--v-mute)}
 
-/* OJT 월별 능력단위 — 달마다 접는 줄(이번 달 펼침), 단위 → 요소 */
-.op{border-top:1px solid var(--v-line)}
-.op-m{border-bottom:1px solid var(--v-line)}
-.op-m > summary{list-style:none; cursor:pointer; display:flex; align-items:baseline; gap:10px; min-height:48px; padding:12px 4px; box-sizing:border-box}
-.op-m > summary::-webkit-details-marker{display:none}
-.op-m > summary::after{content:"›"; margin-left:auto; font-size:18px; line-height:1; color:var(--v-mute); transition:transform .15s}
-.op-m[open] > summary::after{transform:rotate(90deg)}
-.op-mo{font-size:15px; font-weight:600; color:var(--v-ink)}
-.op-mo i{font-style:normal; font-size:12px; font-weight:600; color:var(--v-cobalt); margin-left:4px}
-.op-p{font-size:14px; color:var(--v-ink)}
-.op-c{font-size:12px; color:var(--v-mute)}
-.op-mo,.op-p,.op-c{white-space:nowrap}
-.op-m > summary{flex-wrap:wrap; row-gap:2px}
-.op-m.past .op-mo,.op-m.past .op-p{color:var(--v-mute)}
-.op-u{display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 8px; padding:8px 4px 8px 16px}
-details.op-u{display:block}
-details.op-u > summary{list-style:none; cursor:pointer; display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 8px}
-details.op-u > summary::-webkit-details-marker{display:none}
-details.op-u > summary::after{content:"요소 보기"; margin-left:auto; font-size:12px; font-weight:600; color:var(--v-cobalt)}
-details.op-u[open] > summary::after{content:"접기"; color:var(--v-mute)}
-.op-n{font-size:14px; color:var(--v-ink)}
-.op-h{font-size:12px; color:var(--v-mute)}
-.op-u + .op-u{border-top:1px dashed var(--v-line)}
-.op-m > :last-child{margin-bottom:8px}
-.op-none{margin:0 0 10px 16px; font-size:13px; color:var(--v-mute)}
+/* OJT 이번 달 능력단위(크게) + 전체 월 보기(접힘) */
+.op-cur{border-top:1px solid var(--v-line); padding:4px 4px 0}
+.op-big{padding:12px 0; border-bottom:1px solid var(--v-line)}
+.op-bn{margin:0 0 6px; font-size:16px; font-weight:600; color:var(--v-ink)}
+.op-bn span{font-weight:400; font-size:14px; color:var(--v-mute)}
+.op-els{margin:0; padding-left:22px}
+.op-els > li{font-size:14px; color:var(--v-ink); padding:3px 0}
+.op-els summary{cursor:pointer; list-style:none}
+.op-els summary::-webkit-details-marker{display:none}
+.op-els details[open] > summary{font-weight:600}
+.op-els ul{margin:6px 0 4px; padding-left:16px; font-size:13px; line-height:1.6; color:var(--v-mute)}
+.op-cur .oj-copy{margin:10px 0 0}
+.op-none{margin:10px 0; font-size:13px; color:var(--v-mute)}
+.op-all{margin-top:10px}
+.op-all > summary{list-style:none; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; min-height:44px;
+  font-size:14px; font-weight:600; color:var(--v-cobalt)}
+.op-all > summary::-webkit-details-marker{display:none}
+.op-all > summary::after{content:"⌄"; font-size:16px; line-height:1; transform:translateY(-3px)}
+.op-all[open] > summary::after{content:"⌃"; transform:translateY(3px)}
+.op-all[open] > summary{font-size:0}
+.op-all[open] > summary::before{content:"접기"; font-size:14px}
+.op-list{border-top:1px solid var(--v-line)}
+.op-row{display:grid; grid-template-columns:78px 40px 1fr; gap:8px; padding:10px 4px; border-bottom:1px solid var(--v-line); align-items:baseline}
+.op-mo{font-size:14px; font-weight:600; color:var(--v-ink); white-space:nowrap}
+.op-p{font-size:13px; color:var(--v-mute); white-space:nowrap}
+.op-us{display:flex; flex-direction:column; gap:2px; font-size:14px; color:var(--v-ink)}
+.op-us small{font-size:12px; color:var(--v-mute)}
+.op-row.now{background:var(--v-cobalt-bg)}
+.op-row.now .op-mo{color:var(--v-cobalt)}
+.op-row.past .op-mo,.op-row.past .op-us{color:var(--v-mute)}
 .op-note{margin:8px 4px 0; font-size:12px; color:var(--v-mute)}
 
 /* 고용24 학습일지 안내 — 선 목록 위에 한 묶음(경로 + 로그인 버튼) */
