@@ -3699,7 +3699,8 @@
           const m = r.day.slice(0, 7); const set = o[m] || (o[m] = []);
           if (/직업기초능력/.test(r.course)) { o[m + ':basic'] = true; return; }   // 직업기초능력 날(뒤 칸은 하위 능력)은 단위 대신 표시만
           String(r.course).replace(/^수업일정\s*·\s*/, '').split(' / ').forEach(x => {
-            const i = x.indexOf('·'); const u = i < 0 ? '' : x.slice(i + 1).trim();
+            const i = x.indexOf('·'); let u = i < 0 ? '' : x.slice(i + 1).trim();
+            if (/^교안/.test(u)) u = x.slice(0, i).trim();   // 생성형 AI 처럼 능력단위 칸이 '교안 참고'면 과목 이름으로
             if (u && !set.includes(u)) set.push(u);
           });
         });
@@ -3793,8 +3794,8 @@
       }).filter(x => x.s);
       const schedRows = rows.filter(isSched), attRows = rows.filter(r => !isSched(r));
       // 머리 줄 — 그 달 월 행(구분별 실적·예정), 이번 달 일별 출결은 오늘까지 정규
-      const mr = (attnCache || []).filter(r => normNm(r.name) === normNm(name) && String(r.month).slice(0, 7) === ym && Number(r.planned_hours) > 0);
-      const parts = mr.map(r => `${TRACK_LABEL[trk(r)]} 실적 ${r.actual_hours != null ? r.actual_hours + 'h' : '-'} / 예정 ${Number(r.planned_hours)}h` + (r.source === 'manual' ? '(수정)' : ''));
+      const mr = (attnCache || []).filter(r => normNm(r.name) === normNm(name) && String(r.month).slice(0, 7) === ym && (Number(r.planned_hours) > 0 || r.units));
+      const parts = mr.map(r => `${TRACK_LABEL[trk(r)]} 실적 ${r.actual_hours != null ? r.actual_hours + 'h' : '-'} / 예정 ${r.planned_hours != null ? Number(r.planned_hours) + 'h' : '미정'}` + (r.source === 'manual' ? '(수정)' : ''));
       if (attRows.length && ym === nowYm) { const st = dailyStats(attRows); parts.push(`오늘까지 정규 ${st.reg}h · 등록 ${st.total}h · 출결 조회 ${fmtFetched(st.fetched)}`); }
       if (schedRows.length) parts.push(`수업 ${schedRows.length}일 — 직무 수업일정 엑셀 기준(이수 간주), 날짜별 시간 없음`);
       if (!rows.length) parts.push('이 달 일별 자료가 없어요');
