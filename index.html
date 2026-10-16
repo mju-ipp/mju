@@ -283,6 +283,10 @@
     }
     maybePickCenter();
 
+    // [sql/63] 학생 홈 상태 — 아래 renderAttendance/renderSchedule 호출보다 먼저 선언(let 은 선언 줄 전에 읽으면 오류)
+    let _stuData = null;     // stuData() 한 번만 부른 결과(Promise)
+    let homeCalGo = null;    // 출석 진도 카드 월별 표 → 홈 달력 그 달로(renderSchedule 이 채움)
+    let homeYm = null, homeSel = null;   // 홈 달력이 보여주는 달·펼친 날(완료 체크 후 다시 그려도 유지)
     let _centerBlocked = false;
     if (configReady()) {
       try {
@@ -361,19 +365,59 @@
       window.lucide?.createIcons();
     }
 
+    // [sql/63] 학생 자료 — 월 행(my_attendance)·전 기간 날짜별(my_attendance_days 'all')·OFF-JT 능력단위 요소(my_offjt_units).
+    //   출석 진도 카드와 홈 달력이 같이 쓰도록 한 번만 부름(학생 RPC 는 IP 당 10분 30회 제한 — 같은 와이파이 학생들).
+    //   sql/63 적용 전이면 날짜별은 이번 달만(옛 2인자 호출), 요소는 빈 목록 — 화면은 있는 만큼만.
+    function stuData(prof) {
+      if (_stuData) return _stuData;
+      const args = { p_code: prof.code || null, p_token: prof.token || null };
+      const wrap = p => Promise.resolve(p).catch(() => null);   // 빌더는 then 만 있어 Promise 로 감쌈
+      _stuData = (async () => {
+        const [m, d0, u] = await Promise.all([
+          wrap(supabase.rpc('my_attendance', args)),
+          wrap(supabase.rpc('my_attendance_days', { ...args, p_month: 'all' })),
+          wrap(supabase.rpc('my_offjt_units', args)),
+        ]);
+        let d = d0, all = true;
+        if (!d || d.error) { d = await wrap(supabase.rpc('my_attendance_days', args)); all = false; }
+        const good = x => x && !x.error && x.data && x.data.ok === true;
+        return {
+          ok: good(m), rows: good(m) ? m.data.rows || [] : [],
+          days: good(d) && Array.isArray(d.data.days) ? d.data.days : [], fetched: good(d) ? d.data.fetched_at : null, allDays: all,
+          units: good(u) ? u.data.units || [] : [],
+        };
+      })();
+      return _stuData;
+    }
+    // 수업일정 행 course '수업일정 · 과목·능력단위 / …' → [{ s, u }] (첫 '·' 에서 나눔)
+    function offItems(c) {
+      return String(c || '').replace(/^수업일정\s*·\s*/, '').split(' / ').map(x => {
+        const i = x.indexOf('·'); return i < 0 ? { s: x.trim(), u: '' } : { s: x.slice(0, i).trim(), u: x.slice(i + 1).trim() };
+      }).filter(x => x.s);
+    }
+    function isSchedDay(r) { return /^수업일정/.test(r.course || ''); }
+    // 그 달 OFF-JT 능력단위 이름들(직업기초능력 날은 '직업기초능력', '교안 참고'면 과목 이름)
+    function offUnitNames(days, ym) {
+      const out = [];
+      days.filter(r => r.day.slice(0, 7) === ym && isSchedDay(r)).forEach(r => {
+        if (/직업기초능력/.test(r.course)) { if (!out.includes('직업기초능력')) out.push('직업기초능력'); return; }
+        offItems(r.course).forEach(x => { const n = !x.u || /^교안/.test(x.u) ? x.s : x.u; if (!out.includes(n)) out.push(n); });
+      });
+      return out;
+    }
+
     // 학생 홈 — 내 출석 진도 카드 (sql/42·44; 초대코드 또는 서명토큰으로 본인 확인 — iOS 설치앱 복원 프로필은 토큰만 있음)
     async function renderAttendance(prof) {
       if (!configReady() || (!prof.code && !prof.token)) return;
-      let rows = null, daysRes = null;
+      let rows = null, daysRes = null, sd;
       try {
-        // [개편 6단계] 날짜별 정규시간(my_attendance_days, sql/55)도 같이 — 없으면 null, 카드는 기존과 같음
-        const [res, dres] = await Promise.all([
-          supabase.rpc('my_attendance', { p_code: prof.code || null, p_token: prof.token || null }),
-          Promise.resolve(supabase.rpc('my_attendance_days', { p_code: prof.code || null, p_token: prof.token || null })).catch(() => null),   // 빌더는 then 만 있어 Promise 로 감쌈
-        ]);
-        if (res.error || !res.data || res.data.ok !== true) return;
-        rows = res.data.rows || [];
-        if (dres && !dres.error && dres.data && dres.data.ok === true && Array.isArray(dres.data.days) && dres.data.days.length) daysRes = dres.data;
+        sd = await stuData(prof);
+        if (!sd.ok) return;
+        rows = sd.rows;
+        // [개편 6단계] 이번 달 날짜별 정규시간 — 없으면 null, 카드는 기존과 같음
+        const _t = new Date(), curYm = _t.getFullYear() + '-' + String(_t.getMonth() + 1).padStart(2, '0');
+        const cd = sd.days.filter(r => r.day.slice(0, 7) === curYm);
+        if (cd.length) daysRes = { days: cd, fetched_at: sd.fetched };
       } catch (_) { return; }
       // [sql/61] 월 행마다 track(OFF-JT/OJT) — 없으면(적용 전) OJT. OFF-JT 와 OJT 를 따로 보여주고 전체 출석률(외부평가 응시 80%)을 덧붙인다.
       const trk = r => r.track === 'offjt' ? 'offjt' : 'ojt';
@@ -430,10 +474,33 @@
         (sumP > 0 ? `<p class="ph-note" style="margin:6px 0 0">지난달까지 전체 출석률 <b>${cum}%</b> — 외부평가 응시 기준 80%</p>` : '') +
         (nextTxt ? `<p class="ph-note" style="margin:6px 0 0">${nextTxt}</p>` : '') +
         (unitTitle ? `<p class="ph-note" style="margin:6px 0 0">📚 ${(() => { const e = document.createElement('div'); e.textContent = unitTitle; return e.innerHTML; })()}</p>` : '') +
-        `<p class="ph-note" style="margin:4px 0 0">${updTxt}${curT === 'offjt' ? '출석부·고용24' : '비콘 출퇴근'} 기록 기준이라 최종 확정치와 다를 수 있어요.</p>`;
+        `<p class="ph-note" style="margin:4px 0 0">${updTxt}${curT === 'offjt' ? '출석부·고용24' : '비콘 출퇴근'} 기록 기준이라 최종 확정치와 다를 수 있어요.</p>` +
+        planTable(rows, sd, nowYm);
       const anchor = document.getElementById('home-cal');
       anchor.parentNode.insertBefore(card, anchor.nextSibling);
+      // 월별 표 줄 → 위 일정 달력을 그 달로
+      card.querySelectorAll('.att-plan tr[data-m]').forEach(tr => {
+        const go = () => { if (homeCalGo) homeCalGo(tr.dataset.m); };
+        tr.addEventListener('click', go); tr.addEventListener('keydown', e => { if (e.key === 'Enter') go(); });
+      });
       window.lucide?.createIcons();
+    }
+    // 월별 예정 시수·능력단위 표(접힘) — OJT = 실시신고 시간표 월 배정, OFF-JT = 수업일정에 나온 단위
+    function planTable(rows, sd, nowYm) {
+      const e = s => { const d = document.createElement('div'); d.textContent = s == null ? '' : String(s); return d.innerHTML; };
+      const TL = { offjt: 'OFF-JT', ojt: 'OJT' };
+      const rs = rows.filter(r => Number(r.planned) > 0 || r.units);
+      if (!rs.length) return '';
+      const tr = rs.map(r => {
+        const t = r.track === 'offjt' ? 'offjt' : 'ojt', m = String(r.month).slice(0, 7);
+        const units = t === 'offjt' ? (offUnitNames(sd.days, m).join(' · ') || (r.units && r.units !== 'OFF-JT 합계' ? r.units : '')) : (r.units || '');
+        const act = r.actual == null ? '-' : Number(r.actual) + 'h' + (m === nowYm ? '(진행 중)' : '');
+        return `<tr data-m="${m}" tabindex="0"${m === nowYm ? ' class="on"' : ''}><td>${Number(m.slice(5))}월</td><td>${TL[t]}</td>` +
+          `<td>${r.planned != null ? Number(r.planned) + 'h' : '미정'}</td><td>${act}</td><td>${e(units) || '-'}</td></tr>`;
+      }).join('');
+      return `<details class="att-plan"><summary>월별 예정 시수 · 능력단위</summary>` +
+        `<table><thead><tr><th>월</th><th>구분</th><th>예정</th><th>실적</th><th>능력단위</th></tr></thead><tbody>${tr}</tbody></table>` +
+        `<p class="ph-note" style="margin:6px 0 0">줄을 누르면 위 일정 달력이 그 달로 넘어가요.</p></details>`;
     }
 
     // 첫 진입 온보딩 — 가입 전 기기에서 1회만 표시
@@ -556,7 +623,9 @@
       const now = new Date();
       const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
       const calY = now.getFullYear(), calM = now.getMonth();
-      const monthStart = `${calY}-${pad(calM + 1)}-01`;
+      // 달력을 ◀ 로 넘길 수 있어 1년 전 달부터 읽음(OFF-JT 3월 등)
+      const _from = new Date(calY, calM - 12, 1);
+      const monthStart = `${_from.getFullYear()}-${pad(_from.getMonth() + 1)}-01`;
       // 타게팅 가시성 — calendar.html visible() 과 동일(전체/단일직무/custom)
       const visible = (r) => {
         if (!r.job_key) return true;
@@ -639,19 +708,22 @@
       };
       const fmtDate = (s) => { try { return new Date(s + 'T00:00:00').toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' }); } catch (_) { return s; } };
 
-      // 미니 달력 (이번 달, 일정 있는 날 점)
-      const byDate = {};
-      all.forEach(r => { (byDate[r.event_date] = byDate[r.event_date] || []).push(r); });
-      const first = new Date(calY, calM, 1), days = new Date(calY, calM + 1, 0).getDate();
-      const dow = ['일', '월', '화', '수', '목', '금', '토'].map(d => `<span class="cal-dow">${d}</span>`).join('');
-      let cells = '';
-      for (let i = 0; i < first.getDay(); i++) cells += '<span></span>';
-      for (let d = 1; d <= days; d++) {
-        const ds = `${calY}-${pad(calM + 1)}-${pad(d)}`;
-        const evts = byDate[ds] || [];
-        const cls = 'cal-cell' + (evts.length ? ' has' : '') + (ds < todayStr ? ' past' : '') + (ds === todayStr ? ' today' : '');
-        cells += `<span class="${cls}"><span>${d}</span><span class="cal-dots">${evts.slice(0, 3).map(() => '<span class="cal-dot"></span>').join('')}</span></span>`;
-      }
+      // [sql/63] 학생: 내 수업(OFF-JT)·훈련(OJT) 날짜·월 예정·능력단위를 같은 달력에 — 관리자 학생 달력과 같은 내용
+      const sd = prof.target_type === 'student' && (prof.code || prof.token) ? await stuData(prof).catch(() => null) : null;
+      const sDays = (sd && sd.days) || [], sRows = (sd && sd.rows) || [];
+      const thisYm = `${calY}-${pad(calM + 1)}`;
+      const ymAdd = (ym, n) => { const d = new Date(Number(ym.slice(0, 4)), Number(ym.slice(5)) - 1 + n, 1); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}`; };
+      // 넘길 수 있는 범위 — 학생은 내 자료가 있는 달(3월 OFF-JT ~ 2월 OJT)과 이번 달, 그 밖은 1년 전 ~ 1년 뒤
+      const ymSet = new Set([thisYm]);
+      sRows.filter(r => Number(r.planned) > 0 || r.units).forEach(r => ymSet.add(String(r.month).slice(0, 7)));
+      sDays.forEach(r => ymSet.add(r.day.slice(0, 7)));
+      const yms = [...ymSet].sort();
+      const mine = !!(sd && sd.ok && yms.length > 1);
+      const minYm = mine ? yms[0] : ymAdd(thisYm, -12), maxYm = mine ? yms[yms.length - 1] : ymAdd(thisYm, 12);
+      if (!homeYm || homeYm < minYm || homeYm > maxYm) homeYm = thisYm;
+      const TL = { offjt: 'OFF-JT', ojt: 'OJT' };
+      const ST = { ok: '인정', short: '모자람', none: '기록 없음', planned: '예정' };
+      const unitInfo = (s, u) => ((sd && sd.units) || []).find(x => x.subject === s && x.unit === u) || null;
 
       // 다가오는 일정 — 일정+마감일 합본(오늘 이후) 최대 4건 + 마감 미정(최대 2건). 링크 있으면 '바로가기'.
       const rowHtml = (r, badge) => {
@@ -679,30 +751,118 @@
       const undatedRows = undated.slice(0, 2).map(t => rowHtml(t, `<span class="dday muted">미정</span>`)).join('');
       const listHtml = (datedRows + undatedRows) || `<p class="note" style="margin:10px 0 0">예정된 일정이 없어요.</p>`;
 
-      mount.innerHTML =
-        `<div class="card accent">` +
-          `<p class="ph-card-title"><i data-lucide="calendar-days"></i> 일정</p>` +
-          `<div class="cal-head" style="justify-content:center;margin-bottom:8px"><b>${calY}년 ${calM + 1}월</b></div>` +
-          `<div class="cal-grid">${dow}</div>` +
-          `<div class="cal-grid" style="margin-bottom:4px">${cells}</div>` +
-          listHtml +
-          `<a href="./calendar.html" style="display:inline-flex;align-items:center;gap:4px;font-size:12.5px;font-weight:700;color:var(--link);margin-top:10px;text-decoration:none">전체 일정 보기 <i data-lucide="chevron-right" style="width:14px;height:14px"></i></a>` +
-        `</div>`;
-      window.lucide?.createIcons();
-      // [TASKS v2] 완료 체크·해제 — 처리 후 재렌더로 상태 동기화. 마감 지난 할 일은 해제 불가(서버 게이트, Q3)
-      if (checksOn) mount.querySelectorAll('.task-chk').forEach(b => b.addEventListener('click', async () => {
-        b.disabled = true;
-        try {
-          const undo = b.dataset.done === '1';
-          const rpcName = isCompany ? (undo ? 'uncheck_company_task' : 'complete_company_task') : (undo ? 'uncheck_task' : 'complete_task');
-          const rpcArgs = isCompany ? { p_task_id: b.dataset.task, p_code: prof.code } : { p_task_id: b.dataset.task, p_token: prof.token };
-          const { data: res, error } = await supabase.rpc(rpcName, rpcArgs);
-          if (error) throw error;
-          if (res && res.ok === false && res.reason === 'locked') alert('마감이 지난 할 일은 완료 해제할 수 없어요. 정정이 필요하면 센터에 문의해주세요.');
-          else if (res && res.ok === false) alert('처리하지 못했어요. 잠시 후 다시 시도해주세요.');
-        } catch (_) { alert('연결이 불안정해요. 잠시 후 다시 시도해주세요.'); }
-        renderSchedule(prof);
-      }));
+      const byDate = {};
+      all.forEach(r => { (byDate[r.event_date] = byDate[r.event_date] || []).push(r); });
+      const sByDate = {};
+      sDays.forEach(r => { (sByDate[r.day] = sByDate[r.day] || []).push(r); });
+
+      // 그 달 머리 — 구분별 예정·실적 + 능력단위(학생만)
+      function monthHead(ym) {
+        if (!sd) return '';
+        const mr = sRows.filter(r => String(r.month).slice(0, 7) === ym && (Number(r.planned) > 0 || r.units));
+        if (!mr.length) return '';
+        return mr.map(r => {
+          const t = r.track === 'offjt' ? 'offjt' : 'ojt';
+          const units = t === 'offjt' ? offUnitNames(sDays, ym).join(' · ') : (r.units || '');
+          const act = r.actual == null ? '' : ` · 실적 ${Number(r.actual)}h${ym === thisYm ? '(진행 중)' : ''}`;
+          return `<div class="hc-mh"><b>${TL[t]}</b> 예정 ${r.planned != null ? Number(r.planned) + 'h' : '미정'}${act}` +
+            (units ? `<span class="hc-mu">능력단위 — ${esc(units)}</span>` : '') + `</div>`;
+        }).join('') + (mr.some(r => r.track === 'offjt') ? `<p class="ph-note" style="margin:2px 0 0">OFF-JT 는 직무 수업일정 기준이에요.</p>` : '');
+      }
+
+      // 날짜를 누르면 아래에 — 그날 수업(과목·능력단위 → 요소·수행과업) / 훈련(정규·인정) / 일정
+      function dayDetail(ds) {
+        const srs = sByDate[ds] || [], evts = byDate[ds] || [];
+        if (!srs.length && !evts.length) return '';
+        let h = `<div class="hc-day"><p class="hc-day-t">${fmtDate(ds)}</p>`;
+        srs.forEach(r => {
+          if (isSchedDay(r)) {
+            h += offItems(r.course).map(x => {
+              if (!x.u) return `<div class="oj-u"><span class="oj-u-n">${esc(x.s)}</span></div>`;
+              const info = unitInfo(x.s, x.u), els = (info && info.elements) || [];
+              const meta = info && info.hours != null ? `<span class="oj-u-meta">학습안내서 ${Number(info.hours)}시간</span>` : '';
+              if (!els.length) return `<div class="oj-u"><span class="oj-u-s">${esc(x.s)}</span><span class="oj-u-n">${esc(x.u)}</span>${meta}</div>`;
+              return `<details class="oj-u"><summary><span class="oj-u-s">${esc(x.s)}</span><span class="oj-u-n">${esc(x.u)}</span>${meta}<span class="oj-u-more">요소 보기</span></summary>` +
+                `<p class="oj-copy">참고만 하고 <b>자기 말로</b> 바꿔 쓰세요 — 그대로 복사하면 공단 모니터링 대상이 돼요.</p>` +
+                els.map((el, i) => `<details class="oj-el"><summary>${i + 1}. ${esc(el.name)}</summary><ul>${(el.tasks || []).map(t => `<li>${esc(t)}</li>`).join('')}</ul></details>`).join('') +
+                `</details>`;
+            }).join('');
+            return;
+          }
+          const st = r.status || 'planned';
+          h += `<div class="oj-u"><span class="oj-u-s">${TL[r.track === 'offjt' ? 'offjt' : 'ojt']}</span>` +
+            `<span class="oj-u-n">${r.start ? `${esc(r.start)}–${esc(r.end)}` : '훈련'} · ${Number(r.planned) || 0}시간</span>` +
+            `<span class="ojt-st ${st}" style="font-size:12.5px">${ST[st] || st}${st !== 'planned' && st !== 'none' ? ' ' + (Number(r.recognized) || 0) + '시간' : ''}</span></div>`;
+        });
+        evts.forEach(r => { h += `<div class="oj-u"><span class="oj-u-s">${esc(r.kind || '일정')}</span><span class="oj-u-n">${esc(r.title)}</span>${r.memo ? `<span class="oj-u-meta">${esc(r.memo)}</span>` : ''}</div>`; });
+        return h + '</div>';
+      }
+
+      const dow = ['일', '월', '화', '수', '목', '금', '토'].map(d => `<span class="cal-dow">${d}</span>`).join('');
+      const short = s => s.replace(/\s+/g, '').slice(0, 4);
+      function draw() {
+        const y = Number(homeYm.slice(0, 4)), mo = Number(homeYm.slice(5)) - 1;
+        const first = new Date(y, mo, 1), days = new Date(y, mo + 1, 0).getDate();
+        if (homeSel && homeSel.slice(0, 7) !== homeYm) homeSel = null;
+        let cells = '';
+        for (let i = 0; i < first.getDay(); i++) cells += '<span></span>';
+        for (let d = 1; d <= days; d++) {
+          const ds = `${y}-${pad(mo + 1)}-${pad(d)}`;
+          const evts = byDate[ds] || [], srs = sByDate[ds] || [];
+          const sch = srs.find(isSchedDay), att = srs.filter(r => !isSchedDay(r));
+          let inner = `<span>${d}</span>`;
+          if (sch) {
+            const names = offItems(sch.course).map(x => x.s);
+            inner += names.slice(0, 2).map(s => `<span class="oj-s">${esc(short(s))}</span>`).join('') + (names.length > 2 ? `<span class="oj-s">+${names.length - 2}</span>` : '');
+          }
+          att.forEach(r => {
+            const st = r.status || 'planned';
+            inner += st === 'planned' ? `<span class="ojt-t">${esc(r.start || '')}</span>` : `<span class="ojt-st ${st}">${st === 'none' ? '없음' : (Number(r.recognized) || 0) + 'h'}</span>`;
+          });
+          if (evts.length) inner += `<span class="cal-dots">${evts.slice(0, 3).map(() => '<span class="cal-dot"></span>').join('')}</span>`;
+          const any = sch || att.length || evts.length;
+          const cls = 'cal-cell' + (evts.length ? ' has' : '') + (sch ? ' offjt' : att.length ? ' ojt' : '') + (ds < todayStr ? ' past' : '') + (ds === todayStr ? ' today' : '') + (ds === homeSel ? ' sel' : '');
+          cells += any ? `<button type="button" class="${cls}" data-d="${ds}" aria-label="${fmtDate(ds)} 보기">${inner}</button>` : `<span class="${cls}">${inner}</span>`;
+        }
+        mount.innerHTML =
+          `<div class="card accent">` +
+            `<p class="ph-card-title"><i data-lucide="calendar-days"></i> 일정</p>` +
+            `<div class="cal-head" style="margin-bottom:8px">` +
+              `<button type="button" class="cal-nav" id="hc-prev" aria-label="이전 달"${homeYm <= minYm ? ' disabled' : ''}><i data-lucide="chevron-left"></i></button>` +
+              `<b>${y}년 ${mo + 1}월</b>` +
+              `<button type="button" class="cal-nav" id="hc-next" aria-label="다음 달"${homeYm >= maxYm ? ' disabled' : ''}><i data-lucide="chevron-right"></i></button>` +
+            `</div>` +
+            monthHead(homeYm) +
+            `<div class="cal-grid">${dow}</div>` +
+            `<div class="cal-grid" style="margin-bottom:4px">${cells}</div>` +
+            (homeSel ? dayDetail(homeSel) : (sd && (sDays.some(r => r.day.slice(0, 7) === homeYm)) ? `<p class="ph-note" style="margin:6px 0 0">날짜를 누르면 그날 수업·훈련 내용이 나와요.</p>` : '')) +
+            (homeYm === thisYm ? `<p class="hc-sub">다가오는 일정</p>` + listHtml : `<button type="button" class="hc-today" id="hc-today">이번 달로</button>`) +
+            `<a href="./calendar.html" style="display:inline-flex;align-items:center;gap:4px;font-size:12.5px;font-weight:700;color:var(--link);margin-top:10px;text-decoration:none">전체 일정 보기 <i data-lucide="chevron-right" style="width:14px;height:14px"></i></a>` +
+          `</div>`;
+        window.lucide?.createIcons();
+        mount.querySelector('#hc-prev')?.addEventListener('click', () => { homeYm = ymAdd(homeYm, -1); homeSel = null; draw(); });
+        mount.querySelector('#hc-next')?.addEventListener('click', () => { homeYm = ymAdd(homeYm, 1); homeSel = null; draw(); });
+        mount.querySelector('#hc-today')?.addEventListener('click', () => { homeYm = thisYm; homeSel = null; draw(); });
+        mount.querySelectorAll('.cal-cell[data-d]').forEach(b => b.addEventListener('click', () => { homeSel = homeSel === b.dataset.d ? null : b.dataset.d; draw(); }));
+        // [TASKS v2] 완료 체크·해제 — 처리 후 재렌더로 상태 동기화. 마감 지난 할 일은 해제 불가(서버 게이트, Q3)
+        if (checksOn) mount.querySelectorAll('.task-chk').forEach(b => b.addEventListener('click', async () => {
+          b.disabled = true;
+          try {
+            const undo = b.dataset.done === '1';
+            const rpcName = isCompany ? (undo ? 'uncheck_company_task' : 'complete_company_task') : (undo ? 'uncheck_task' : 'complete_task');
+            const rpcArgs = isCompany ? { p_task_id: b.dataset.task, p_code: prof.code } : { p_task_id: b.dataset.task, p_token: prof.token };
+            const { data: res, error } = await supabase.rpc(rpcName, rpcArgs);
+            if (error) throw error;
+            if (res && res.ok === false && res.reason === 'locked') alert('마감이 지난 할 일은 완료 해제할 수 없어요. 정정이 필요하면 센터에 문의해주세요.');
+            else if (res && res.ok === false) alert('처리하지 못했어요. 잠시 후 다시 시도해주세요.');
+          } catch (_) { alert('연결이 불안정해요. 잠시 후 다시 시도해주세요.'); }
+          renderSchedule(prof);
+        }));
+      }
+      // 처음: 오늘에 수업·훈련·일정이 있으면 펼쳐 둠
+      if (homeSel == null && homeYm === thisYm && ((sByDate[todayStr] || []).length || (byDate[todayStr] || []).length)) homeSel = todayStr;
+      homeCalGo = (ym) => { homeYm = ym < minYm ? minYm : ym > maxYm ? maxYm : ym; homeSel = null; draw(); mount.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
+      draw();
     }
 
     // 기업 드롭다운만 노션 동기화(companies)에서 채움 (직무는 매칭학생 확인 후 '본인 직무'만 동적 노출)
