@@ -6,7 +6,7 @@
   <title>관리자 · 일학습병행 앱</title>
   <meta name="theme-color" content="#121318" />
   <link rel="stylesheet" href="./styles.css" />
-  <link rel="stylesheet" href="./admin.css?v=20261016-6" /><!-- 배포 때 v 를 올려 캐시된 옛 스타일과 새 HTML 이 섞이지 않게 -->
+  <link rel="stylesheet" href="./admin.css?v=20261016-7" /><!-- 배포 때 v 를 올려 캐시된 옛 스타일과 새 HTML 이 섞이지 않게 -->
   <script src="./config.js"></script>
   <style>
     .msg{max-width:80%;padding:9px 12px;border-radius:12px;margin:5px 0;font-size:14px;white-space:pre-wrap}
@@ -639,10 +639,12 @@
             <button type="button" class="phone-btn" id="stu-next" aria-label="다음 달">▶</button>
           </div>
           <div class="filter-chips" id="stu-months" style="margin:0 0 8px"></div>
+          <p class="note" id="stu-units" style="margin:0 0 4px;color:var(--text-primary)" hidden></p>
           <p class="note" id="stu-lede" style="margin:0 0 8px"></p>
           <div class="stu-cal" id="stu-cal"></div>
           <div class="stu-legend" id="stu-legend"><span><i class="sw"></i>훈련 날</span><span class="st-dot">인정</span><span class="st-dot" style="color:var(--danger-500)">모자람</span><span class="st-dot st-none">기록 없음</span></div>
           <div id="stu-days"></div>
+          <div id="stu-plan"></div>
         </div>
       </aside>
     </div>
@@ -3686,11 +3688,53 @@
     //  · OFF-JT 수업일정 행(course '수업일정 · 과목·능력단위 / …')은 칸에 과목·능력단위 — 누르면 학습안내서 요소·수행과업(offjt_units)
     //  · 그 밖(OJT·출결 엑셀 OFF-JT)은 정규시간 + 인정시간 점, 아래에 모자란 날
     let stuTok = 0;
+    // 학생 상세 아래 — 전 기간 월별 예정 시수·능력단위 표(줄을 누르면 그 달로). OFF-JT 달 능력단위는 수업일정 행에서 모음(학생별 1회 조회)
+    const stuOffUnits = new Map();   // 정규화 이름 → Promise<{ 'YYYY-MM': [능력단위…] }>
+    function offUnitsOf(name) {
+      const k = normNm(name);
+      if (!stuOffUnits.has(k)) stuOffUnits.set(k, (async () => {
+        const { data } = await supabase.from('attendance_daily').select('day,course').eq('track', 'offjt').eq('name', name).like('course', '수업일정%');
+        const o = {};
+        (data || []).forEach(r => {
+          const m = r.day.slice(0, 7); const set = o[m] || (o[m] = []);
+          String(r.course).replace(/^수업일정\s*·\s*/, '').split(' / ').forEach(x => {
+            const i = x.indexOf('·'); const u = i < 0 ? '' : x.slice(i + 1).trim();
+            if (u && !/직업기초능력/.test(x.slice(0, i)) && !set.includes(u)) set.push(u);
+          });
+        });
+        return o;
+      })());
+      return stuOffUnits.get(k);
+    }
+    async function stuPlanTable(name, ym, months) {
+      const box = $('stu-plan'); if (!box) return;
+      const rs = (attnCache || []).filter(r => normNm(r.name) === normNm(name));
+      const off = rs.some(r => trk(r) === 'offjt') ? await offUnitsOf(name) : {};
+      if (!$('stu-sheet').classList.contains('open') || $('stu-name').textContent !== name) return;
+      const nowYm = ymdLocal(0).slice(0, 7);
+      const lines = months.map(k => {
+        const mr = rs.filter(r => String(r.month).slice(0, 7) === k);
+        return mr.map(r => {
+          const t = trk(r);
+          const units = t === 'offjt' ? (off[k] || []).join(' · ') || (r.units !== 'OFF-JT 합계' ? r.units || '' : '') : (r.units || '');
+          const p = r.planned_hours != null ? Number(r.planned_hours) + 'h' : '미정';
+          const a = r.actual_hours != null && k < nowYm ? Number(r.actual_hours) + 'h' : k === nowYm && r.actual_hours != null ? Number(r.actual_hours) + 'h(진행 중)' : '-';
+          return `<tr data-m="${k}" class="${k === ym ? 'on' : ''}" tabindex="0"><td>${Number(k.slice(5))}월</td><td>${TRACK_LABEL[t]}</td><td>${p}</td><td>${a}</td><td>${esc(units) || '-'}</td></tr>`;
+        }).join('');
+      }).join('');
+      box.innerHTML = '<p class="ph-card-title" style="margin:24px 0 6px;font-size:15px">월별 예정 시수 · 능력단위</p>' +
+        '<table class="stu-plan"><thead><tr><th>월</th><th>구분</th><th>예정</th><th>실적</th><th>능력단위</th></tr></thead><tbody>' + lines + '</tbody></table>' +
+        '<p class="note" style="margin:6px 0 0">OJT 예정·능력단위 = 실시신고 시간표 월 배정 · OFF-JT 능력단위 = 직무 수업일정 엑셀에 나온 단위(직업기초능력 제외)</p>';
+      box.querySelectorAll('tr[data-m]').forEach(tr => {
+        const go = () => openStuMonth(name, tr.dataset.m);
+        tr.addEventListener('click', go); tr.addEventListener('keydown', e => { if (e.key === 'Enter') go(); });
+      });
+    }
     function openStuSheet(name) { openStuMonth(name, ymdLocal(0).slice(0, 7)); }   // 오늘 탭 [달력 보기] — 이번 달부터
     function stuMonthsOf(name) {
       const nowYm = ymdLocal(0).slice(0, 7), map = new Map();
       (attnCache || []).forEach(r => {
-        if (normNm(r.name) !== normNm(name) || !(Number(r.planned_hours) > 0)) return;
+        if (normNm(r.name) !== normNm(name) || !(Number(r.planned_hours) > 0 || r.units)) return;   // 예정이 아직 없는 달도 능력단위가 있으면 넣음
         const m = String(r.month).slice(0, 7); if (!map.has(m)) map.set(m, new Set()); map.get(m).add(trk(r));
       });
       if (dailyCache && dailyCache.byName.has(normNm(name)) && !map.has(nowYm)) map.set(nowYm, new Set(['ojt']));
@@ -3728,6 +3772,11 @@
       const c = cumOf(name), ct = k => c[k].total ? `${TRACK_LABEL[k]} ${c[k].a}/${c[k].p}h` + (c[k].total > c[k].p ? `(전체 ${c[k].total}h)` : '') : '';
       $('stu-cum').textContent = ['지난달까지', ct('offjt'), ct('ojt'), c.pct != null ? `전체 ${c.pct}%` + (c.best != null && c.best < 80 ? ` · 끝까지 채워도 최대 ${c.best}% — 80% 밑` : '') : ''].filter(Boolean).join(' · ');
       $('stu-lede').textContent = '불러오는 중…'; $('stu-cal').innerHTML = ''; $('stu-days').innerHTML = ''; $('stu-legend').hidden = true;
+      // 그 달 능력단위(월 행 units — 실시신고 시간표 월 배정, sql/47). OFF-JT '합계' 표시는 뺌
+      const unitTxt = (attnCache || []).filter(r => normNm(r.name) === normNm(name) && String(r.month).slice(0, 7) === ym && r.units && r.source !== 'backfill' && r.units !== 'OFF-JT 합계')
+        .map(r => `${TRACK_LABEL[trk(r)]} 능력단위 — ${r.units}`).join(' / ');
+      $('stu-units').textContent = unitTxt; $('stu-units').hidden = !unitTxt;
+      stuPlanTable(name, ym, months);
       const { data, error } = await supabase.from('attendance_daily')
         .select('name,day,track,start_time,end_time,planned_hours,recognized_hours,in_time,out_time,status,course,fetched_at')
         .gte('day', ym + '-01').lt('day', to).order('day');
