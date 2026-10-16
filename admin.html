@@ -6,7 +6,7 @@
   <title>관리자 · 일학습병행 앱</title>
   <meta name="theme-color" content="#121318" />
   <link rel="stylesheet" href="./styles.css" />
-  <link rel="stylesheet" href="./admin.css?v=20261016-4" /><!-- 배포 때 v 를 올려 캐시된 옛 스타일과 새 HTML 이 섞이지 않게 -->
+  <link rel="stylesheet" href="./admin.css?v=20261016-5" /><!-- 배포 때 v 를 올려 캐시된 옛 스타일과 새 HTML 이 섞이지 않게 -->
   <script src="./config.js"></script>
   <style>
     .msg{max-width:80%;padding:9px 12px;border-radius:12px;margin:5px 0;font-size:14px;white-space:pre-wrap}
@@ -3747,7 +3747,10 @@
       for (let d = 1; d <= dim; d++) {
         const key = ym + '-' + String(d).padStart(2, '0'), wd = (first + d - 1) % 7, r = byDay[key];
         let inner = `<span class="dn">${d}</span>`;
-        if (r && sched) inner += itemsOf(r).map(x => `<span class="sj"><b>${esc(x.s)}</b>${x.u ? `<span class="un">${esc(x.u)}</span>` : ''}</span>`).join('');
+        // 능력단위가 있는 칸은 버튼 — 누르면 아래에 학습안내서 요소·수행과업(offjt_units)
+        if (r && sched) inner += itemsOf(r).map(x => x.u
+          ? `<button type="button" class="sj" data-s="${esc(x.s).replace(/"/g, '&quot;')}" data-u="${esc(x.u).replace(/"/g, '&quot;')}"><b>${esc(x.s)}</b><span class="un">${esc(x.u)}</span></button>`
+          : `<span class="sj"><b>${esc(x.s)}</b></span>`).join('');
         else if (r) {
           if (r.start_time) inner += `<span class="t">${hm(r.start_time)}–${hm(r.end_time)}</span>`;
           if (r.status && r.status !== 'planned') {
@@ -3759,6 +3762,30 @@
       }
       const tail = (first + dim) % 7; if (tail) for (let i = tail; i < 7; i++) h += '<div class="d off"></div>';
       $('stu-cal').innerHTML = h;
+      if (sched) {
+        // 학습안내서 시간·요소 — 같은 연도 offjt_units 에서 과목·능력단위로 찾음(학생 직무 것 우선, 없으면 다른 직무의 같은 단위)
+        const { data: us } = await supabase.from('offjt_units').select('job_key,subject,unit,hours,elements').eq('year', y);
+        const jobs = (attnStu[normNm(name)] || {}).jobs || [];
+        const findU = (s, u) => { const c = (us || []).filter(x => x.subject === s && x.unit === u); return c.find(x => jobs.includes(x.job_key)) || c[0] || null; };
+        const W = '일월화수목금토';
+        $('stu-days').innerHTML = '<p class="note" style="margin:12px 0 0">능력단위를 누르면 학습안내서의 능력단위요소·수행과업이 여기에 나와요.</p>';
+        $('stu-cal').querySelectorAll('button.sj').forEach(b => b.addEventListener('click', () => {
+          const s = b.dataset.s, u = b.dataset.u, info = findU(s, u);
+          $('stu-cal').querySelectorAll('button.sj').forEach(x => x.classList.toggle('hl', x.dataset.s === s && x.dataset.u === u));
+          const days = rows.filter(r => itemsOf(r).some(x => x.s === s && x.u === u)).map(r => `${mdOf(r.day)}(${W[new Date(r.day + 'T00:00').getDay()]})`);
+          const els = (info && info.elements) || [];
+          $('stu-days').innerHTML =
+            `<div class="un-panel"><p class="ph-card-title" style="margin:0 0 2px;font-size:15px">${esc(u)}</p>` +
+            `<p class="note" style="margin:0 0 8px">${esc(s)}` + (info && info.hours != null ? ` · 학습안내서 ${Number(info.hours)}시간` : '') +
+            ` · ${m}월 수업 ${days.length}일 — ${esc(days.join(', '))}</p>` +
+            (els.length
+              ? '<p class="note" style="margin:0 0 6px">학생 화면엔 "참고만 하고 자기 말로 바꿔 쓰세요(그대로 복사하면 공단 모니터링 대상)" 안내와 함께 보여요.</p>' +
+                els.map((e, i) => `<div class="un-el"><b>${i + 1}. ${esc(e.name)}</b><ul>${(e.tasks || []).map(t => `<li>${esc(t)}</li>`).join('')}</ul></div>`).join('')
+              : `<p class="note" style="margin:0">이 능력단위의 요소·수행과업이 아직 입력되지 않았어요 — 설정 › 일정·할 일 › OFF-JT 수업일정의 '능력단위 시간표'에서 학습안내서 문장을 붙여넣으면 여기와 학생 일정 화면에 나와요.</p>`) +
+            '</div>';
+          $('stu-days').scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        }));
+      }
       if (!sched) {   // 수업일정 달력은 칸에 과목·능력단위가 다 나와서 아래 목록 없음
         $('stu-legend').hidden = !rows.length;
         const bad = rows.filter(r => r.status === 'short' || r.status === 'none');

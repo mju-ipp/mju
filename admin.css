@@ -237,6 +237,15 @@ body.adm .stu-cal .d .sj{display:block; margin-top:4px; font-size:12px; line-hei
 body.adm .stu-cal .d .sj b{display:block; font-weight:600; color:var(--v-cobalt)}
 body.adm .stu-cal .d .sj .un{display:block; color:var(--v-ink)}
 body.adm .stu-cal .d .sj + .sj{padding-top:4px; border-top:1px dashed var(--v-line)}
+body.adm .stu-cal .d button.sj{all:unset; box-sizing:border-box; display:block; width:100%; margin-top:4px; font-size:12px; line-height:1.35; word-break:keep-all; overflow-wrap:anywhere; cursor:pointer; border-radius:3px}
+body.adm .stu-cal .d button.sj + .sj{padding-top:4px; border-top:1px dashed var(--v-line)}
+body.adm .stu-cal .d button.sj:hover .un{text-decoration:underline}
+body.adm .stu-cal .d button.sj:focus-visible{outline:2px solid var(--v-cobalt); outline-offset:1px}
+body.adm .stu-cal .d button.sj.hl{background:var(--v-paper); box-shadow:inset 3px 0 0 var(--v-cobalt); padding-left:5px}
+body.adm .un-panel{margin-top:16px; padding:14px 16px; border:1px solid var(--v-line); background:var(--v-paper)}
+body.adm .un-panel .un-el{margin-top:8px; font-size:13px}
+body.adm .un-panel .un-el ul{margin:4px 0 0; padding-left:18px}
+body.adm .un-panel .un-el li{margin:2px 0}
 body.adm .stu-cal .d .st-dot::before{width:6px; height:6px}
 body.adm .stu-legend{display:flex; flex-wrap:wrap; gap:6px 16px; margin:10px 0 0; font-size:12px; color:var(--v-mute)}
 body.adm .stu-legend[hidden]{display:none}
