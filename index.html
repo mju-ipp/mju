@@ -59,6 +59,15 @@
       <!-- 이미 가입한 기기에 보이는 홈 메뉴 -->
       <div id="home" style="display:none">
         <div class="greet-row"><span class="greet" id="home-name"></span></div>
+        <!-- 학생: 고용24 학습일지(학습활동서) — 화면 주소로 바로 가는 링크는 로그인 전이면 메인으로 튕겨서(10/16 확인) 로그인 + 메뉴 경로 안내 -->
+        <div id="w24" style="display:none">
+          <p class="menu-group-label" style="margin-top:14px">고용24</p>
+          <div class="w24">
+            <p class="w24-t">학습일지(학습활동서)는 고용24에서 써요</p>
+            <p class="w24-path">로그인한 뒤 <b>마이페이지</b> › <b>일학습병행훈련</b> › <b>학습진행현황</b></p>
+            <a class="mju-btn mju-btn--full" href="https://www.work24.go.kr/cm/z/b/0210/openLginPage.do" target="_blank" rel="noopener">고용24 로그인 ↗</a>
+          </div>
+        </div>
         <p class="menu-group-label" style="margin-top:14px">소식</p>
         <div class="menu-grid">
           <a href="./notice.html"   class="menu-tile"><span class="mi"><i data-lucide="megaphone"></i></span><span class="ml">공지사항</span></a>
@@ -337,6 +346,7 @@
           renderCompanyStage(_prof);
         }
         // 학생: 내 출석 진도 카드 (sql/42·44 — 코드 또는 토큰, RPC·데이터 없으면 조용히 미표시)
+        if (_prof.target_type === 'student') document.getElementById('w24').style.display = '';
         if (_prof.target_type === 'student' && (_prof.code || _prof.token)) renderAttendance(_prof);
         renderSchedule(_prof);
         document.getElementById('resignup').addEventListener('click', _resignup);
