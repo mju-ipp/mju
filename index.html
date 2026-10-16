@@ -8,6 +8,7 @@
   <meta name="theme-color" content="#002968" />
   <link rel="apple-touch-icon" href="./icons/icon-192.png" />
   <link rel="stylesheet" href="./styles.css" />
+  <link rel="stylesheet" href="./student.css" /><!-- 학생 화면 디자인(관리자와 같은 계열) -->
   <script src="./config.js"></script>
   <style>
     /* [TASKS v2] 홈 할 일 완료 체크 버튼 */
@@ -796,9 +797,8 @@
           const evts = byDate[ds] || [], srs = sByDate[ds] || [];
           const sch = srs.find(isSchedDay), att = srs.filter(r => !isSchedDay(r));
           let inner = `<span>${d}</span>`;
-          // 수업 칸 — 과목·능력단위를 줄임 없이 다 보여주고 칸이 내용만큼 늘어남('교안 참고' 같은 단위는 과목만)
-          if (sch) inner += offItems(sch.course).map(x =>
-            `<span class="hc-it"><b>${esc(x.s)}</b>${x.u && !/^교안/.test(x.u) ? `<span>${esc(x.u)}</span>` : ''}</span>`).join('');
+          // 수업 칸 — 과목 이름만 12px(DESIGN.md 하한), 칸이 내용만큼 늘어남. 능력단위·요소는 날짜를 누르면 아래에
+          if (sch) inner += offItems(sch.course).map(x => `<span class="hc-it">${esc(x.s)}</span>`).join('');
           att.forEach(r => {
             const st = r.status || 'planned';
             inner += st === 'planned' ? `<span class="ojt-t">${esc(r.start || '')}</span>` : `<span class="ojt-st ${st}">${st === 'none' ? '없음' : (Number(r.recognized) || 0) + 'h'}</span>`;

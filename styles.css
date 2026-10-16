@@ -751,9 +751,7 @@ details.oj-u[open] > summary .oj-u-more{color:var(--text-muted)}
 .hc-cal{grid-template-columns:minmax(0,.35fr) repeat(5,minmax(0,1fr)) minmax(0,.35fr); gap:2px; margin-left:-10px; margin-right:-10px}
 .hc-cal .cal-cell.offjt{justify-content:flex-start; align-items:stretch; padding:5px 1px 6px; min-width:0}
 .hc-cal .cal-cell.offjt > span:first-child{align-self:center}
-.hc-it{display:block; margin-top:4px; font-size:9.5px; line-height:1.25; letter-spacing:-.06em; text-align:center; word-break:keep-all; overflow-wrap:anywhere}
-.hc-it b{display:block; font-weight:700}
-.hc-it span{display:block; font-weight:500; color:var(--text-secondary)}
+.hc-it{display:block; margin-top:4px; font-size:12px; font-weight:500; line-height:1.3; letter-spacing:-.04em; text-align:center; word-break:keep-all; overflow-wrap:anywhere}
 .hc-it + .hc-it{padding-top:4px; border-top:1px dashed var(--border-default)}
 .hc-day{margin:10px 0 2px; padding:10px 12px; border:1px solid var(--tint-bg); border-radius:10px}
 .hc-day-t{margin:0 0 2px; font-size:14px; font-weight:700; color:var(--text-primary)}

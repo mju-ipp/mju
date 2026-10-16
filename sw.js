@@ -16,11 +16,11 @@
  *   따라서 './firebase-messaging-sw.js' 를 다시 등록하는 코드를 넣지 말 것.
  *
  * 코드를 고친 뒤 반영이 안 되면 CACHE 버전 숫자를 올리세요(브라우저 캐시 갱신). */
-const CACHE = 'ilhak-v33';   // 홈 달력 수업 칸 글자 9.5px·칸 넓힘 — 캐시 강제 갱신
+const CACHE = 'ilhak-v34';   // 학생 디자인 1단계(student.css — 관리자와 같은 계열) — 캐시 강제 갱신
 const ASSETS = ['./', './index.html', './install.html', './notice.html', './library.html', './calendar.html',
   './consult.html', './survey.html', './faq.html', './privacy.html',
   './qna.html', './mycompany.html',
-  './styles.css', './app.js', './config.js', './survey-ui.js', './manifest.json', './assets/logo-mono-white.png'];
+  './styles.css', './student.css', './app.js', './config.js', './survey-ui.js', './manifest.json', './assets/logo-mono-white.png'];
 
 const APP_URL = './notice.html';
 

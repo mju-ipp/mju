@@ -1,0 +1,100 @@
+/* =====================================================================
+ *  student.css — 학생 앱 디자인을 관리자(admin.css)와 같은 계열로 (1단계: 값 바꿔 끼우기)
+ *  기준: 04_일학습병행앱_v2/DESIGN.md — 먹색 + 코발트 하나 + 마감 임박만 warn,
+ *  Noto Sans KR 한 가족, 면(카드) 대신 1px 선, 그림자 없음, 기능 글자 12px 이상.
+ *  styles.css 다음에 학생 화면에서만 로드(관리자 admin.html 은 안 씀) → :root 를 바로 덮어도 관리자 무변화.
+ *  화면 구조는 그대로 두고 styles.css 가 var() 로 참조하는 값과 몇 가지 부품 모양만 바꾼다.
+ * ===================================================================== */
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap');
+
+/* ── 1. 토큰 — admin.css 와 같은 값 ── */
+:root{
+  --v-bg:#fafaf8; --v-paper:#fff; --v-ink:#121318; --v-mute:#5f626c; --v-mute-on-ink:#b4b7c2;
+  --v-line:#dcdcd6; --v-sunken:#f1f1ed; --v-cobalt:#2b3fd6; --v-cobalt-d:#1f2fa8; --v-cobalt-l:#8592ff; --v-cobalt-bg:#eef0fd;
+  --v-warn:#b3400b; --v-warn-bg:#f8ebe4;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --v-bg:#121318; --v-paper:#1a1c22; --v-ink:#ececea; --v-mute:#a3a6b0; --v-mute-on-ink:#b4b7c2;
+    --v-line:#2c2f38; --v-sunken:#202229; --v-cobalt:#8592ff; --v-cobalt-d:#a3adff; --v-cobalt-l:#8592ff; --v-cobalt-bg:#20264a;
+    --v-warn:#f0a07a; --v-warn-bg:#3a2218;
+  }
+}
+/* styles.css 다크 블록이 body:not(.adm) 에 옛 값을 다시 선언하므로 같은 선택자로도 덮음(뒤에 로드돼 이김) */
+:root, body:not(.adm){
+  color-scheme:light dark;
+  --blue-50:var(--v-cobalt-bg); --blue-100:var(--v-cobalt-bg); --blue-200:var(--v-cobalt-l); --blue-300:var(--v-cobalt-l);
+  --blue-400:var(--v-cobalt); --blue-500:var(--v-cobalt); --blue-600:var(--v-cobalt); --blue-700:var(--v-cobalt-d);
+  --gold-300:var(--v-cobalt-bg); --gold-500:var(--v-cobalt); --gold-600:var(--v-cobalt-d);
+  --coral-300:var(--v-warn-bg); --coral-500:var(--v-warn); --coral-600:var(--v-warn);
+  --white:var(--v-paper); --paper:var(--v-bg);
+  --gray-100:var(--v-sunken); --gray-200:var(--v-line); --gray-300:var(--v-line); --gray-400:var(--v-mute);
+  --gray-500:var(--v-mute); --gray-600:var(--v-mute); --gray-700:var(--v-ink); --ink-800:var(--v-ink); --ink-900:var(--v-ink);
+  --success-500:var(--v-ink); --success-50:var(--v-sunken); --warning-500:var(--v-warn); --warning-50:var(--v-warn-bg);
+  --danger-500:var(--v-warn); --danger-50:var(--v-warn-bg); --info-500:var(--v-cobalt); --info-50:var(--v-cobalt-bg);
+  --surface-page:var(--v-bg); --surface-card:var(--v-paper); --surface-sunken:var(--v-sunken);
+  --text-primary:var(--v-ink); --text-secondary:var(--v-mute); --text-muted:var(--v-mute);
+  --border-subtle:var(--v-line); --border-default:var(--v-line);
+  --focus-ring:var(--v-cobalt); --brand-gold:var(--v-cobalt); --accent-orange:var(--v-mute); --kdp-cyan:var(--v-cobalt);
+  --tint-bg:var(--v-cobalt-bg); --tint-fg:var(--v-cobalt); --accent:var(--v-cobalt); --link:var(--v-cobalt);
+  --tabbar-bg:color-mix(in srgb, var(--v-paper) 96%, transparent);
+  --font-sans:'Noto Sans KR',-apple-system,'Apple SD Gothic Neo','Malgun Gothic',system-ui,sans-serif;
+  --mono:var(--font-sans); --font-mono:var(--font-sans);
+  --radius-xs:6px; --radius-sm:6px; --radius-md:6px; --radius-lg:6px;
+  --shadow-xs:none; --shadow-sm:none; --shadow-md:none;
+}
+
+/* ── 2. 바탕·글자 ── */
+body{background:var(--v-bg); color:var(--v-ink); font-variant-numeric:tabular-nums}
+.app{background:var(--v-bg); box-shadow:0 0 0 1px var(--v-line)}
+::selection{background:var(--v-cobalt-bg)}
+/* Noto Sans KR 굵기는 300·400·500·700 — 800/750 등은 700으로 */
+.ph-title,.greet-row .greet,h2,.ph-card-title,.kdp-word b{font-weight:700}
+.todo-item .tt,.menu-tile .ml{font-weight:500}
+
+/* ── 3. 카드 — 그림자 대신 1px 선, 주황 윗줄 없앰 ── */
+.card,.mju-card{border:1px solid var(--v-line); box-shadow:none; border-radius:6px}
+.card.accent::before{display:none}
+.mju-card__accent{display:none}
+.mju-card--navy{background:var(--v-ink); color:var(--v-paper)}
+
+/* ── 4. D-day·배지 — 바탕 칠하지 않고 글자색으로(마감 임박만 warn) ── */
+.dday{background:transparent; color:var(--v-mute); font-family:inherit; font-weight:500; padding:2px 0; border-radius:0}
+.dday.urgent{background:transparent; color:var(--v-warn); font-weight:700}
+.dday.muted{background:transparent; color:var(--v-mute)}
+.count-badge{font-size:12px}
+.mju-alert--info,.mju-alert--success{border-color:var(--v-line); color:var(--v-ink)}
+.mju-alert--warning,.warn{border-color:var(--v-line); color:var(--v-warn); border-radius:6px}
+.warn b{color:var(--v-warn)}
+
+/* ── 5. 홈 메뉴 타일·하단 탭 ── */
+.menu-tile{border:1px solid var(--v-line); box-shadow:none; border-radius:6px; transition:border-color 140ms var(--ease-out)}
+.menu-tile:hover{transform:none; box-shadow:none; border-color:var(--v-cobalt)}
+.menu-tile .mi{border-radius:6px}
+.menu-group-label{font-size:12px; font-weight:700; letter-spacing:.04em; color:var(--v-mute)}
+.ph-center-chip{font-size:12px; font-weight:500; border-radius:6px}
+.tabbar{border-top:1px solid var(--v-line); box-shadow:none}
+.tabbar a{font-size:12px; font-weight:500}
+
+/* ── 6. 다크 모드 — styles.css 다크 블록이 박아 둔 옛 파랑·남색을 새 값으로(같은 선택자, 뒤에 로드돼 이김) ── */
+@media (prefers-color-scheme: dark){
+  body:not(.adm) ::selection{background:var(--v-cobalt-bg)}
+  body:not(.adm) .card, body:not(.adm) .mju-card, body:not(.adm) .menu-tile{border-color:var(--v-line)}
+  body:not(.adm) .mju-badge--navy, body:not(.adm) .msg.student{background:var(--v-cobalt-bg); color:var(--v-cobalt)}
+  body:not(.adm) .mju-badge--sky{background:var(--v-cobalt-bg); color:var(--v-cobalt)}
+  body:not(.adm) .mju-badge--coral{background:var(--v-warn-bg); color:var(--v-warn)}
+  body:not(.adm) .mju-badge--gold{background:var(--v-cobalt-bg); color:var(--v-cobalt)}
+  body:not(.adm) .mju-alert--info, body:not(.adm) .mju-alert--success{border-color:var(--v-line); color:var(--v-ink)}
+  body:not(.adm) .mju-alert--warning, body:not(.adm) .warn{border-color:var(--v-line); color:var(--v-warn)}
+  body:not(.adm) .warn b{color:var(--v-warn)}
+  body:not(.adm) .skel{background:var(--v-sunken)}
+  body:not(.adm) .app{box-shadow:0 0 0 1px var(--v-line)}
+  body:not(.adm) .mju-btn:not(.mju-btn--secondary):not(.mju-btn--ghost):not(.mju-btn--gold):not(.mju-btn--coral):not(.mju-btn--onNavy),
+  body:not(.adm) .btn:not(.ghost):not(.gold):not(.coral){--_bg:var(--v-cobalt); --_bgh:var(--v-cobalt-d); --_fg:#121318}
+}
+
+/* ── 7. 기능 글자 12px 하한(DESIGN.md) ── */
+.notice-card-time,.scale-ends,.pv-table th,.pv-table td,.cite,.act-row .at{font-size:12px}
+.cal-dow{font-size:12px}
+.ojt-t,.ojt-st,.oj-s,.oj-star{font-size:12px}
+.mju-btn,.btn{border-radius:6px}
