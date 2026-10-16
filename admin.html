@@ -6,7 +6,7 @@
   <title>관리자 · 일학습병행 앱</title>
   <meta name="theme-color" content="#121318" />
   <link rel="stylesheet" href="./styles.css" />
-  <link rel="stylesheet" href="./admin.css?v=20261016-2" /><!-- 배포 때 v 를 올려 캐시된 옛 스타일과 새 HTML 이 섞이지 않게 -->
+  <link rel="stylesheet" href="./admin.css?v=20261016-3" /><!-- 배포 때 v 를 올려 캐시된 옛 스타일과 새 HTML 이 섞이지 않게 -->
   <script src="./config.js"></script>
   <style>
     .msg{max-width:80%;padding:9px 12px;border-radius:12px;margin:5px 0;font-size:14px;white-space:pre-wrap}
@@ -188,8 +188,11 @@
         <div class="card">
           <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
             <p class="ph-card-title" style="margin:0">학생 출석 진도</p>
-            <span class="note">실적 = 올린 출결(엑셀·출결점검)의 인정시간 합 · 손으로 고친 값은 '수정' 표시 · OFF-JT·OJT 따로, 전체는 외부평가 응시 기준(80%)</span>
+            <span class="note">실적 = 올린 출결(엑셀·출결점검)의 인정시간 합 · 손으로 고친 값은 '수정' 표시 · OFF-JT·OJT 를 나눠 보고, 전체(합산)는 외부평가 응시 기준(80%) · 2026 OFF-JT 는 직무 수업일정 엑셀 기준 이수 간주</span>
             <span style="margin-left:auto"><button class="mju-btn mju-btn--secondary mju-btn--sm" id="at-refresh">새로고침</button></span>
+          </div>
+          <div id="at-track" role="group" aria-label="출석 구분" style="margin:10px 0 0">
+            <button type="button" class="chip" data-t="offjt">OFF-JT</button><button type="button" class="chip" data-t="ojt">OJT</button>
           </div>
           <div class="filter-chips" id="at-months" style="margin:10px 0 6px"></div>
           <div id="at-sum" style="display:flex;gap:14px;flex-wrap:wrap;margin:4px 0 10px"></div>
@@ -627,7 +630,7 @@
           <p class="ph-card-title" style="margin:20px 0 4px" id="stu-month"></p>
           <p class="note" id="stu-lede" style="margin:0 0 8px"></p>
           <div class="stu-cal" id="stu-cal"></div>
-          <div class="stu-legend"><span><i class="sw"></i>훈련 날</span><span class="st-dot">인정</span><span class="st-dot" style="color:var(--danger-500)">모자람</span><span class="st-dot st-none">기록 없음</span></div>
+          <div class="stu-legend" id="stu-legend"><span><i class="sw"></i>훈련 날</span><span class="st-dot">인정</span><span class="st-dot" style="color:var(--danger-500)">모자람</span><span class="st-dot st-none">기록 없음</span></div>
           <div id="stu-days"></div>
         </div>
       </aside>
@@ -3598,7 +3601,7 @@
       const nx = new Date(Number(ym.slice(0, 4)), Number(ym.slice(5)), 1);
       const to = nx.getFullYear() + '-' + String(nx.getMonth() + 1).padStart(2, '0') + '-01';
       const { data, error } = await supabase.from('attendance_daily')
-        .select('name,day,start_time,end_time,planned_hours,recognized_hours,in_time,out_time,method,status,fetched_at')
+        .select('name,day,track,start_time,end_time,planned_hours,recognized_hours,in_time,out_time,method,status,fetched_at')
         .gte('day', ym + '-01').lt('day', to).order('day');
       const byName = new Map();
       (error ? [] : (data || [])).forEach(r => { const k = normNm(r.name); if (!byName.has(k)) byName.set(k, []); byName.get(k).push(r); });
@@ -3699,11 +3702,65 @@
       }
       const tail = (first + dim) % 7; if (tail) for (let i = tail; i < 7; i++) h += '<div class="d off"></div>';
       $('stu-cal').innerHTML = h;
+      $('stu-legend').hidden = false;
       $('stu-days').innerHTML = st.bad.length
         ? '<p class="ph-card-title" style="margin:20px 0 4px;font-size:15px">모자란 날</p>' + st.bad.map(r =>
             `<div class="act-row"><span class="ak">${esc(mdOf(r.day))}</span><span class="av" style="color:var(--danger-500)">${esc(badWhy(r))}</span><span class="at">정규 ${esc(hm(r.start_time))}–${esc(hm(r.end_time))} · ${Number(r.planned_hours)}h</span></div>`).join('')
         : '';
       const sh = $('stu-sheet'); sh.classList.add('open'); sh.setAttribute('aria-hidden', 'false'); $('stu-close').focus();
+    }
+    // 학생 상세 — 고른 달·구분의 달력(출석 진도 [달력]). 지난달·OFF-JT 도 그 달 attendance_daily 를 읽어 그린다.
+    // OFF-JT 수업일정 행(course '수업일정 · 과목·능력단위 / …')은 시간 대신 과목을 칸에, 날짜별 과목은 아래 목록에.
+    async function openStuMonth(name, ym, track, row) {
+      const y = Number(ym.slice(0, 4)), m = Number(ym.slice(5));
+      const nx = new Date(y, m, 1), to = nx.getFullYear() + '-' + String(nx.getMonth() + 1).padStart(2, '0') + '-01';
+      $('stu-name').textContent = name;
+      $('stu-sub').textContent = [attnComp[normNm(name)], TRACK_LABEL[track]].filter(Boolean).join(' · ');
+      $('stu-month').textContent = m + '월 ' + (track === 'offjt' ? 'OFF-JT 수업' : '정규시간');
+      $('stu-lede').textContent = '불러오는 중…'; $('stu-cal').innerHTML = ''; $('stu-days').innerHTML = ''; $('stu-legend').hidden = true;
+      const sh = $('stu-sheet'); sh.classList.add('open'); sh.setAttribute('aria-hidden', 'false'); $('stu-close').focus();
+      const { data, error } = await supabase.from('attendance_daily')
+        .select('name,day,track,start_time,end_time,planned_hours,recognized_hours,in_time,out_time,status,course,fetched_at')
+        .eq('track', track).gte('day', ym + '-01').lt('day', to).order('day');
+      if (error) { $('stu-lede').textContent = '조회에 실패했어요: ' + error.message; return; }
+      const rows = (data || []).filter(r => normNm(r.name) === normNm(name));
+      const sched = rows.length && rows.every(r => /^수업일정/.test(r.course || ''));
+      const subjOf = r => String(r.course || '').replace(/^수업일정\s*·\s*/, '').split(' / ').map(s => s.split('·')[0].trim()).filter(Boolean);
+      const planned = row ? row.planned : null, actual = row ? row.actual : null;
+      $('stu-lede').textContent = !rows.length ? '이 달 일별 자료가 없어요' + (planned ? ` — 월 예정 ${planned}h · 실적 ${actual ?? '-'}h 만 있어요.` : '.')
+        : sched ? `수업 ${rows.length}일 · 월 ${planned ?? '-'}h — 직무 수업일정 엑셀 기준(이수 간주). 날짜별 시간은 없어요.`
+        : `실적 ${actual ?? '-'}h / 월 예정 ${planned ?? '-'}h · 일별 ${rows.length}일`;
+      const first = new Date(y, m - 1, 1).getDay(), dim = new Date(y, m, 0).getDate(), today = ymdLocal(0);
+      const byDay = {}; rows.forEach(r => { byDay[r.day] = r; });
+      let h = ['일', '월', '화', '수', '목', '금', '토'].map(w => `<div class="wd">${w}</div>`).join('');
+      for (let i = 0; i < first; i++) h += '<div class="d off"></div>';
+      for (let d = 1; d <= dim; d++) {
+        const key = ym + '-' + String(d).padStart(2, '0'), wd = (first + d - 1) % 7, r = byDay[key];
+        let inner = `<span class="dn">${d}</span>`;
+        if (r && sched) inner += subjOf(r).map(s => `<span class="sj" title="${esc(s)}">${esc(s)}</span>`).join('');
+        else if (r) {
+          if (r.start_time) inner += `<span class="t">${hm(r.start_time)}–${hm(r.end_time)}</span>`;
+          if (r.status && r.status !== 'planned') {
+            const c = r.status === 'ok' ? '' : r.status === 'short' ? ' st-short' : ' st-none';
+            inner += `<span class="st-dot${c}">${r.status === 'none' ? '없음' : (Number(r.recognized_hours) || 0) + 'h'}</span>`;
+          }
+        }
+        h += `<div class="d${(wd === 0 || wd === 6) ? ' off' : ''}${r ? ' plan' : ''}${key === today ? ' today' : ''}">${inner}</div>`;
+      }
+      const tail = (first + dim) % 7; if (tail) for (let i = tail; i < 7; i++) h += '<div class="d off"></div>';
+      $('stu-cal').innerHTML = h;
+      if (sched) {
+        const W = '일월화수목금토';
+        $('stu-days').innerHTML = '<p class="ph-card-title" style="margin:20px 0 4px;font-size:15px">날짜별 과목 · 능력단위</p>' + rows.map(r =>
+          `<div class="act-row"><span class="ak">${esc(mdOf(r.day))}(${W[new Date(r.day + 'T00:00').getDay()]})</span><span class="av">${esc(String(r.course).replace(/^수업일정\s*·\s*/, ''))}</span></div>`).join('');
+      } else {
+        $('stu-legend').hidden = !rows.length;
+        const bad = rows.filter(r => r.status === 'short' || r.status === 'none');
+        $('stu-days').innerHTML = bad.length
+          ? '<p class="ph-card-title" style="margin:20px 0 4px;font-size:15px">모자란 날</p>' + bad.map(r =>
+              `<div class="act-row"><span class="ak">${esc(mdOf(r.day))}</span><span class="av" style="color:var(--danger-500)">${esc(badWhy(r))}</span><span class="at">${r.start_time ? '정규 ' + esc(hm(r.start_time)) + '–' + esc(hm(r.end_time)) + ' · ' : ''}${Number(r.planned_hours)}h</span></div>`).join('')
+          : '';
+      }
     }
     function closeStuSheet() { const sh = $('stu-sheet'); if (!sh) return; sh.classList.remove('open'); sh.setAttribute('aria-hidden', 'true'); }
     $('stu-close').addEventListener('click', closeStuSheet);
@@ -3743,7 +3800,11 @@
     }
 
     // ===== 학생 › 출석 진도 — 이번 달은 정규시간 기준(attendance_daily), 지난달·일별 자료 없는 학생은 월 실적(sql/61) =====
-    let attnMonth = null, attnCache = null, attnComp = {};
+    let attnMonth = null, attnCache = null, attnComp = {}, attnTrack = null;   // attnTrack = [OFF-JT | OJT] 전환(한 번에 한 구분만)
+    document.querySelectorAll('#at-track .chip').forEach(b => b.addEventListener('click', () => {
+      if (attnTrack === b.dataset.t) return;
+      attnTrack = b.dataset.t; attnMonth = null; attnLoad();
+    }));
     async function fetchAttn(force) {
       if (attnCache && !force) return true;
       const sel = c => supabase.from('attendance_monthly').select(c).order('month');
@@ -3772,24 +3833,30 @@
       try { okA = await fetchAttn(force); } catch (_) { list.innerHTML = '<p class="note">조회에 실패했어요 — 새로고침해 보세요.</p>'; return; }
       if (!okA) { list.innerHTML = '<p class="note">조회 권한이 아직 없어요 — 서버 설정(sql/42) 적용을 확인해주세요.</p>'; return; }
       const dc = await loadDaily(force);
-      const months = [...new Set(attnCache.map(r => String(r.month).slice(0, 7)))].sort();
       const nowYm = ymdLocal(0).slice(0, 7);
-      if (!attnMonth || !months.includes(attnMonth)) attnMonth = months.includes(nowYm) ? nowYm : months[months.length - 1];
+      const monthsOf = t => [...new Set(attnCache.filter(r => trk(r) === t && Number(r.planned_hours) > 0).map(r => String(r.month).slice(0, 7)))].sort();
+      // 처음엔 이번 달이 있는 구분(보통 OJT), 없으면 자료 있는 쪽
+      if (!attnTrack) attnTrack = monthsOf('ojt').includes(nowYm) || !monthsOf('offjt').length ? 'ojt' : 'offjt';
+      document.querySelectorAll('#at-track .chip').forEach(b => {
+        const on = b.dataset.t === attnTrack; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on ? 'true' : 'false');
+      });
+      const months = monthsOf(attnTrack);
+      if (!attnMonth || !months.includes(attnMonth)) attnMonth = months.includes(nowYm) ? nowYm : months.filter(m => m < nowYm).pop() || months[months.length - 1];
       if ($('at-in-month') && !$('at-in-month').value) $('at-in-month').value = attnMonth || nowYm;
-      // 월 선택 칩 — OFF-JT 만 있는 달은 표시
+      if ($('at-in-track')) $('at-in-track').value = attnTrack;
+      // 월 선택 칩 — 고른 구분이 있는 달만
       const chips = $('at-months'); chips.innerHTML = '';
       months.forEach(m => {
-        const tr = new Set(attnCache.filter(r => String(r.month).slice(0, 7) === m).map(trk));
         const b = document.createElement('button'); b.type = 'button';
         b.className = 'chip' + (attnMonth === m ? ' on' : '');
-        b.textContent = Number(m.slice(5)) + '월' + (tr.has('offjt') && !tr.has('ojt') ? ' OFF-JT' : '');
+        b.textContent = Number(m.slice(5)) + '월';
         b.addEventListener('click', () => { attnMonth = m; attnLoad(); });
         chips.appendChild(b);
       });
-      const isDaily = attnMonth === dc.ym, isPast = attnMonth < nowYm;
-      // 한 학생 한 줄(그 달 OFF-JT·OJT 행을 합침) — 행마다 track 별 값은 r.parts
+      const isDaily = attnMonth === dc.ym && attnTrack === 'ojt', isPast = attnMonth < nowYm;
+      // 한 학생 한 줄 — 고른 구분(track) 행만. r.parts = 그 행(들)
       const byName = new Map();
-      attnCache.filter(r => String(r.month).slice(0, 7) === attnMonth && Number(r.planned_hours) > 0).forEach(r => {
+      attnCache.filter(r => String(r.month).slice(0, 7) === attnMonth && trk(r) === attnTrack && Number(r.planned_hours) > 0).forEach(r => {
         const k = normNm(r.name); if (!byName.has(k)) byName.set(k, []); byName.get(k).push(r);
       });
       const mrows = [...byName.values()].map(parts => {
@@ -3797,7 +3864,7 @@
         const planned = parts.reduce((s, r) => s + Number(r.planned_hours), 0);
         const withA = parts.filter(r => r.actual_hours != null);
         const actual = withA.length ? withA.reduce((s, r) => s + Number(r.actual_hours), 0) : null;
-        const rows = isDaily ? (dc.byName.get(normNm(name)) || []) : [];
+        const rows = isDaily ? (dc.byName.get(normNm(name)) || []).filter(x => trk(x) === 'ojt') : [];
         const d = rows.length ? curStat(name, rows, attnMonth) : null;
         const done = d ? d.act : (actual || 0);
         // 판정: 월 실적이 오늘까지 정규보다 적으면 모자람(일별 자료 있는 이번 달), 없으면 월 계획 대비
@@ -3832,8 +3899,8 @@
         const sub = [trTxt,
           r.d ? `오늘까지 정규 · 월 ${r.planned}h` + (r.d.total < r.planned ? ` · 미등록 ${r.planned - r.d.total}h` : '') + (r.d.src === 'daily' ? ' · 월 실적 없음' : '') : ''].filter(Boolean).join(' · ');
         const c = r.cum;
-        const cumLine = [cumTxt(c, 'offjt'), cumTxt(c, 'ojt'),
-          c.pct != null ? `지난달까지 전체 ${c.pct}%` + (c.best != null && c.best < 80 ? ` · 끝까지 다 채워도 최대 ${c.best}% — 80% 밑` : '') : ''].filter(Boolean).join(' · ');
+        const cumLine = [cumTxt(c, attnTrack),
+          c.pct != null ? `지난달까지 전체(OFF-JT+OJT) ${c.pct}%` + (c.best != null && c.best < 80 ? ` · 끝까지 다 채워도 최대 ${c.best}% — 80% 밑` : '') : ''].filter(Boolean).join(' · ');
         row.innerHTML = `<span class="nm"><b>${esc(r.name)}</b> <span class="note">${esc(r.company)}</span>`
           + (r.units ? `<br/><span class="note" style="font-size:12px">${esc(r.units)}</span>` : '')
           + `<br/><span class="note" style="font-size:12px;color:${c.best != null && c.best < 80 ? 'var(--danger-500)' : 'inherit'}">${esc(cumLine)}</span></span>`
@@ -3842,10 +3909,11 @@
           + `<span class="note sub">${esc(sub)}</span>`
           + `<span class="st-dot" style="color:${col}">${label}</span>`;
         const acts = document.createElement('span'); acts.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap';
-        if (isDaily) {
-          const cb = document.createElement('button'); cb.type = 'button'; cb.className = 'phone-btn'; cb.textContent = '달력';
-          cb.addEventListener('click', () => openStuSheet(r.name)); acts.appendChild(cb);
-        }
+        // 달력 — 이번 달 OJT 는 위에서 읽은 일별 자료, 그 밖(지난달·OFF-JT)은 그 달 일별 자료를 따로 읽음
+        const cb = document.createElement('button'); cb.type = 'button'; cb.className = 'phone-btn'; cb.textContent = '달력';
+        const m0 = attnMonth, t0 = attnTrack;
+        cb.addEventListener('click', () => isDaily ? openStuSheet(r.name) : openStuMonth(r.name, m0, t0, r));
+        acts.appendChild(cb);
         const eb = document.createElement('button'); eb.type = 'button'; eb.className = 'phone-btn'; eb.textContent = '수정';
         eb.addEventListener('click', () => {
           const p = r.parts[0];

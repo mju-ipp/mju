@@ -109,10 +109,11 @@ body.adm .mju-badge--neutral{color:var(--v-mute); background:transparent}
 body.adm .mju-badge--success{color:var(--v-ink); background:transparent}
 body.adm .chip{border:1px solid var(--v-line); font-weight:400; color:var(--v-ink); padding:6px 14px}
 body.adm .chip.on{background:var(--v-ink); border-color:var(--v-ink); color:#fff}
-body.adm #mo-seg{background:transparent; border:1px solid var(--v-line); border-radius:6px; padding:0; gap:0; overflow:hidden}
-body.adm #mo-seg .chip{border:0; border-radius:0; font-weight:400; padding:9px 16px}
-body.adm #mo-seg .chip + .chip{border-left:1px solid var(--v-line)}
-body.adm #mo-seg .chip.on{background:var(--v-ink); color:#fff}
+body.adm #mo-seg,body.adm #at-track{background:transparent; border:1px solid var(--v-line); border-radius:6px; padding:0; gap:0; overflow:hidden}
+body.adm #mo-seg .chip,body.adm #at-track .chip{border:0; border-radius:0; font-weight:400; padding:9px 16px}
+body.adm #mo-seg .chip + .chip,body.adm #at-track .chip + .chip{border-left:1px solid var(--v-line)}
+body.adm #mo-seg .chip.on,body.adm #at-track .chip.on{background:var(--v-ink); color:#fff}
+body.adm #at-track{display:inline-flex}
 body.adm .role-card{border:1px solid var(--v-line); border-radius:6px}
 body.adm .role-card .rc-t{font-weight:500}
 
@@ -229,8 +230,10 @@ body.adm .stu-cal .d .dn{font-size:12px}
 body.adm .stu-cal .d.today .dn{display:inline-grid; place-items:center; width:20px; height:20px; border-radius:50%; background:var(--v-ink); color:#fff}
 body.adm .stu-cal .d .t{display:block; margin-top:2px; font-size:12px; line-height:1.3; color:var(--v-cobalt); font-weight:500}
 body.adm .stu-cal .d .st-dot{display:flex; font-size:12px; gap:4px; margin-top:2px}
+body.adm .stu-cal .d .sj{display:block; margin-top:2px; font-size:12px; line-height:1.3; color:var(--v-cobalt); overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
 body.adm .stu-cal .d .st-dot::before{width:6px; height:6px}
 body.adm .stu-legend{display:flex; flex-wrap:wrap; gap:6px 16px; margin:10px 0 0; font-size:12px; color:var(--v-mute)}
+body.adm .stu-legend[hidden]{display:none}
 body.adm .stu-legend .sw{display:inline-block; width:12px; height:12px; background:var(--v-cobalt-bg); border:1px solid var(--v-line); vertical-align:-2px; margin-right:4px}
 @media (max-width:980px){
   body.adm .short-row{grid-template-columns:1fr auto; gap:4px 12px}
