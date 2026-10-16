@@ -3728,7 +3728,7 @@
       }).join('');
       box.innerHTML = '<p class="ph-card-title" style="margin:24px 0 6px;font-size:15px">월별 예정 시수 · 능력단위</p>' +
         '<table class="stu-plan"><thead><tr><th>월</th><th>구분</th><th>예정</th><th>실적</th><th>능력단위</th></tr></thead><tbody>' + lines + '</tbody></table>' +
-        '<p class="note" style="margin:6px 0 0">OJT 예정·능력단위 = 실시신고 시간표 월 배정 · OFF-JT 능력단위 = 직무 수업일정 엑셀에 나온 단위(직업기초능력 제외)</p>';
+        '<p class="note" style="margin:6px 0 0">OJT 예정·능력단위 = 실시신고 시간표 월 배정 · OFF-JT 능력단위 = 직무 수업일정 엑셀에 나온 단위(직업기초능력 날은 \'직업기초능력\'으로)</p>';
       box.querySelectorAll('tr[data-m]').forEach(tr => {
         const go = () => openStuMonth(name, tr.dataset.m);
         tr.addEventListener('click', go); tr.addEventListener('keydown', e => { if (e.key === 'Enter') go(); });
