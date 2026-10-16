@@ -31,7 +31,9 @@
       <img class="wm" src="./assets/logo-mono-white.png" alt="" />
       <div class="ph-lockup"><img src="./assets/logo-mono-white.png" alt="" /><span id="t-center">공동훈련센터</span></div>
       <div class="ph-title-row"><h1 class="ph-title" id="t-title">일학습병행 앱</h1></div>
-      <p class="ph-sub">가입하면 공지·자료·일정을 푸시 알림으로 받아볼 수 있어요</p>
+      <p class="ph-sub" id="t-sub">가입하면 공지·자료·일정을 푸시 알림으로 받아볼 수 있어요</p>
+      <!-- [디자인 2단계] 학생 홈: 결론 한 문장(제목) + 큰 숫자 + 진도 막대 — renderAttendance 가 채움 -->
+      <div class="hero" id="hero" hidden></div>
       <hr class="ph-gold" />
     </header>
 
@@ -321,6 +323,10 @@
       } else {
         document.getElementById('home').style.display = 'block';
         document.getElementById('home-name').textContent = `${_prof.name}님, 환영합니다`;
+        // [디자인 2단계] 가입한 기기 홈 — 먹색 머리에 이름(학생은 출석 결론 문장으로 바뀜), 가입 안내 문구는 숨김
+        document.body.classList.add('is-home');
+        document.getElementById('t-title').textContent = `${_prof.name}님, 환영합니다`;
+        document.getElementById('t-sub').hidden = true;
         // 소속 기업이 있으면 '내 학습기업' 타일 표시
         if (_prof.company) { const mc = document.getElementById('m-myco'); if (mc) mc.style.display = ''; }
         // 만족도 설문: 학생=survey.html, 기업담당자=company-survey.html, 그 외(지원자 등)는 숨김
@@ -459,22 +465,24 @@
         if (nx) {
           const x = new Date(nx.day + 'T00:00:00');
           const when = nx.day === today ? '오늘' : `${x.getMonth() + 1}/${x.getDate()}(${'일월화수목금토'[x.getDay()]})`;
-          nextTxt = `${nx.day === today ? '오늘 훈련' : '다음 훈련'} <b>${when === '오늘' ? '' : when + ' '}${nx.start}–${nx.end}</b> · <a href="./calendar.html">내 훈련 달력</a>`;
+          nextTxt = `${nx.day === today ? '오늘 훈련' : '다음 훈련'} <b>${when === '오늘' ? '' : when + ' '}${nx.start}–${nx.end}</b>`;
         }
       }
+      // [디자인 2단계] 먹색 머리 — 결론 한 문장(제목) + 큰 숫자(300) + 진도 막대 + 다음 훈련
+      document.getElementById('t-title').textContent = `${prof.name}님, ${mon}월 ${TL[curT]} ${Number(cur.actual)}시간 출석했어요`;
+      const hero = document.getElementById('hero');
+      hero.innerHTML =
+        `<div class="hero-num"><b>${pct}</b><span>% · 배정 ${Number(cur.planned)}시간</span></div>` +
+        `<div class="hero-bar" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100" aria-label="${mon}월 출석"><i style="width:${pct}%"></i></div>` +
+        (nextTxt ? `<p class="hero-sub">${nextTxt}</p>` : '');
+      hero.hidden = false;
       const card = document.createElement('div');
       card.className = 'card accent';
       card.innerHTML =
-        `<p class="ph-card-title"><i data-lucide="gauge"></i> 내 출석 진도</p>` +
-        `<div style="display:flex;justify-content:space-between;align-items:baseline;margin:2px 0 6px">` +
-        `<span>${mon}월 ${TL[curT]} 출석</span><b style="font-size:18px">${pct}%</b></div>` +
-        `<div style="height:10px;border-radius:6px;background:var(--surface-sunken);overflow:hidden">` +
-        `<div style="height:100%;width:${pct}%;background:var(--accent)"></div></div>` +
-        `<p class="ph-note" style="margin:8px 0 0">${mon}월 실적 ${Number(cur.actual)}시간 / 배정 ${Number(cur.planned)}시간</p>` +
+        `<p class="ph-card-title"><i data-lucide="gauge"></i> 출석 진도</p>` +
         lines +
         (sumP > 0 ? `<p class="ph-note" style="margin:6px 0 0">지난달까지 전체 출석률 <b>${cum}%</b> — 외부평가 응시 기준 80%</p>` : '') +
-        (nextTxt ? `<p class="ph-note" style="margin:6px 0 0">${nextTxt}</p>` : '') +
-        (unitTitle ? `<p class="ph-note" style="margin:6px 0 0">📚 ${(() => { const e = document.createElement('div'); e.textContent = unitTitle; return e.innerHTML; })()}</p>` : '') +
+        (unitTitle ? `<p class="ph-note" style="margin:6px 0 0">${(() => { const e = document.createElement('div'); e.textContent = unitTitle; return e.innerHTML; })()}</p>` : '') +
         `<p class="ph-note" style="margin:4px 0 0">${updTxt}${curT === 'offjt' ? '출석부·고용24' : '비콘 출퇴근'} 기록 기준이라 최종 확정치와 다를 수 있어요.</p>` +
         planTable(rows, sd, nowYm);
       const anchor = document.getElementById('home-cal');

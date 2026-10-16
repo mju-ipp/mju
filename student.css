@@ -12,12 +12,14 @@
   --v-bg:#fafaf8; --v-paper:#fff; --v-ink:#121318; --v-mute:#5f626c; --v-mute-on-ink:#b4b7c2;
   --v-line:#dcdcd6; --v-sunken:#f1f1ed; --v-cobalt:#2b3fd6; --v-cobalt-d:#1f2fa8; --v-cobalt-l:#8592ff; --v-cobalt-bg:#eef0fd;
   --v-warn:#b3400b; --v-warn-bg:#f8ebe4;
+  --v-head:#121318;   /* 홈 머리(먹색) — 다크에서도 바탕보다 한 단 어둡게 */
 }
 @media (prefers-color-scheme: dark){
   :root{
     --v-bg:#121318; --v-paper:#1a1c22; --v-ink:#ececea; --v-mute:#a3a6b0; --v-mute-on-ink:#b4b7c2;
     --v-line:#2c2f38; --v-sunken:#202229; --v-cobalt:#8592ff; --v-cobalt-d:#a3adff; --v-cobalt-l:#8592ff; --v-cobalt-bg:#20264a;
     --v-warn:#f0a07a; --v-warn-bg:#3a2218;
+    --v-head:#0a0b0e;
   }
 }
 /* styles.css 다크 블록이 body:not(.adm) 에 옛 값을 다시 선언하므로 같은 선택자로도 덮음(뒤에 로드돼 이김) */
@@ -92,6 +94,39 @@ body{background:var(--v-bg); color:var(--v-ink); font-variant-numeric:tabular-nu
   body:not(.adm) .mju-btn:not(.mju-btn--secondary):not(.mju-btn--ghost):not(.mju-btn--gold):not(.mju-btn--coral):not(.mju-btn--onNavy),
   body:not(.adm) .btn:not(.ghost):not(.gold):not(.coral){--_bg:var(--v-cobalt); --_bgh:var(--v-cobalt-d); --_fg:#121318}
 }
+
+/* ── 8. 홈(2단계) — 먹색 머리에 결론 한 문장 + 큰 숫자, 아래는 면 없이 1px 선으로 나눈 묶음과 목록 ── */
+.is-home .ph-header{background:var(--v-head); color:#fff; border-bottom:0; padding-bottom:24px}
+.is-home .kdp-word b{color:#fff}
+.is-home .kdp-word small{color:var(--v-mute-on-ink)}
+.is-home .ph-center-chip{background:rgba(255,255,255,.08); color:var(--v-cobalt-l)}
+.is-home .ph-title{color:#fff; font-size:22px; font-weight:700; line-height:1.4; letter-spacing:-.02em}
+.hero[hidden]{display:none}
+.hero{margin-top:16px}
+.hero-num{display:flex; align-items:baseline; gap:6px}
+.hero-num b{font-size:56px; font-weight:300; line-height:1; color:#fff; letter-spacing:-.02em}
+.hero-num span{font-size:15px; color:var(--v-mute-on-ink)}
+.hero-bar{height:6px; margin-top:14px; border-radius:3px; background:rgba(255,255,255,.14); overflow:hidden}
+.hero-bar i{display:block; height:100%; background:var(--v-cobalt-l); border-radius:3px}
+.hero-sub{margin:12px 0 0; font-size:14px; color:var(--v-mute-on-ink)}
+.hero-sub b{color:#fff; font-weight:500}
+/* 카드 → 묶음: 바탕·테두리 없이 위 1px 선 */
+.is-home .ph-body .card{background:transparent; border:0; border-top:1px solid var(--v-line); border-radius:0; padding:20px 0 0; overflow:visible}
+.is-home #home-cal .card{border-top:0; padding-top:0}   /* 머리 바로 아래 첫 묶음은 선 없이 */
+.is-home .hc-cal{margin-left:0; margin-right:0}          /* 카드 안쪽 여백이 없어져 폭이 이미 넓음 */
+.is-home #home .greet-row{display:none}
+/* 메뉴 타일 → 목록 행(48px 이상, 아이콘 · 이름 · ›) */
+.is-home .menu-group-label{margin:24px 4px 6px}
+.is-home .menu-group-label:first-of-type{margin-top:4px}
+.is-home .menu-grid{grid-template-columns:1fr; gap:0; border-top:1px solid var(--v-line)}
+.is-home .menu-tile{flex-direction:row; align-items:center; gap:12px; min-height:52px; padding:0 4px;
+  border:0; border-bottom:1px solid var(--v-line); border-radius:0; background:transparent}
+.is-home .menu-tile:hover{background:var(--v-sunken); border-color:var(--v-line)}
+.is-home .menu-tile .mi{width:24px; height:24px; background:transparent; color:var(--v-mute)}
+.is-home .menu-tile:hover .mi{background:transparent; color:var(--v-cobalt)}
+.is-home .menu-tile .ml{flex:1; font-size:15px}
+.is-home .menu-tile .mbadge{position:static}
+.is-home .menu-tile::after{content:"›"; font-size:20px; line-height:1; color:var(--v-mute)}
 
 /* ── 7. 기능 글자 12px 하한(DESIGN.md) ── */
 .notice-card-time,.scale-ends,.pv-table th,.pv-table td,.cite,.act-row .at{font-size:12px}
