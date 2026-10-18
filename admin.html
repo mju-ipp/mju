@@ -213,7 +213,7 @@
               <label class="note">메모 <input type="text" id="at-in-note" style="width:180px;padding:8px"></label>
               <button type="button" class="mju-btn mju-btn--sm" id="at-in-save">저장</button>
             </div>
-            <p class="note" style="margin:6px 0 0">실적을 넣으면 '수정'으로 표시되고, 다음에 엑셀을 올려도 그 값이 유지돼요. 엑셀 계산값으로 돌리려면 표의 [엑셀 값으로].</p>
+            <p class="note" style="margin:6px 0 0">실적을 넣으면 '수정'으로 표시되고, 다음에 엑셀을 올려도 그 값이 유지돼요.</p>
             <div class="status" id="at-in-status"></div>
           </details>
         </div>
@@ -4142,19 +4142,7 @@
           $('at-in-plan').focus();
         });
         acts.appendChild(eb);
-        r.parts.filter(p => p.source === 'manual' && p.auto_actual != null).forEach(p => {
-          const rb = document.createElement('button'); rb.type = 'button'; rb.className = 'phone-btn';
-          rb.textContent = `엑셀 값으로(${Number(p.auto_actual)}h)`;
-          rb.title = `${TRACK_LABEL[trk(p)]} 실적을 올린 출결 계산값으로 되돌려요` + (p.edited_by ? ` — 마지막 수정 ${p.edited_by}` : '');
-          rb.addEventListener('click', async () => {
-            rb.disabled = true;
-            const { error } = await supabase.rpc('set_attendance_month', { p_name: r.name, p_month: attnMonth, p_track: trk(p), p_mode: 'revert' });
-            if (error) { alert('되돌리지 못했어요: ' + error.message); rb.disabled = false; return; }
-            logAction('출석 실적 되돌림', `${r.name} ${attnMonth} ${TRACK_LABEL[trk(p)]}`);
-            attnCache = null; attnLoad(true); dashShortLoad();
-          });
-          acts.appendChild(rb);
-        });
+        // (10/19 사용자 요청) [엑셀 값으로(nh)] 되돌리기 버튼은 뺌 — 서버 set_attendance_month p_mode 'revert' 는 그대로 둠
         row.appendChild(acts);
         list.appendChild(row);
       });
