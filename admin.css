@@ -423,3 +423,44 @@ body.adm .ch-m.teacher{align-self:flex-end; align-items:flex-end}
 body.adm .ch-m.teacher .b{background:var(--v-cobalt-bg); border-color:transparent}
 body.adm .ch-m.hid .b{opacity:.45; text-decoration:line-through}
 body.adm .ch-m .ch-hide{font-size:12px; color:var(--v-mute)}
+
+/* ── 현황(sql/68) — 연도별 학습기업 참여 현황 ── */
+body.adm .hq-head{display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin:0 0 4px}
+body.adm .hq-head .ph-select{width:auto; padding:7px 10px}
+body.adm #hq-stats{grid-template-columns:repeat(5,minmax(0,1fr))}
+body.adm #hq-stats .stat-cell .sv{font-size:26px}
+body.adm #hq-sort{width:auto; margin-left:auto; padding:5px 8px; font-size:13px}
+body.adm .hq-stages{display:flex; flex-wrap:wrap; gap:6px}
+body.adm .hq-stages .chip b{font-weight:500; margin-left:4px}
+body.adm .hq-job{display:grid; grid-template-columns:minmax(0,200px) minmax(60px,1fr) 90px; gap:12px; align-items:center; padding:5px 0; font-size:13px}
+body.adm .hq-job .bar{display:block; height:6px; border-radius:3px; background:var(--v-line); overflow:hidden}
+body.adm .hq-job .bar i{display:block; height:100%; background:var(--v-cobalt)}
+body.adm .hq-job .note{margin:0; text-align:right}
+body.adm #hq-list{border-top:1px solid var(--v-line)}
+body.adm .hq-row{display:grid; grid-template-columns:minmax(0,1fr) 110px 130px; gap:6px 14px; align-items:start; padding:12px 0; border-bottom:1px solid var(--v-line)}
+body.adm .hq-row .nm b{font-weight:400}
+body.adm .hq-row.mine .nm b{font-weight:700}
+body.adm .hq-row .nm .note{margin:0; font-size:12px}
+body.adm .hq-row .val{text-align:right; white-space:nowrap}
+body.adm .hq-row .due{text-align:right; white-space:nowrap; color:var(--v-mute); font-size:13px}
+body.adm .hq-row .due.hq-soon{color:var(--v-warn); font-weight:500}
+body.adm .hq-row .ctl{grid-column:1 / -1; display:flex; flex-wrap:wrap; gap:6px; align-items:center}
+body.adm .hq-row .ctl .ph-select{width:auto; padding:5px 8px; font-size:13px}
+body.adm .hq-row .ctl label.note{margin:0; display:inline-flex; align-items:center; gap:4px}
+body.adm .hq-row .ctl input[type=number]{width:56px; padding:5px 6px; font-size:13px}
+body.adm .hq-row .ctl .hq-memo{flex:1; min-width:160px; padding:5px 8px; font-size:13px}
+body.adm .hq-tag{font-size:11px; padding:1px 6px; border:1px solid var(--v-line); border-radius:4px; color:var(--v-mute); vertical-align:1px}
+body.adm .hq-warn{display:block; font-size:12px; color:var(--v-warn)}
+body.adm .hq-add{display:flex; gap:8px; margin-top:12px}
+body.adm .hq-add input{flex:1; max-width:320px; padding:7px 10px}
+body.adm .hq-steps{margin:0 0 10px; padding-left:18px; line-height:1.9}
+body.adm #hq-bm{cursor:grab}
+@media (max-width:980px){
+  body.adm #hq-stats{grid-template-columns:1fr 1fr}
+  body.adm #hq-stats .stat-cell:nth-child(odd){border-left:0; padding-left:0}
+  body.adm #hq-stats .stat-cell:nth-child(even){border-left:1px solid var(--v-line); padding-left:20px}
+  body.adm .hq-row{grid-template-columns:minmax(0,1fr) auto}
+  body.adm .hq-row .due{grid-column:1 / -1; text-align:left}
+  body.adm .hq-job{grid-template-columns:minmax(0,1fr) 80px}
+  body.adm .hq-job .bar{grid-column:1 / -1; grid-row:2}
+}
