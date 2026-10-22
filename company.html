@@ -129,6 +129,57 @@
     @media (prefers-reduced-motion: reduce){ .more > details > summary::after{transition:none} }
     .fnote{margin:28px 0 0; font-size:12px; line-height:1.6; color:var(--v-mute)}
     .msg{margin:24px 4px; font-size:14px; line-height:1.6; color:var(--v-mute)}
+    /* ── 가시성 정리(10/22 사용자): 블록 제목 → 흰 카드, 글자 위계 3단(제목 17 / 본문 15 / 보조 13) ── */
+    .fw .sec{margin:28px 2px 10px; font-size:17px; font-weight:700; letter-spacing:-.01em; color:var(--v-ink)}
+    .fw .sec:first-child{margin-top:20px}
+    .sec-sub{margin:-4px 2px 10px; font-size:13px; color:var(--v-mute)}
+    .card,.box{margin:0; border:1px solid var(--v-line); border-radius:12px; background:var(--v-paper)}
+    .calcard{padding:8px 10px 12px}
+    .calcard .mnav{margin:4px 2px 8px}
+    .calcard .mnav b{font-size:17px; font-weight:700}
+    .calcard .mnav button{min-width:40px; min-height:40px; border-radius:8px}
+    .cal{gap:3px}
+    .cal .wd{font-size:12px; font-weight:500}
+    .cal button{min-height:62px; padding:5px 2px; border-radius:8px}
+    .cal button .dn{font-size:14px; font-weight:500; line-height:18px}
+    .cal button.today{background:var(--v-sunken)}
+    .cal button.today .dn{color:var(--v-cobalt); font-weight:700}
+    .cal button[aria-pressed="true"]{border:2px solid var(--v-cobalt); background:var(--v-cobalt-bg); padding:4px 1px}
+    .cal .lb{font-size:12px; font-weight:600; line-height:18px; border-radius:4px}
+    .lb.tr{background:var(--v-cobalt); color:#fff}
+    .lb.chk{background:var(--v-warn); color:#fff}
+    .legend{display:flex; flex-wrap:wrap; gap:6px 10px; margin:12px 2px 0; font-size:12px}
+    .legend .lb{display:inline-block; padding:0 6px; font-size:12px; font-weight:600; line-height:20px; border-radius:4px}
+    .sel{margin-top:12px; padding:16px}
+    .sel-h{display:flex; align-items:baseline; flex-wrap:wrap; gap:6px 10px; padding-bottom:12px; margin-bottom:4px; border-bottom:1px solid var(--v-line)}
+    .sel-h b{font-size:18px; font-weight:700; color:var(--v-ink)}
+    .sel-h .today{font-size:12px; font-weight:700; color:#fff; background:var(--v-cobalt); padding:0 8px; border-radius:10px; line-height:20px}
+    .sel-h .meta{width:100%; font-size:13px; color:var(--v-mute)}
+    .sel .sr{min-height:56px; margin:0; padding:10px 0; border-radius:0; border-bottom:1px solid var(--v-line)}
+    .sel .sr:last-of-type{border-bottom:0}
+    .sel .sr .n b{font-size:15px; font-weight:700}
+    .sel .sr.off{background:none}
+    .sel .sr.tk{margin:10px 0 0; padding:10px 12px; border:0; border-radius:8px; background:var(--v-sunken)}
+    .st{flex:none; padding:2px 10px; border-radius:12px; font-size:13px; font-weight:600; line-height:20px; background:var(--v-sunken); color:var(--v-ink)}
+    .st.ok{background:var(--v-cobalt-bg); color:var(--v-cobalt)}
+    .st.short,.st.none{background:var(--v-warn-bg); color:var(--v-warn)}
+    .st.planned{background:none; color:var(--v-mute); border:1px solid var(--v-line)}
+    .sel .sr.off .st{background:var(--v-ink); color:var(--v-bg)}
+    .sel .go{padding:14px 0 0}
+    .bi{padding:14px 16px; gap:12px}
+    .bi .k{min-width:52px; padding:3px 6px; font-size:12px}
+    .bi .wh b{font-size:15px; font-weight:700}
+    .bi .wh span{margin-top:2px; font-size:13px}
+    .bi .r{font-size:13px}
+    .empty{padding:16px; font-size:14px}
+    .more{margin:0; border-top:0; padding:0 16px}
+    .more > details:last-child{border-bottom:0}
+    .more > details > summary{min-height:56px; font-size:16px; font-weight:700}
+    .links{display:block; margin:16px 0 0; padding:0 16px}
+    .links[hidden]{display:none}
+    .links a{display:flex; align-items:center; min-height:52px; padding:0; border:0; border-bottom:1px solid var(--v-line); border-radius:0; background:none; font-size:15px; font-weight:500}
+    .links a:last-child{border-bottom:0}
+    .links a::after{content:"›"; margin-left:auto; color:var(--v-mute)}
     /* 알리기 시트 */
     .veil{position:fixed; inset:0; z-index:9; background:rgba(18,19,24,.45); display:flex; align-items:flex-end; justify-content:center}
     .veil[hidden]{display:none}
@@ -153,13 +204,21 @@
   <header class="fh"><div class="in" id="head"><p class="co">일학습병행 공동훈련센터</p><h1>불러오는 중…</h1></div></header>
   <main class="fw" id="main">
     <!-- (10/22 사용자: 탭이 복잡) 한 화면 — 달력(칸마다 글자: 훈련·휴가·출장·확인·평가·면담) → 고른 날 → 이번 달 할 일 → 더보기 -->
+    <!-- (10/22 사용자: 가시성) 블록마다 제목(.sec) + 흰 카드(.card) — 달력·고른 날 / 할 일 / 알린 휴가·출장 / 더보기 -->
     <section id="t-month" hidden>
-      <div class="mnav"><button type="button" id="m-prev" aria-label="이전 달">‹</button><b id="m-title"></b><button type="button" id="m-next" aria-label="다음 달">›</button></div>
-      <div class="cal" id="m-cal"></div>
+      <h2 class="sec">훈련 일정</h2>
+      <div class="card calcard">
+        <div class="mnav"><button type="button" id="m-prev" aria-label="이전 달">‹</button><b id="m-title"></b><button type="button" id="m-next" aria-label="다음 달">›</button></div>
+        <div class="cal" id="m-cal"></div>
+        <p class="legend"><span class="lb tr">훈련</span><span class="lb off">휴가·출장</span><span class="lb chk">확인</span><span class="lb ev">평가</span><span class="lb iv">면담</span><span class="lb ex">센터 일정</span></p>
+      </div>
       <div id="m-day"></div>
+      <h2 class="sec">할 일</h2>
       <div id="m-todo"></div>
+      <h2 class="sec">알린 휴가·출장</h2>
       <div id="m-abs"></div>
-      <div class="more">
+      <h2 class="sec">더보기</h2>
+      <div class="more card">
         <details id="stage-sec" hidden><summary>우리 회사 진행 현황 <span id="stage-now"></span></summary><div id="stage-view"></div></details>
         <details><summary>능력단위 <span>달마다 배우는 내용</span></summary><p class="lede">실시신고 시간표의 달별 배정이에요. 단위를 누르면 능력단위요소·수행과업이 나와요.</p><div id="u-list"></div></details>
         <details><summary>월별 출결 마감 <span>학습일지·출석확인</span></summary><div id="a-view"></div></details>
@@ -167,9 +226,9 @@
       </div>
     </section>
     <p class="msg" id="msg" hidden></p>
-    <nav class="links" id="links" hidden aria-label="다른 메뉴">
-      <a href="./mycompany.html">내 학습기업</a><a href="./company-survey.html">만족도 조사</a>
-      <a href="./faq.html">자주 묻는 질문</a><a href="./install.html">알림 설정</a>
+    <!-- (10/22 사용자) '내 학습기업' 칸 뺌 -->
+    <nav class="links card" id="links" hidden aria-label="다른 메뉴">
+      <a href="./company-survey.html">만족도 조사</a><a href="./faq.html">자주 묻는 질문</a><a href="./install.html">알림 설정</a>
     </nav>
     <p class="fnote" id="foot"></p>
     <p class="fnote" style="margin-top:8px"><a href="./privacy.html" style="color:inherit">개인정보 처리방침</a> · <a href="./index.html?stay=1" style="color:inherit">전체 메뉴</a></p>
@@ -317,7 +376,8 @@
     function drawDay() {
       const ds = selDay, inf = dayInfo(ds), rows = inf.tr.concat(inf.off).sort((a, b) => a.s.name.localeCompare(b.s.name, 'ko'));
       const t = rows.length ? rows[0].d : null, mc = multiCourse();
-      let h = `<div class="sel"><p class="dh">${md(ds)}${t ? `<small>${t.start && t.end ? `${esc(t.start)}–${esc(t.end)} · ` : ''}${Number(t.hours) || 0}시간</small>` : ''}${ds === today ? '<span class="today">오늘</span>' : ''}</p>`;
+      let h = `<div class="card sel"><div class="sel-h"><b>${md(ds)}</b>${ds === today ? '<span class="today">오늘</span>' : ''}` +
+        `${t ? `<span class="meta">${t.start && t.end ? `${esc(t.start)}–${esc(t.end)} · ` : ''}${Number(t.hours) || 0}시간</span>` : ''}</div>`;
       h += inf.tasks.map(k => `<div class="sr tk${k.done_on ? ' done' : ''}"><span class="n"><b>${esc(k.kind)}</b><span>${esc(k.title)}</span></span><span class="st">${k.done_on ? '받음' : '이 날까지'}</span></div>`).join('');
       h += rows.map(({ s, d, a }) => {
         const st = a ? `<span class="st">${AK[a.kind]}${a.state === 'applied' ? ' · 옮김' : ''}</span>`
@@ -342,12 +402,12 @@
       if (sh.length) h += `<div class="bi"><span class="k ev" style="background:var(--v-warn)">확인</span><span class="wh"><b>인정 시간이 모자란 날 ${sh.length}건</b>` +
         `<span>${sh.slice(0, 4).map(({ s, d }) => `${md(d.day)} ${esc(s.name)} ${d.status === 'none' ? '기록 없음' : (Number(d.recognized) || 0) + 'h/' + Number(d.hours) + 'h'}`).join(' · ')}${sh.length > 4 ? ` 외 ${sh.length - 4}건` : ''} — 휴가·출장이었다면 알려 주세요</span></span></div>`;
       if (unpaid.length) h += `<div class="bi"><span class="k ev" style="background:var(--v-warn)">수당</span><span class="wh"><b>${unpaid.map(a => moName(a.period) + '분').join(', ')} 전담인력수당 미신청</b><span>아래 '전담인력수당'에서 확인하세요</span></span></div>`;
-      $('m-todo').innerHTML = `<div class="box"><div class="box-h"><b>할 일</b><span>${h ? '' : '지금은 없어요'}</span></div>${h}</div>`;
+      $('m-todo').innerHTML = `<div class="box">${h || '<p class="empty">지금은 할 일이 없어요.</p>'}</div>`;
     }
     // 알린 휴가·출장 — 취소 가능. 알리기는 달력에서 날짜를 고른 뒤(아래 버튼은 중복이라 뺌, 사용자 10/22)
     function drawAbs() {
       const list = studs().flatMap(s => liveAbs(s).map(a => ({ s, a }))).filter(x => x.a.day >= ymAdd(thisYm, -1) + '-01').sort((x, y) => (x.a.day < y.a.day ? -1 : 1));
-      $('m-abs').innerHTML = `<div class="box"><div class="box-h"><b>알린 휴가·출장</b><span>센터가 다른 날로 옮겨요</span></div>` +
+      $('m-abs').innerHTML = `<p class="sec-sub">알려 주시면 센터가 그 날 훈련을 다른 날로 옮겨요.</p><div class="box">` +
         (list.length ? list.map(({ s, a }) => {
           const who = a.by_role === 'company' || a.by_role === 'teacher' ? (a.by_name || '기업 담당자') : a.by_role === 'admin' ? '센터' : '학생 본인';
           return `<div class="bi"><span class="k${a.kind === 'trip' ? ' trip' : ''}">${AK[a.kind]}</span><span class="wh"><b>${md(a.day)} ${esc(s.name)}</b>` +
