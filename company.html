@@ -262,7 +262,7 @@
       <a href="./company-survey.html">만족도 조사</a><a href="./faq.html">자주 묻는 질문</a><a href="./install.html">알림 설정</a>
     </nav>
     <p class="fnote" id="foot"></p>
-    <p class="fnote" style="margin-top:8px"><a href="./privacy.html" style="color:inherit">개인정보 처리방침</a> · <a href="./index.html?stay=1" style="color:inherit">전체 메뉴</a></p>
+    <p class="fnote" style="margin-top:8px"><a href="./privacy.html" style="color:inherit">개인정보 처리방침</a> · <a href="#" class="resignup" style="color:inherit">다시 가입</a></p>
   </main>
 
   <div class="veil" id="veil" hidden>
@@ -315,7 +315,7 @@
     }
 
     function fail(msg) {
-      $('head').innerHTML = `<a class="back" href="./index.html?stay=1">‹ 전체 메뉴</a><h1>우리 학생 OJT</h1>`;
+      $('head').innerHTML = `<a class="back resignup" href="#">‹ 다시 가입</a><h1>우리 학생 OJT</h1>`;
       document.querySelectorAll('.fw section').forEach(s => { s.hidden = true; });
       $('msg').hidden = false; $('msg').textContent = msg;
     }
@@ -619,6 +619,15 @@
         : `<p class="msg" style="margin:8px 0">아직 OJT 배정 달이 없어요.</p>`;
       $('w-view').innerHTML = h;
     }
+
+    // 다시 가입 — 이 기기의 가입 정보를 지우고 가입 화면으로(index 의 '다른 정보로 다시 가입'과 같음, '전체 메뉴' 대신 10/22)
+    document.addEventListener('click', e => {
+      const a = e.target.closest('.resignup'); if (!a) return;
+      e.preventDefault();
+      if (!confirm('이 기기의 가입 정보를 지우고 다시 가입할까요? 기업 초대코드가 다시 필요해요.')) return;
+      try { localStorage.removeItem('ilhak_profile'); } catch (_) {}
+      location.href = './index.html?as=company';
+    });
 
     load();
   </script>
