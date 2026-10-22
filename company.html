@@ -148,7 +148,12 @@
     .cal .lb{font-size:12px; font-weight:600; line-height:18px; border-radius:4px}
     .lb.tr{background:var(--v-cobalt); color:#fff}
     .lb.chk{background:var(--v-warn); color:#fff}
-    .lb.pl{background:var(--v-cobalt-bg); color:var(--v-cobalt)}   /* 앞으로의 예정 시간 — 지난 인정(진한 파랑)과 구분 */
+    .lb.pl{background:var(--v-cobalt-bg); color:var(--v-cobalt)}
+    .cal button .lb[title]{font-size:10.5px; font-weight:600; letter-spacing:-.05em; line-height:17px; padding:0 1px; text-overflow:clip}   /* 학생 칸: 이름 전체 + 시간(사용자: 크기 줄여도 풀네임) */
+    .calcard{padding-left:4px; padding-right:4px}
+    .cal button[aria-pressed="true"]{border-width:1px; padding:5px 1px; box-shadow:0 0 0 1px var(--v-cobalt)}   /* 고른 날 테두리가 칸 폭을 먹지 않게 */
+    .cal button{padding-left:1px; padding-right:1px}
+    .cal{gap:2px}   /* 앞으로의 예정 시간 — 지난 인정(진한 파랑)과 구분 */
     .sel{margin-top:12px; padding:16px}
     .sel-h{display:flex; align-items:baseline; flex-wrap:wrap; gap:6px 10px; padding-bottom:12px; margin-bottom:4px; border-bottom:1px solid var(--v-line)}
     .sel-h b{font-size:18px; font-weight:700; color:var(--v-ink)}
@@ -383,8 +388,8 @@
       for (let i = 0; i < first; i++) h += `<button type="button" class="blank" tabindex="-1" aria-hidden="true"></button>`;
       all.forEach((ds, i) => {
         const inf = dayInfo(ds), dow = (first + i) % 7, lbs = [];
-        // 훈련한 학생마다 '이름 시간'(사용자 10/22) — 이름은 성 빼고 두 글자, 지난 날은 인정 시간(모자라면 주황), 앞으로는 예정 시간, 휴가·출장은 회색
-        const nick = n => { const t = String(n || '').trim(); return t.length >= 3 ? t.slice(1) : t; };
+        // 훈련한 학생마다 '이름 시간'(사용자 10/22) — 이름은 성까지 다(글자를 줄여서), 지난 날은 인정 시간(모자라면 주황), 앞으로는 예정 시간, 휴가·출장은 회색
+        const nick = n => String(n || '').trim();
         inf.tr.concat(inf.off).sort((a, b) => a.s.name.localeCompare(b.s.name, 'ko')).forEach(({ s, d, a }) => {
           if (a) { lbs.push(`<span class="lb off" title="${esc(s.name)} ${AK[a.kind]}">${esc(nick(s.name))} ${AK[a.kind].slice(0, 1)}</span>`); return; }
           const past = d.status === 'ok' || d.status === 'short' || d.status === 'none';
