@@ -75,7 +75,7 @@
           <a href="./notice.html"   class="menu-tile"><span class="mi"><i data-lucide="megaphone"></i></span><span class="ml">공지사항</span></a>
           <a href="./library.html"  class="menu-tile"><span class="mi"><i data-lucide="folder"></i></span><span class="ml">자료실</span></a>
           <a href="./company.html" id="m-coojt" class="menu-tile" style="display:none"><span class="mi"><i data-lucide="calendar-check"></i></span><span class="ml">우리 학생 OJT (출결·일정)</span></a>
-          <a href="./mycompany.html" id="m-myco" class="menu-tile" style="display:none"><span class="mi"><i data-lucide="building-2"></i></span><span class="ml">내 학습기업</span></a>
+          <!-- (10/22 사용자) '내 학습기업' 타일 뺌 — 복원 시 mycompany.html 타일(id m-myco) 되살리기 -->
         </div>
         <p class="menu-group-label">소통·참여</p>
         <div class="menu-grid">
@@ -345,7 +345,7 @@
         document.getElementById('t-title').textContent = `${_prof.name}님, 환영합니다`;
         document.getElementById('t-sub').hidden = true;
         // 소속 기업이 있으면 '내 학습기업' 타일 표시
-        if (_prof.company) { const mc = document.getElementById('m-myco'); if (mc) mc.style.display = ''; }
+        // (10/22) '내 학습기업' 타일 뺌
         // 만족도 설문: 학생=survey.html, 기업담당자=company-survey.html, 그 외(지원자 등)는 숨김
         if (_prof.target_type && _prof.target_type !== 'student' && _prof.target_type !== 'company') { const s = document.getElementById('m-survey'); if (s) s.style.display = 'none'; }
         // 기업 담당자: 이름 옆 역할 표기 + 진행단계 카드 + 기업용 만족도
@@ -776,7 +776,6 @@
           `<p class="ab-s">체크하면 센터 선생님이 이 날 훈련을 다른 날로 옮겨요.` +
           (m.size > 1 ? ` 같은 과정 학생 ${m.size}명이 함께 훈련해서 <b>이 날은 과정 전체가 옮겨져요.</b>` : '') + `</p>` +
           (a && a.state === 'rejected' ? `<p class="ab-s ab-warn">지난번 체크는 반려됐어요. 궁금하면 센터에 문의하세요.</p>` : '') +
-          `<input type="text" class="ab-note" maxlength="300" placeholder="메모 (선택)" aria-label="휴가·출장 메모">` +
           `<div class="ab-btns"><button type="button" class="ab-btn" data-kind="leave" data-d="${ds}">휴가</button>` +
           `<button type="button" class="ab-btn" data-kind="trip" data-d="${ds}">출장</button></div></div>`;
       }
@@ -966,10 +965,9 @@
           : r && r.reason === 'no_day' ? '이 날은 훈련(정규시간)이 없어 체크할 수 없어요.'
           : r && r.reason === 'rate' ? '잠시 후 다시 시도해주세요.' : '처리하지 못했어요. 잠시 후 다시 시도해주세요.');
         mount.querySelectorAll('.ab-btn').forEach(b => b.addEventListener('click', async () => {
-          const ds = b.dataset.d, kind = b.dataset.kind, m = _absByYm[ds.slice(0, 7)] || {};
-          if (!confirm(`${fmtDate(ds)} 훈련을 ${AKRO[kind]} 체크할까요?` + (m.size > 1 ? `\n같은 과정 학생 ${m.size}명의 이 날 훈련이 함께 옮겨져요.` : ''))) return;
-          b.disabled = true;
-          const note = (b.closest('.ab-box').querySelector('.ab-note') || {}).value || '';
+          // (10/22 사용자) 메모 칸·확인창 없이 버튼 한 번으로 — 잘못 누르면 [체크 취소]
+          const ds = b.dataset.d, kind = b.dataset.kind, note = '';
+          b.closest('.ab-btns').querySelectorAll('button').forEach(x => { x.disabled = true; });
           try {
             const { data, error } = await supabase.rpc('report_absence', { p_code: prof.code || null, p_token: prof.token || null, p_day: ds, p_kind: kind, p_note: note });
             if (error || !data || !data.ok) absFail(data);

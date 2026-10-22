@@ -149,6 +149,12 @@
     .lb.tr{background:var(--v-cobalt); color:#fff}
     .lb.chk{background:var(--v-warn); color:#fff}
     .lb.pl{background:var(--v-cobalt-bg); color:var(--v-cobalt)}
+    /* 고른 날 학생 줄 — [휴가][출장] 버튼 한 번(10/22) */
+    .ab2{display:flex; gap:6px; flex:none}
+    .ab2 button,.ab-x{min-height:36px; padding:0 12px; border:1px solid var(--v-cobalt); border-radius:8px; background:var(--v-paper); color:var(--v-cobalt); font:inherit; font-size:14px; font-weight:600; cursor:pointer}
+    .ab-x{border-color:var(--v-line); color:var(--v-mute); font-weight:500}
+    .ab2 button:disabled{opacity:.5}
+    .sel .sr{flex-wrap:wrap; row-gap:8px}
     .cal button .lb[title]{font-size:10.5px; font-weight:600; letter-spacing:-.05em; line-height:17px; padding:0 1px; text-overflow:clip}   /* 학생 칸: 이름 전체 + 시간(사용자: 크기 줄여도 풀네임) */
     .calcard{padding-left:4px; padding-right:4px}
     .cal button[aria-pressed="true"]{border-width:1px; padding:5px 1px; box-shadow:0 0 0 1px var(--v-cobalt)}   /* 고른 날 테두리가 칸 폭을 먹지 않게 */
@@ -420,14 +426,25 @@
           : `<span class="st ${d.status}">${d.status === 'ok' || d.status === 'short' ? (Number(d.recognized) || 0) + 'h ' : ''}${ST[d.status] || ''}</span>`;
         // 훈련날엔 그 학생의 그 달 OJT 능력단위(실시신고 시간표 월 배정, 사용자 10/22)
         const us = unitsOf((monthRow(s, ds.slice(0, 7)) || {}).units);
+        // (10/22 사용자) 휴가·출장은 학생 줄에서 버튼 한 번 — 오늘·앞으로의 훈련일만, 알린 건 [취소]
+        const act = ds < today ? '' : a ? (a.state === 'open' ? `<button type="button" class="ab-x" data-cancel="${esc(a.id)}">취소</button>` : '')
+          : `<span class="ab2"><button type="button" data-ab="leave" data-sid="${esc(s.id)}">휴가</button><button type="button" data-ab="trip" data-sid="${esc(s.id)}">출장</button></span>`;
         return `<div class="sr${a ? ' off' : ''}"><span class="n"><b>${esc(s.name)}</b>${mc && d.course ? `<span>${esc(d.course)}</span>` : ''}` +
-          `${us.length ? `<small class="u">${esc(us.join(' · '))}</small>` : ''}</span>${st}</div>`;
+          `${us.length ? `<small class="u">${esc(us.join(' · '))}</small>` : ''}</span>${!a && ds >= today ? '' : st}${act}</div>`;   // 앞으로의 날은 '예정' 대신 버튼만
       }).join('');
       h += inf.evs.map(e => `<div class="sr tk"><span class="n"><b>${esc(e.kind)}</b><span>${esc(e.title)}${e.memo ? ' · ' + esc(e.memo) : ''}</span></span></div>`).join('');
       if (!rows.length && !inf.tasks.length && !inf.evs.length) h += `<p class="lede" style="margin:0">이 날은 OJT 훈련이 없어요.</p>`;
-      if (inf.tr.length && ds >= today) h += `<div class="go"><button type="button" class="btn wide" id="day-sheet">이 날 휴가·출장 알리기</button></div>`;
       $('m-day').innerHTML = h + `</div>`;
-      $('day-sheet')?.addEventListener('click', () => openSheet(ds));
+      $('m-day').querySelectorAll('[data-ab]').forEach(b => b.addEventListener('click', async () => {
+        b.parentNode.querySelectorAll('button').forEach(x => { x.disabled = true; });
+        let by = ''; try { by = localStorage.getItem(BY_KEY) || ''; } catch (_) {}
+        try {
+          const { data, error } = await supabase.rpc('company_absence', { p_code: CODE, p_student: b.dataset.sid, p_day: ds, p_kind: b.dataset.ab, p_note: null, p_by_name: by || null });
+          if (error || !data || !data.ok) alert(error ? errText(error) : '처리하지 못했어요. 이미 알린 날이거나 훈련이 없는 날이에요.');
+        } catch (_) { alert('연결이 불안정해요. 잠시 후 다시 시도해 주세요.'); }
+        load(ym);
+      }));
+      $('m-day').querySelectorAll('[data-cancel]').forEach(b => b.addEventListener('click', () => cancel(b)));
     }
 
     // ---------- 이번 달 할 일 — 내부평가·면담일지 마감 · 인정 모자란 날 · 수당 미신청 ----------
@@ -449,7 +466,7 @@
           return `<div class="bi"><span class="k${a.kind === 'trip' ? ' trip' : ''}">${AK[a.kind]}</span><span class="wh"><b>${md(a.day)} ${esc(s.name)}</b>` +
             `<span>${esc(who)}${a.note ? ' · ' + esc(a.note) : ''}</span></span>` +
             (a.state === 'applied' ? `<span class="r">다른 날로 옮김</span>` : `<button type="button" class="lnk" data-cancel="${esc(a.id)}">취소</button>`) + `</div>`;
-        }).join('') : `<p class="empty">아직 없어요. 달력에서 날짜를 누르고 [이 날 휴가·출장 알리기]로 알려 주세요.</p>`) + `</div>`;
+        }).join('') : `<p class="empty">아직 없어요. 달력에서 날짜를 누르고 학생 옆 [휴가]·[출장]을 누르면 돼요.</p>`) + `</div>`;
       $('m-abs').querySelectorAll('[data-cancel]').forEach(b => b.addEventListener('click', () => cancel(b)));
     }
 
