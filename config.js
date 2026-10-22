@@ -90,10 +90,11 @@ window.FIREBASE_CONFIG = {
 window.FCM_VAPID_KEY = 'BPwU6DR4mAus6qml5sw8A4kokXyuuJIB-V6HkCuvqeUTm-Xkqn9nOFS6APeY1dW6BSTyjkj6vR8cgICmUKkU7pg';
 
 /* ── 7) 대상 구분 ─ (학생 전용 전환 2026-08-19) 기업담당자·지원자 유형 폐지.
- *  복원하려면 아래 배열에 { key:'company', label:'학습기업 담당자 (HRD)' },
- *  { key:'applicant', label:'지원자 (매칭 전 — 채용 알림 받기)' } 를 되살리면 된다. ── */
+ *  (2026-10-22) 기업 담당자만 복원 — '우리 학생 OJT'(company.html)용 기업 초대코드 가입. 지원자는 계속 닫음.
+ *  지원자를 복원하려면 { key:'applicant', label:'지원자 (매칭 전 — 채용 알림 받기)' } 를 되살리면 된다. ── */
 window.TARGET_TYPES = [
   { key: 'student',  label: '매칭학생 (재학생)' },
+  { key: 'company',  label: '학습기업 담당자 (HRD·현장교사)' },
 ];
 
 /* ── 10) 기업용 만족도 설문 2종 ─ company-survey.html(렌더)과 admin.html(집계 라벨)이 공유 ──
