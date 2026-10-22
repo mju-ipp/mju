@@ -187,6 +187,10 @@ body{background:var(--v-bg); color:var(--v-ink); font-variant-numeric:tabular-nu
 .ab-cancel{margin-top:10px; color:var(--v-ink); background:var(--v-paper); border:1px solid var(--v-line)}
 .ab-btn:disabled,.ab-cancel:disabled{opacity:.5; cursor:default}
 .ab-tag{font-size:12px; font-weight:600; color:var(--v-cobalt)}
+/* 기업 담당자 홈 달력 — 일정은 점 대신 글자(평가·면담 등, 사용자 10/22) */
+.ev-tag{display:block; max-width:100%; overflow:hidden; white-space:nowrap; padding:0 2px; border-radius:3px; font-size:12px; font-weight:600; line-height:16px; color:var(--v-ink); background:var(--v-sunken)}
+.ev-tag.f{color:var(--v-bg); background:var(--v-ink)}
+.ev-tag.done{color:var(--v-mute); background:none; text-decoration:line-through}
 
 /* ── 7. 기능 글자 12px 하한(DESIGN.md) ── */
 .notice-card-time,.scale-ends,.pv-table th,.pv-table td,.cite,.act-row .at{font-size:12px}

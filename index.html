@@ -684,6 +684,17 @@
           });
         }
       } catch (_) {}
+      // [sql/70] 기업 담당자: 우리 회사 내부평가·면담일지 마감(field_tasks)을 홈 일정에 — 달력 칸에 글자로(사용자 10/22)
+      if (prof.target_type === 'company' && prof.code) {
+        try {
+          const { data: ch } = await supabase.rpc('company_home', { p_code: prof.code, p_month: null });
+          if (ch && ch.ok) (ch.tasks || []).forEach(t => {
+            if (!t.due_on) return;
+            all.push({ title: t.title, event_date: t.due_on, kind: t.kind, field: true, done: !!t.done_on,
+                       memo: t.done_on ? '센터가 받았어요' : t.note || '' });
+          });
+        } catch (_) {}
+      }
       all.sort((a, b) => (a.event_date < b.event_date ? -1 : a.event_date > b.event_date ? 1 : 0));
       // [TASKS v2] 내 완료 체크 상태 — 학생: 토큰(sql/40) / 기업담당자: 기업코드로 '기업' 할 일만 기업 단위(sql/41).
       //   RPC 미배포·무토큰·무코드면 체크 UI 없이 기존 표시(회귀 0).
@@ -781,7 +792,7 @@
             : `<button type="button" class="task-chk" data-task="${r.task_id}" aria-label="완료 체크">완료 체크</button>`)
           : '';
         // (10/16 사용자 요청) 목록은 제목·날짜만 — 메모(부연설명)는 빼고, 날짜를 누르면 아래 칸에서 볼 수 있음
-        return `<div class="todo-item"><div style="flex:1"><div class="tt"${done ? ' style="text-decoration:line-through;color:var(--text-muted)"' : ''}>${esc(r.title)}</div><div class="td">${sub}</div>${link}</div>${chk}${badge}</div>`;
+        return `<div class="todo-item"><div style="flex:1"><div class="tt"${done || r.done ? ' style="text-decoration:line-through;color:var(--text-muted)"' : ''}>${esc(r.title)}</div><div class="td">${sub}</div>${link}</div>${chk}${badge}</div>`;
       };
       // 그 달 일정 전체 목록 + 종류 거르기(옛 일정 화면 기능). 지난 일정은 '종료', 놓친 마감 할 일은 7일까지 '지남 D+n'(Q2)
       const badgeOf = r => {
@@ -815,7 +826,19 @@
       }
 
       const byDate = {};
-      all.forEach(r => { (byDate[r.event_date] = byDate[r.event_date] || []).push(r); });
+      // 기업 담당자: 주말 마감은 달력이 평일 5칸이라 그 주 금요일 칸에 보임(같은 달일 때) — 날짜는 메모에 남김
+      all.forEach(r => {
+        let k = r.event_date;
+        if (isCompany && r.field) {
+          const d = new Date(k + 'T00:00:00'), wd = d.getDay();
+          if (wd === 6 || wd === 0) {
+            const f = new Date(d); f.setDate(d.getDate() - (wd === 6 ? 1 : 2));
+            const fs = `${f.getFullYear()}-${pad(f.getMonth() + 1)}-${pad(f.getDate())}`;
+            if (fs.slice(0, 7) === k.slice(0, 7)) { r.memo = `${fmtDate(k)} 마감${r.memo ? ' · ' + r.memo : ''}`; k = fs; }
+          }
+        }
+        (byDate[k] = byDate[k] || []).push(r);
+      });
       const sByDate = {};
       sDays.forEach(r => { (sByDate[r.day] = sByDate[r.day] || []).push(r); });
 
@@ -884,6 +907,7 @@
 
       // 월~금 5칸(사용자 요청 — 수업·훈련은 평일만). 주말 일정은 아래 그 달 일정 목록에서
       const dow = ['월', '화', '수', '목', '금'].map(d => `<span class="cal-dow">${d}</span>`).join('');
+      const EVK = { '내부평가': '평가', '면담일지': '면담' };
       function draw() {
         const y = Number(homeYm.slice(0, 4)), mo = Number(homeYm.slice(5)) - 1;
         const days = new Date(y, mo + 1, 0).getDate();
@@ -905,7 +929,9 @@
             if (ab && isOjtDay(r) && st === 'planned') { inner += `<span class="ab-tag">${AK[ab.kind] || '휴가'}</span>`; return; }
             inner += st === 'planned' ? `<span class="ojt-t">${esc(r.start || '')}</span>` : `<span class="ojt-st ${st}">${st === 'none' ? '없음' : (Number(r.recognized) || 0) + 'h'}</span>`;
           });
-          if (evts.length) inner += `<span class="cal-dots">${evts.slice(0, 3).map(() => '<span class="cal-dot"></span>').join('')}</span>`;
+          // 기업 담당자는 점 대신 글자(평가·면담·일정 종류) — 학생 화면은 그대로 점
+          if (evts.length && isCompany) inner += evts.slice(0, 3).map(r => `<span class="ev-tag${r.field && !r.done ? ' f' : ''}${r.done ? ' done' : ''}">${esc(EVK[r.kind] || String(r.kind || '일정').slice(0, 2))}</span>`).join('');
+          else if (evts.length) inner += `<span class="cal-dots">${evts.slice(0, 3).map(() => '<span class="cal-dot"></span>').join('')}</span>`;
           const any = sch || att.length || evts.length;
           const cls = 'cal-cell' + (evts.length ? ' has' : '') + (sch ? ' offjt' : att.length ? ' ojt' : '') + (ds < todayStr ? ' past' : '') + (ds === todayStr ? ' today' : '') + (ds === homeSel ? ' sel' : '');
           cells += any ? `<button type="button" class="${cls}" data-d="${ds}" aria-label="${fmtDate(ds)} 보기">${inner}</button>` : `<span class="${cls}">${inner}</span>`;
