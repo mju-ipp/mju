@@ -340,7 +340,7 @@
       if (unpaid.length) h += `<div class="bi"><span class="k ev" style="background:var(--v-warn)">수당</span><span class="wh"><b>${unpaid.map(a => moName(a.period) + '분').join(', ')} 전담인력수당 미신청</b><span>아래 '전담인력수당'에서 확인하세요</span></span></div>`;
       $('m-todo').innerHTML = `<div class="box"><div class="box-h"><b>할 일</b><span>${h ? '' : '지금은 없어요'}</span></div>${h}</div>`;
     }
-    // 알린 휴가·출장 — 있을 때만, 취소 가능 / 날짜를 고르지 않고 알리는 버튼
+    // 알린 휴가·출장 — 취소 가능. 알리기는 달력에서 날짜를 고른 뒤(아래 버튼은 중복이라 뺌, 사용자 10/22)
     function drawAbs() {
       const list = studs().flatMap(s => liveAbs(s).map(a => ({ s, a }))).filter(x => x.a.day >= ymAdd(thisYm, -1) + '-01').sort((x, y) => (x.a.day < y.a.day ? -1 : 1));
       $('m-abs').innerHTML = `<div class="box"><div class="box-h"><b>알린 휴가·출장</b><span>센터가 다른 날로 옮겨요</span></div>` +
@@ -349,9 +349,7 @@
           return `<div class="bi"><span class="k${a.kind === 'trip' ? ' trip' : ''}">${AK[a.kind]}</span><span class="wh"><b>${md(a.day)} ${esc(s.name)}</b>` +
             `<span>${esc(who)}${a.note ? ' · ' + esc(a.note) : ''}</span></span>` +
             (a.state === 'applied' ? `<span class="r">다른 날로 옮김</span>` : `<button type="button" class="lnk" data-cancel="${esc(a.id)}">취소</button>`) + `</div>`;
-        }).join('') : `<p class="empty">아직 없어요.</p>`) +
-        `<div class="go"><button type="button" class="btn wide" id="open-sheet">휴가·출장 알리기</button></div></div>`;
-      $('open-sheet').addEventListener('click', () => openSheet());
+        }).join('') : `<p class="empty">아직 없어요. 달력에서 날짜를 누르고 [이 날 휴가·출장 알리기]로 알려 주세요.</p>`) + `</div>`;
       $('m-abs').querySelectorAll('[data-cancel]').forEach(b => b.addEventListener('click', () => cancel(b)));
     }
 
@@ -416,21 +414,18 @@
     }
 
     // ---------- 능력단위 ----------
+    let uSel = null;   // 능력단위 — 학생마다 칸을 나눠 봄(사용자 10/22)
     function drawUnits() {
-      // 같은 배정을 받는 학생끼리 묶음(과정이 다르면 따로)
-      const groups = new Map();
-      studs().forEach(s => {
-        const k = JSON.stringify((s.months || []).map(m => [m.month, m.planned, m.units]));
-        if (!groups.has(k)) groups.set(k, { s, names: [] });
-        groups.get(k).names.push(s.name);
-      });
+      const ss = studs();
+      if (!ss.some(s => s.id === uSel)) uSel = ss.length ? ss[0].id : null;
       const evMonths = new Map();   // 능력단위 → 내부평가 달(월말 할 일의 제목에 단위 이름이 있으면)
       (D.tasks || []).filter(t => t.kind === '내부평가').forEach(t => evMonths.set(t.title, t.month));
-      let h = '';
-      groups.forEach(g => {
-        if (groups.size > 1) h += `<p class="grp">${esc(g.names.join(', '))}${courseOf(g.s) ? ' · ' + esc(courseOf(g.s)) : ''}</p>`;
-        const info = u => (g.s.units || []).find(x => x.unit === u) || null;
-        const months = (g.s.months || []).filter(m => Number(m.planned) > 0 || m.units);
+      let h = ss.length > 1 ? `<div class="chips" id="u-who" role="group" aria-label="학생">` +
+        ss.map(s => `<button type="button" class="chip2" aria-pressed="${s.id === uSel}" data-v="${esc(s.id)}">${esc(s.name)}</button>`).join('') + `</div>` : '';
+      [ss.find(s => s.id === uSel)].filter(Boolean).forEach(s => {
+        if (courseOf(s)) h += `<p class="grp">${esc(s.name)} · ${esc(courseOf(s))}</p>`;
+        const info = u => (s.units || []).find(x => x.unit === u) || null;
+        const months = (s.months || []).filter(m => Number(m.planned) > 0 || m.units);
         if (!months.length) { h += `<p class="msg" style="margin:8px 0">OJT 배정이 아직 없어요.</p>`; return; }
         months.forEach(m => {
           const now = m.month === thisYm;
@@ -446,6 +441,7 @@
         });
       });
       $('u-list').innerHTML = h || `<p class="msg">학생이 없어요.</p>`;
+      $('u-list').querySelectorAll('#u-who .chip2').forEach(b => b.addEventListener('click', () => { uSel = b.dataset.v; drawUnits(); }));
     }
 
     // ---------- 월별 출결 — 월 마감 = 학생 앱 완료 체크(학습일지 작성 + 출석결과확인 등록, sql/71 checks) + 센터 확인 ----------

@@ -17,7 +17,7 @@
       <img class="wm" src="./assets/logo-mono-white.png" alt="" />
       <div class="ph-lockup"><img src="./assets/logo-mono-white.png" alt="" /><span>일학습병행 공동훈련센터</span></div>
       <div class="ph-title-row"><a class="ph-back" href="./index.html" aria-label="뒤로"><i data-lucide="chevron-left"></i></a><h1 class="ph-title">자료실</h1></div>
-      <p class="ph-sub"><span id="who"></span> 학습안내서·서식·일정표를 한곳에서 확인하세요</p>
+      <p class="ph-sub">학습안내서·서식·일정표를 한곳에서 확인하세요</p>
     </header>
     <main class="ph-body">
       <div class="searchbar" id="sb" style="display:none">
@@ -43,7 +43,7 @@
     if (window.lucide) window.lucide.createIcons();
 
     const profile = getProfile();
-    document.getElementById('who').textContent = profile.name ? `${profile.name}님` : '';
+    // (10/22 사용자) 제목 아래 'OOO님' 이름은 뺌
 
     // 이 학생에게 보여야 하는 자료인가 (직무 타게팅 + 상세 지정 custom)
     const visible = (r) => {

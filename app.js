@@ -408,7 +408,7 @@ function showPushToast(title, body, link) {
       ['notice.html', 'megaphone', '공지'],
       ['library.html', 'folder', '자료'],
       // (10/16) '일정' 탭 폐지 — 홈 달력으로 합침(calendar.html 은 홈으로 넘김)
-      ['consult.html', 'message-circle', '상담'],
+      // (10/22 사용자) '상담' 탭 뺌 — 학생·기업 모두. 1:1 상담은 학생 홈 메뉴 타일로
     ];
     const nav = document.createElement('nav');
     nav.className = 'tabbar';
