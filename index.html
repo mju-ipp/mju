@@ -18,14 +18,6 @@
   </style>
 </head>
 <body>
-  <!-- [2a] 센터 선택 — 활성 센터 2개 이상 + 미선택 시에만 표시(단일 센터면 안 뜸 = 현재 동작 그대로) -->
-  <div id="center-picker" style="display:none;position:fixed;inset:0;z-index:9999;background:var(--bg);color:var(--text);overflow:auto;padding:36px 20px">
-    <div style="max-width:440px;margin:0 auto">
-      <h1 style="font-size:20px;margin:6px 0 4px">공동훈련센터 선택</h1>
-      <p style="color:var(--note);font-size:13.5px;margin:0 0 18px">소속 공동훈련센터를 선택하세요. 한 번 고르면 기억돼요.</p>
-      <div id="cp-list" style="display:flex;flex-direction:column;gap:10px"></div>
-    </div>
-  </div>
   <div class="app">
     <header class="ph-header">
       <img class="wm" src="./assets/logo-mono-white.png" alt="" />
@@ -269,35 +261,7 @@
     document.getElementById('c-retention').textContent = cfg.PRIVACY_RETENTION || '훈련 종료 후 3년';
     document.getElementById('c-transfer').textContent  = cfg.PRIVACY_TRANSFER  || '해외 클라우드';
 
-    // [2a] 센터 선택 — 활성 센터가 2개 이상이고 아직 명시 선택 안 했을 때만 표시.
-    //   단일 센터(현 파일럿)·오류·미적용이면 화면 안 뜸 = 현재 동작 그대로(회귀 0). ?center·이전 선택이면 스킵.
-    async function maybePickCenter() {
-      try {
-        if (getQueryParam('center')) { try { localStorage.setItem('ilhak_center_chosen', '1'); } catch (_) {} return; }
-        if (localStorage.getItem('ilhak_center_chosen')) return;
-        if (!configReady()) return;
-        const { data, error } = await supabase.from('centers').select('slug,name').eq('active', true).order('name');
-        if (error || !data || data.length <= 1) {
-          if (data && data.length <= 1) { try { localStorage.setItem('ilhak_center_chosen', '1'); } catch (_) {} }
-          return;   // 센터 없음/단일/오류 → 폴백
-        }
-        const list = document.getElementById('cp-list');
-        list.innerHTML = '';
-        data.forEach(c => {
-          const b = document.createElement('button');
-          b.type = 'button';
-          b.style.cssText = 'width:100%;text-align:left;padding:15px 16px;border:1.5px solid var(--border-default);border-radius:12px;background:var(--surface-card);color:var(--text-primary);font-size:15px;font-family:inherit;cursor:pointer';
-          b.textContent = c.name || c.slug;
-          b.addEventListener('click', () => {
-            try { localStorage.setItem('ilhak_center', c.slug); localStorage.setItem('ilhak_center_chosen', '1'); } catch (_) {}
-            location.reload();
-          });
-          list.appendChild(b);
-        });
-        document.getElementById('center-picker').style.display = 'block';
-      } catch (_) { /* 폴백 */ }
-    }
-    maybePickCenter();
+    // 센터 선택 화면 없음(10/22) — 센터는 가입 때 초대코드로 서버가 정하고(register_with_code → center_slug), 아래 가입 처리에서 기기에 저장한다.
 
     // [sql/63] 학생 홈 상태 — 아래 renderAttendance/renderSchedule 호출보다 먼저 선언(let 은 선언 줄 전에 읽으면 오류)
     let _stuData = null;     // stuData() 한 번만 부른 결과(Promise)
