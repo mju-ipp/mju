@@ -114,10 +114,11 @@
           <div class="status" id="d-abs-status"></div>
           <div id="d-abs-list"><p class="note">불러오는 중…</p></div>
           <details class="abs-links" id="d-abs-links">
-            <summary>현장교사 기업 링크 <span class="n" id="d-link-n"></span></summary>
-            <p class="dsec-lede">링크를 받은 사람은 로그인 없이 그 기업 학생의 휴가·출장을 체크할 수 있어요. 링크 주소는 만들 때 한 번만 보여요.</p>
+            <summary>기업 담당자 링크 <span class="n" id="d-link-n"></span></summary>
+            <p class="dsec-lede">링크를 받은 사람은 로그인 없이 그 기업 학생만 봐요 — 현장교사: 이번 달·능력단위·월말 할 일, HRD담당자: 월별 출결·전담인력수당·휴가·출장(sql/70). 링크 주소는 만들 때 한 번만 보여요.</p>
             <div class="abs-mk">
               <select id="d-link-co" class="ph-select" aria-label="기업"></select>
+              <select id="d-link-role" class="ph-select" aria-label="역할"><option value="teacher">현장교사</option><option value="hrd">HRD담당자</option></select>
               <input type="text" id="d-link-label" maxlength="40" placeholder="누구에게 주는지 (예: 현장교사 홍길동)" aria-label="링크 받는 사람" />
               <button type="button" class="mju-btn mju-btn--sm" id="d-link-go">링크 만들기</button>
             </div>
@@ -4206,10 +4207,14 @@
     // 현장교사 기업 링크 — 만들기(원문은 이때만) · 목록 · 끊기
     async function dashLinkLoad() {
       const sel = $('d-link-co'); if (!sel) return;
-      const [st, lk] = await Promise.all([
+      let [st, lk] = await Promise.all([
         supabase.from('students').select('company,manager'),
-        supabase.from('company_links').select('id,company_label,label,created_at,expires_at,revoked_at,last_used_at').order('created_at', { ascending: false }),
+        supabase.from('company_links').select('id,company_label,label,role,created_at,expires_at,revoked_at,last_used_at').order('created_at', { ascending: false }),
       ]);
+      if (lk.error && /role/.test(lk.error.message || '')) {   // sql/70 적용 전 — 역할 칸 없이
+        lk = await supabase.from('company_links').select('id,company_label,label,created_at,expires_at,revoked_at,last_used_at').order('created_at', { ascending: false });
+        $('d-link-role').hidden = true;
+      }
       if (lk.error) { $('d-abs-links').hidden = true; return; }
       const cos = [...new Set((st.data || []).map(s => (s.company || '').trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ko'));
       const keep = sel.value;
@@ -4219,7 +4224,7 @@
       const fd = t => t ? new Date(t).toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' }) : '-';
       $('d-link-list').innerHTML = (lk.data || []).map(l => {
         const off = !!l.revoked_at || (l.expires_at && l.expires_at <= new Date().toISOString());
-        return `<div class="abs-link${off ? ' off' : ''}"><span class="lc">${esc(l.company_label)}</span><span class="ll">${esc(l.label || '')}</span>` +
+        return `<div class="abs-link${off ? ' off' : ''}"><span class="lc">${esc(l.company_label)}</span><span class="note">${l.role === 'hrd' ? 'HRD담당자' : '현장교사'}</span><span class="ll">${esc(l.label || '')}</span>` +
           `<span class="note">만든 날 ${fd(l.created_at)} · 마지막 사용 ${fd(l.last_used_at)}</span>` +
           (off ? `<span class="note">${l.revoked_at ? '끊음' : '기한 지남'}</span>` : `<button type="button" class="phone-btn" data-revoke="${esc(l.id)}">끊기</button>`) + `</div>`;
       }).join('') || '<p class="note">만든 링크가 없어요.</p>';
@@ -4236,12 +4241,13 @@
       const co = $('d-link-co').value, label = $('d-link-label').value.trim();
       if (!co) { setStatus($('d-link-status'), '기업을 골라 주세요.', 'error'); return; }
       $('d-link-go').disabled = true;
-      const { data, error } = await supabase.rpc('admin_make_company_link', { p_company: co, p_label: label || null, p_days: null });
+      const role = $('d-link-role').hidden ? null : $('d-link-role').value;
+      const { data, error } = await supabase.rpc('admin_make_company_link', role ? { p_company: co, p_label: label || null, p_days: null, p_role: role } : { p_company: co, p_label: label || null, p_days: null });
       $('d-link-go').disabled = false;
       if (error || !data || !data.ok) { setStatus($('d-link-status'), error ? friendlyError(error) : data && data.reason === 'company' ? '명단에 그 기업 학생이 없어요.' : '만들지 못했어요.', 'error'); return; }
       const url = new URL('field.html', location.href).href.split('#')[0] + '#k=' + data.token;
       const st = $('d-link-status'); st.className = 'status ok';
-      st.innerHTML = `<b>${esc(data.company)}</b> 링크 — 지금만 보여요. 복사해서 현장교사에게 전해 주세요.` +
+      st.innerHTML = `<b>${esc(data.company)}</b> ${data.role === "hrd" ? "HRD담당자" : "현장교사"} 링크 — 지금만 보여요. 복사해서 전해 주세요.` +
         `<div class="abs-url"><input type="text" readonly value="${esc(url)}" aria-label="링크 주소" /><button type="button" class="mju-btn mju-btn--sm" id="d-link-copy">복사</button></div>`;
       $('d-link-copy').addEventListener('click', async () => { try { await navigator.clipboard.writeText(url); $('d-link-copy').textContent = '복사됨'; } catch (_) { st.querySelector('input').select(); } });
       $('d-link-label').value = '';
