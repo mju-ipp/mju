@@ -109,7 +109,8 @@
         <!-- [sql/69·70] 휴가·출장 체크 — 학생·기업 담당자가 체크한 날 → 과정 단위로 옮길 날 제안 → move.py 계획 받기 (docs/LEAVE.md 4단계) -->
         <section class="dsec" id="d-abs-sec">
           <h3 class="dsec-h">휴가·출장 체크 <span class="n" id="d-abs-n"></span>
-            <button type="button" class="phone-btn dsec-act" id="d-abs-plan" disabled>이동 계획 받기</button></h3>
+            <span class="ch-seg dsec-act" id="d-abs-scope" role="group" aria-label="보는 범위"><button type="button" class="chip" data-v="mine">내 학생</button><button type="button" class="chip" data-v="all">전체</button></span>
+            <button type="button" class="phone-btn" id="d-abs-plan" disabled>이동 계획 받기</button></h3>
           <p class="dsec-lede" id="d-abs-hint">과정 단위 — 한 명이라도 빠지는 날은 그 날 전체를 옮겨요. 옮길 날 = 오늘 이후 빈 평일(주말·공휴일 제외), 하루 6시간까지.</p>
           <div class="status" id="d-abs-status"></div>
           <div id="d-abs-list"><p class="note">불러오는 중…</p></div>
@@ -4153,13 +4154,32 @@
       ops.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
       return { out: out.map(d => ({ d, h: day[d].h })), ops, adds, short: need };
     }
+    // [sql/72] 반영·반려됐는데 학생에게 안 알린 건 → 학생마다 한 통(서버가 notified_at 으로 한 번만). 실패해도 다음에 열 때 다시.
+    async function absNotify() {
+      try {
+        const { data, error } = await supabase.rpc('admin_absence_notify');
+        if (error || !data || !data.ok || !data.sent) return '';
+        logAction('휴가·출장 결과 알림', `학생 ${data.sent}명`);
+        return `학생 ${data.sent}명에게 결과 알림을 보냈어요.`;
+      } catch (_) { return ''; }
+    }
+    let absScope = 'mine', absAt = 0;
+    try { absScope = localStorage.getItem('adm_abs_scope') || 'mine'; } catch (_) {}
     async function dashAbsLoad() {
       const list = $('d-abs-list'); if (!list) return;
+      absAt = Date.now();
       const today = ymdLocal(0);
-      const { data: abs, error } = await supabase.from('attendance_absences')
-        .select('id,name,company,course,day,kind,note,by_role,by_name,state,created_at').eq('state', 'open').order('day');
+      const [{ data: abs, error }, me, { data: mgr }] = await Promise.all([
+        supabase.from('attendance_absences')
+          .select('id,student_id,name,company,course,day,kind,note,by_role,by_name,state,created_at').eq('state', 'open').order('day'),
+        myAdminName(),
+        supabase.from('students').select('id,manager'),
+      ]);
       if (error) { $('d-abs-sec').hidden = true; setDashCnt('absence', null); return; }   // sql/69 적용 전
       $('d-abs-sec').hidden = false;
+      document.querySelectorAll('#d-abs-scope .chip').forEach(b => b.classList.toggle('on', b.dataset.v === absScope));
+      const mgrOf = {}; (mgr || []).forEach(s => { mgrOf[s.id] = (s.manager || '').trim(); });
+      const isMine = a => !me || mgrOf[a.student_id] === me;   // 내 이름이 없으면 전부 내 학생으로
       // 그 달 과정 정규시간 — 과정 단위 제안과 '반영' 판정에 씀
       const months = [...new Set((abs || []).map(a => a.day.slice(0, 7)))];
       const courses = [...new Set((abs || []).map(a => a.course).filter(Boolean))];
@@ -4180,12 +4200,20 @@
         await supabase.from('attendance_absences').update({ state: 'applied', handled_at: new Date().toISOString(), handled_by: uid, updated_at: new Date().toISOString() })
           .in('id', gone.map(a => a.id));
       }
-      const open = (abs || []).filter(a => has(a));
+      const sent = await absNotify();   // 방금 반영된 건 + 지난번에 못 보낸 건
+      const openAll = (abs || []).filter(a => has(a));
+      const mineN = openAll.filter(isMine).length;
+      const open = absScope === 'all' ? openAll : openAll.filter(isMine);
       $('d-abs-n').textContent = open.length ? open.length + '건' : '';
-      setDashCnt('absence', open.length);
-      $('d-abs-status').textContent = gone.length ? `정규시간이 없어진 ${gone.length}건은 '반영'으로 표시했어요.` : '';
+      setDashCnt('absence', mineN);   // 오늘 처리할 일·탭 배지 = 내 학생 기준
+      setTabCnt('dash', mineN);
+      $('d-abs-status').textContent = [gone.length ? `정규시간이 없어진 ${gone.length}건은 '반영'으로 표시했어요.` : '', sent].filter(Boolean).join(' ');
       absPlans = [];
-      if (!open.length) { list.innerHTML = '<p class="note">체크된 날이 없어요.</p>'; $('d-abs-plan').disabled = true; return; }
+      if (!open.length) {
+        const others = openAll.length - open.length;
+        list.innerHTML = `<p class="note">${others > 0 ? `${me ? esc(me) + ' 담당 학생의' : '내 학생'} 체크는 없어요. 다른 선생님 담당 ${others}건은 [전체]에서 보여요.` : '체크된 날이 없어요.'}</p>`;
+        $('d-abs-plan').disabled = true; return;
+      }
       // 과정·달마다 묶음
       const groups = new Map();
       open.forEach(a => { const k = (a.course || a.company || '') + '|' + a.day.slice(0, 7); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(a); });
@@ -4212,15 +4240,23 @@
       absPlans = Object.keys(byMonth).sort().map(m => ({ month: m, items: byMonth[m] }));
       $('d-abs-plan').disabled = !absPlans.length;
       list.querySelectorAll('[data-reject]').forEach(b => b.addEventListener('click', async () => {
-        if (!confirm('이 체크를 반려할까요? 학생·현장교사 화면에 "반려됐어요"로 보이고, 같은 날을 다시 체크할 수 있어요.')) return;
+        if (!confirm('이 체크를 반려할까요? 학생에게 "반려됐어요" 알림이 가고, 학생·기업 담당자 화면에도 보여요. 같은 날을 다시 체크할 수 있어요.')) return;
         b.disabled = true;
         const uid = ((await supabase.auth.getSession()).data.session || {}).user?.id || null;
         const { error: e2 } = await supabase.from('attendance_absences').update({ state: 'rejected', handled_at: new Date().toISOString(), handled_by: uid, updated_at: new Date().toISOString() }).eq('id', b.dataset.reject);
         if (e2) { setStatus($('d-abs-status'), friendlyError(e2), 'error'); b.disabled = false; return; }
         logAction('휴가·출장 반려', b.closest('.abs-row').innerText.replace(/\s+/g, ' ').slice(0, 60));
-        dashAbsLoad();
+        dashAbsLoad();   // 다시 불러오면서 반려 알림도 보냄(absNotify)
       }));
     }
+    document.querySelectorAll('#d-abs-scope .chip').forEach(b => b.addEventListener('click', () => {
+      absScope = b.dataset.v; try { localStorage.setItem('adm_abs_scope', absScope); } catch (_) {}
+      dashAbsLoad().catch(() => {});
+    }));
+    // 콘솔로 돌아오면 새 체크를 다시 셈(1분에 한 번까지) — 새로고침 안 해도 배지가 맞게
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible' && absAt && !$('d-abs-sec').hidden && Date.now() - absAt > 60000) dashAbsLoad().catch(() => {});
+    });
     $('d-abs-plan').addEventListener('click', () => {
       // 달마다 한 파일 — 출결점검 scripts\plan_<MMDD>.json 으로 두고 move.py 로 실행(프라임솔루션은 사용자 결정으로 제외 — 받은 뒤 확인)
       const d = new Date(), tag = p2(d.getMonth() + 1) + p2(d.getDate());
@@ -4243,8 +4279,8 @@
     const ymPlus = (ym, n) => { const d = new Date(Number(ym.slice(0, 4)), Number(ym.slice(5)) - 1 + n, 1); return `${d.getFullYear()}-${p2(d.getMonth() + 1)}`; };
     const lastDay = ym => `${ym}-${p2(new Date(Number(ym.slice(0, 4)), Number(ym.slice(5)), 0).getDate())}`;
     const moOf = ym => `${Number(ym.slice(5))}월`;
-    async function cwLoad() {
-      if (!$('cw-month').value) $('cw-month').value = ymdLocal(0).slice(0, 7);
+    // 내 이름(admin_users.display_name) — '내 학생' = 명단 담당(students.manager)이 이 이름인 학생. 휴가·출장 체크도 같이 씀.
+    async function myAdminName() {
       if (cwMe === undefined) {
         try {
           const { data: { session } } = await supabase.auth.getSession();
@@ -4252,6 +4288,11 @@
           cwMe = ((data && data.display_name) || '').trim();
         } catch (_) { cwMe = ''; }
       }
+      return cwMe;
+    }
+    async function cwLoad() {
+      if (!$('cw-month').value) $('cw-month').value = ymdLocal(0).slice(0, 7);
+      await myAdminName();
       document.querySelectorAll('#cw-scope .chip').forEach(b => b.classList.toggle('on', b.dataset.v === cwScope));
       const ym = cwYm(), from = ym + '-01', to = ymPlus(ym, 1) + '-01';
       const alFrom = '2026-01-01';   // 수당은 그 기업 OJT 배정 달 전부(아래 ojtMonths)
