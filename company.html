@@ -536,7 +536,8 @@
     // ---------- 월별 출결 — 월 마감 = 학생 앱 완료 체크(학습일지 작성 + 출석결과확인 등록, sql/71 checks) + 센터 확인 ----------
     // 달 = 학생들의 OJT 배정 달(예정>0) 중 이번 달까지
     const ojtMonths = () => [...new Set(studs().flatMap(s => (s.months || []).filter(m => Number(m.planned) > 0 && m.month <= thisYm).map(m => m.month)))].sort();
-    const checked = (s, m) => (s.checks || []).includes(m);
+    // 학습일지·출석확인 완료 = 학생 앱 완료 체크 또는 센터가 넣은 학생 출석확인 날짜(attendance_month_status — 8·9월은 출석결과 엑셀에서, 10/22)
+    const checked = (s, m) => (s.checks || []).includes(m) || !!((s.status || []).find(x => x.month === m) || {}).student_confirmed_on;
     const centerOn = (s, m) => ((s.status || []).find(x => x.month === m) || {}).center_confirmed_on || null;
     // 머리 숫자용: 지난달까지 중 가장 최근 달, 그 달 앱 체크 안 한 학생 수
     function latestStatusMonth() { const ms = ojtMonths().filter(m => m < thisYm); return ms.length ? ms[ms.length - 1] : null; }
@@ -561,7 +562,7 @@
       h += `<div class="rows">` + rows.map(({ s, mr, ok, cc }) => `<div class="row"><div class="l"><b>${esc(s.name)}</b>` +
           `<span>인정 ${mr.actual != null ? Number(mr.actual) : '—'} / 계획 ${Number(mr.planned) || 0}시간${courseOf(s) && multiCourse() ? ' · ' + esc(courseOf(s)) : ''}</span></div>` +
           `<div class="rr"><span class="pill ${ok ? 'ok' : cur ? 'mu' : 'w'}">${ok ? '학습일지 완료' : cur ? '진행 중' : '학습일지 전'}</span>` +
-          `<small>${cc ? '센터 확인 ' + md(cc) : '센터 확인 전'}</small></div></div>`).join('') + `</div>`;
+          `<small>${cc ? '센터 확인 완료' : '센터 확인 전'}</small></div></div>`).join('') + `</div>`;   // 날짜는 안 보임(8·9월은 마감 사실만 10/22에 기록)
       $('a-view').innerHTML = h;
       $('a-prev')?.addEventListener('click', () => { attnYm = ms[i - 1]; drawAttn(); });
       $('a-next')?.addEventListener('click', () => { attnYm = ms[i + 1]; drawAttn(); });
