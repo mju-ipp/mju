@@ -158,6 +158,12 @@ export const normCo = (s) => (s || '').replace(/㈜|\(주\)|주식회사|\s/g, '
 // withManagers: 담당자 세그먼트 매칭은 공지에서만 사용(자료/일정의 기존 동작 보존)
 export function matchSel(sel, profile, withManagers = false) {
   if (!sel) return false;
+  // (10/22) aud = 받는 쪽(관리자 학생/기업 탭) — 다른 쪽이면 안 보임, 다른 조건이 없으면 그 쪽 전체
+  if (sel.aud) {
+    if ((profile.target_type || 'student') !== sel.aud) return false;
+    const some = k => Array.isArray(sel[k]) && sel[k].length > 0;
+    if (!['targets', 'jobs', 'companies', 'types', 'managers'].some(some)) return true;
+  }
   if (sel.targets && sel.targets.includes(profile.target_type)) return true;
   if (sel.jobs && profile.job_key && sel.jobs.includes(profile.job_key)) return true;
   // 지원자: 단일 job_key 대신 관심직무 배열과 교집합

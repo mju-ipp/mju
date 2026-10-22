@@ -2,7 +2,7 @@
 // push-sender — 공지 푸시 발송기 (Apps Script 대체, 2026-08-20)
 // 미발송 공지(published & !pushed)를 읽어 FCM HTTP v1 로 발송.
 //  · personal 스코프: notice_recipients → push_tokens(device_key) 매칭, 수신자별 제목·본문
-//  · 그 외: push_tokens 전체에서 타겟 매칭(all/job/company/target/type/custom)
+//  · 그 외: push_tokens 전체에서 타겟 매칭(all/job/company/target/type/custom — custom 의 aud 는 학생/기업 구분, 10/22)
 //  · 클릭 시 https://mju-ipp.github.io/mju/notice.html 열림(신규 주소)
 //  · 무효 토큰(UNREGISTERED)은 자동 정리, push_logs 기록, pushed=true 는 발송 전에 선점 마킹(중복 발송 방지)
 //  · 대화방(2026-10-16, docs/CHAT.md 4단계): 선생님 글(chat_messages push_state='pending')만 발송.
@@ -31,6 +31,13 @@ function matches(scope: string, value: string | null, t: Record<string, unknown>
     case 'custom': {
       try {
         const sel = JSON.parse(value || '{}')
+        // (2026-10-22) aud = 받는 쪽(관리자 학생/기업 탭) — 다른 쪽 기기는 빼고, 다른 조건이 없으면 그 쪽 전체.
+        //   기업 공지가 같은 회사 학생에게 새지 않게(학생 기기도 company 값을 가짐)
+        if (sel.aud) {
+          if (String(t.target_type || 'student') !== sel.aud) return false
+          const some = (k: string) => Array.isArray(sel[k]) && sel[k].length > 0
+          if (!['targets', 'jobs', 'companies', 'types', 'managers'].some(some)) return true
+        }
         if (sel.targets?.includes(t.target_type)) return true
         if (sel.jobs?.includes(t.job_key)) return true
         if (sel.companies?.map(normCo).includes(normCo(String(t.company || '')))) return true

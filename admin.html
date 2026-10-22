@@ -75,9 +75,9 @@
         <!-- [개편 2단계] 메뉴 5개. 버튼은 묶음(data-group)의 첫 화면으로 가고, 묶음 안 화면은 위쪽 하위 탭(#subnav)으로 전환.
              기존 해시(#notice·#members·#attn·#library…)는 그대로 유효 — showTab 이 묶음을 찾아 강조한다(docs/ADMIN_REDESIGN.md) -->
         <button class="adm-nav-item act" data-tab="dash" data-group="today" aria-current="page">오늘</button>
-        <button class="adm-nav-item" data-tab="hq" data-group="status">현황</button>
         <button class="adm-nav-item" data-tab="members" data-group="students">학생</button>
-        <button class="adm-nav-item" data-tab="notice" data-group="send">보내기</button>
+        <!-- (10/22) 학생/기업 묶음 분리 — 공지는 묶음마다(학생 › 공지 / 기업 › 공지), '보내기'·'현황' 메뉴는 없앰 -->
+        <button class="adm-nav-item" data-tab="cocodes" data-group="company">기업</button>
         <button class="adm-nav-item" data-tab="chat" data-group="consult">상담</button>
         <!-- (파일럿) '기업 관리'·'센터' 탭 숨김 — 복원 시 nav 버튼과 TAB_KEYS의 'stages','centers'를 되살리면 됨 -->
         <button class="adm-nav-item" data-tab="library" data-group="settings">설정</button>
@@ -154,50 +154,9 @@
         </section>
       </div>
 
-      <!-- 현황 — 연도별 학습기업 참여 현황 (sql/68: IPP 공고 ipp_postings + 우리 쪽 기록 ipp_company_track) -->
-      <div class="tabsec" id="sec-hq" style="display:none">
-        <div class="hq-head">
-          <h2 class="adm-h2" style="margin:0"><span id="hq-title">학습기업</span> <span class="hint" id="hq-fetched"></span></h2>
-          <select id="hq-year" class="ph-select" aria-label="참여 연도"></select>
-          <span class="ch-seg" id="hq-scope" role="group" aria-label="보는 범위"><button type="button" class="chip" data-v="all">전체</button><button type="button" class="chip" data-v="mine">내 기업</button></span>
-        </div>
-        <div class="status" id="hq-status"></div>
-        <div class="stat-row" id="hq-stats"></div>
-        <section class="dsec">
-          <h3 class="dsec-h">진행 단계 <span class="n" id="hq-stage-n"></span></h3>
-          <p class="dsec-lede">우리 쪽 기록 기준 — 기업 줄에서 단계를 고르면 바로 저장돼요</p>
-          <div class="hq-stages" id="hq-stages"></div>
-        </section>
-        <section class="dsec">
-          <h3 class="dsec-h">훈련과정별 모집 인원</h3>
-          <div id="hq-jobs"></div>
-        </section>
-        <section class="dsec">
-          <h3 class="dsec-h">기업 <span class="n" id="hq-co-n"></span>
-            <select id="hq-sort" class="ph-select dsec-act" aria-label="정렬"><option value="due">마감 빠른 순</option><option value="stage">단계 순</option><option value="name">이름 순</option></select></h3>
-          <p class="dsec-lede">담당·단계·매칭·합격은 고르면 바로 저장 · 메모는 칸을 벗어나면 저장 · 굵은 이름 = 내 기업</p>
-          <div id="hq-list"><p class="note">불러오는 중…</p></div>
-          <div class="hq-add">
-            <input type="text" id="hq-add-name" placeholder="IPP에 아직 없는 기업 이름" aria-label="기업 추가" />
-            <button type="button" class="mju-btn mju-btn--secondary mju-btn--sm" id="hq-add-go">기업 추가</button>
-          </div>
-        </section>
-        <section class="dsec dtools">
-          <h3 class="dsec-h">IPP 자료 갱신</h3>
-          <ol class="hq-steps note">
-            <li>아래 버튼을 즐겨찾기 막대로 끌어다 놓기(처음 한 번) — <a class="phone-btn" id="hq-bm" href="#">IPP 현황 복사</a></li>
-            <li>IPP(ipp.mju.ac.kr)에 로그인한 화면에서 그 즐겨찾기를 누르기 → 연도 확인 → 복사됨</li>
-            <li>여기 칸에 붙여넣고 [반영] — 학생 이름·기업 연락처는 복사되지 않아요(공고·인원 숫자만)</li>
-          </ol>
-          <textarea id="hq-paste" class="ph-ta" rows="3" placeholder="IPP에서 복사한 내용을 붙여넣기" aria-label="IPP 복사 내용"></textarea>
-          <button type="button" class="mju-btn mju-btn--sm" id="hq-paste-go" style="margin-top:8px">반영</button>
-          <div class="status" id="hq-paste-status"></div>
-        </section>
-      </div>
-
       <!-- 공지 -->
       <div class="tabsec" id="sec-notice" style="display:none">
-        <h2 class="adm-h2">보내기 <span class="hint">공지 작성 · 발송 기록</span></h2>
+        <h2 class="adm-h2"><span id="n-h">학생 공지</span> <span class="hint" id="n-hint">학생에게만 가요 · 발송 기록</span></h2>
         <div class="adm-2col">
           <div class="card">
             <p class="ph-card-title">공지 작성</p>
@@ -243,12 +202,12 @@
           <span class="ch-seg" id="cw-scope" role="group" aria-label="보는 범위"><button type="button" class="chip" data-v="mine">내 학생</button><button type="button" class="chip" data-v="all">전체</button></span>
         </div>
         <div class="status" id="cw-status"></div>
-        <section class="dsec">
+        <section class="dsec" data-cw="codes">
           <h3 class="dsec-h">기업 초대코드 <span class="n" id="cw-code-n"></span></h3>
           <p class="dsec-lede">기업 담당자가 앱에서 '기업 담당자'로 가입할 때 넣는 코드예요. 가입하면 홈에 '우리 학생 OJT'가 생겨요. [안내 복사]는 문자·메일에 붙여 넣을 문구.</p>
           <div id="cw-code-list"></div>
         </section>
-        <section class="dsec">
+        <section class="dsec" data-cw="tasks">
           <h3 class="dsec-h">월말 할 일 <span class="n" id="cw-task-n"></span>
             <button type="button" class="phone-btn dsec-act" id="cw-task-bulk">이 달 면담일지 모든 기업에 넣기</button></h3>
           <p class="dsec-lede">내부평가·면담일지처럼 기업이 그 달 말까지 센터로 보내야 하는 것. 받으면 [받음]을 누르세요.</p>
@@ -263,12 +222,12 @@
             <button type="button" class="mju-btn mju-btn--sm" id="cw-t-go">넣기</button>
           </div>
         </section>
-        <section class="dsec">
+        <section class="dsec" data-cw="al">
           <h3 class="dsec-h">전담인력활동수당 <span class="n" id="cw-al-n"></span></h3>
           <p class="dsec-lede">행정지원시스템 비용관리(전담자) › 전담인력활동수당 신청 › [신청내역]에서 본 상태를 고르세요. 고르면 바로 저장돼요(확인 시각도 함께).</p>
           <div id="cw-al-list"></div>
         </section>
-        <section class="dsec">
+        <section class="dsec" data-cw="ms">
           <h3 class="dsec-h">월 마감 <span class="n" id="cw-ms-n"></span>
             <button type="button" class="mju-btn mju-btn--sm dsec-act" id="cw-ms-nudge" disabled>미완료 학생에게 알림 보내기</button></h3>
           <p class="dsec-lede">학생이 앱 홈에서 'M월분 학습일지 작성 + 출석결과확인 등록' 완료 체크를 누르면 '완료'로 바뀌어요. 버튼을 누르면 미완료 학생에게 바로 푸시 알림이 가요(같은 달은 10분에 한 번). 센터 확인 날짜는 칸을 벗어나면 저장돼요.</p>
@@ -963,11 +922,10 @@
 
     // 탭 전환 — location.hash 기록·복원(새로고침·뒤로가기·링크 공유에도 탭 유지) + 활성화 시 해당 탭 재조회
     // ⚠️ 'onboard'는 단독 탭이 아니지만 제거 금지 — #onboard 해시 호환(showTab 재매핑)과 sec-onboard 끄기(display 루프)가 이 항목에 의존
-    const TAB_KEYS = ['dash', 'hq', 'notice', 'library', 'calendar', 'consult', 'chat', 'survey', 'members', 'attn', 'cowork', 'onboard', 'recruit']; // (파일럿) 'stages','centers','vote' 탭 제거 — 섹션·로직은 보존, 키만 빼서 진입 차단
+    const TAB_KEYS = ['dash', 'notice', 'conotice', 'cocodes', 'cotasks', 'coallow', 'coclose', 'library', 'calendar', 'consult', 'chat', 'survey', 'members', 'attn', 'cowork', 'onboard', 'recruit']; // (파일럿) 'stages','centers','vote' 탭 제거 — 섹션·로직은 보존, 키만 빼서 진입 차단
     // 탭별 로더 — 아침에 켜둔 콘솔이 로그인 시점 스냅샷에 고정되지 않게, 탭을 열 때마다 새로 조회
     const TAB_LOAD = {
       dash: () => dashLoad(),
-      hq: () => hqLoad(),
       notice: () => { nLoad(); plLoad(); loadAttOptions().catch(() => {}); },
       vote: () => poLoad(),
       library: () => lLoad(),
@@ -979,18 +937,21 @@
       members: () => { if (!document.querySelector('#rg-table .le-save')) regLoad(); uvLoad(); },
       attn: () => attnLoad(),
       cowork: () => cwLoad(),
+      conotice: () => { nLoad(); plLoad(); loadAttOptions().catch(() => {}); },
       recruit: () => rcLoad(),
       stages: () => stLoad(),
     };
     // [개편 2단계] 메뉴 묶음 — 화면 키 → 묶음, 묶음별 하위 탭(순서 = 표시 순서). 새 메뉴 해시(#today 등)는 첫 화면 별칭.
-    const TAB_GROUP = { dash: 'today', hq: 'status', members: 'students', onboard: 'students', attn: 'students', cowork: 'students', notice: 'send', consult: 'consult', chat: 'consult',
-      library: 'settings', calendar: 'settings', recruit: 'settings', survey: 'settings' };
+    const TAB_GROUP = { dash: 'today', members: 'students', onboard: 'students', attn: 'students', notice: 'students', calendar: 'students',
+      cowork: 'company', cocodes: 'company', cotasks: 'company', coallow: 'company', coclose: 'company', conotice: 'company',
+      consult: 'consult', chat: 'consult', library: 'settings', recruit: 'settings', survey: 'settings' };
     const GROUP_SUBS = {
-      students: [['members', '명단'], ['onboard', '명단 등록·추가'], ['attn', '출석 진도'], ['cowork', '기업 담당자 자료']],
+      students: [['members', '명단'], ['onboard', '명단 등록·추가'], ['attn', '출석 진도'], ['notice', '공지'], ['calendar', '일정·할 일']],
+      company: [['cocodes', '기업·초대코드'], ['cotasks', '월말 할 일'], ['coallow', '전담인력수당'], ['coclose', '월 마감'], ['conotice', '공지']],
       consult: [['chat', '대화방 (기업방·1:1)'], ['consult', '1:1 상담']],
-      settings: [['library', '자료'], ['calendar', '일정·할 일'], ['recruit', 'FAQ'], ['survey', '만족도·설문']],
+      settings: [['library', '자료'], ['recruit', 'FAQ'], ['survey', '만족도·설문']],
     };
-    const TAB_ALIAS = { today: 'dash', status: 'hq', students: 'members', send: 'notice', settings: 'library' };
+    const TAB_ALIAS = { today: 'dash', students: 'members', company: 'cocodes', cowork: 'cocodes', send: 'notice', settings: 'library' };
     function resolveTab(t) { return TAB_ALIAS[t] || t; }
     function renderSubnav(key) {
       const box = $('subnav'); const subs = GROUP_SUBS[TAB_GROUP[key]];
@@ -1009,6 +970,11 @@
       const key = tab;   // 하위 탭 강조용(onboard 는 members 섹션의 등록 세그먼트로 재매핑되기 전 값)
       let seg = null;
       if (tab === 'onboard') { tab = 'members'; seg = 'onboard'; }   // '명단 등록' = 가입자 섹션의 등록 세그먼트
+      // (10/22) 기업 묶음 — 기업 담당자 자료(sec-cowork) 한 화면을 칸별로 나눠 보여 줌 / 공지는 같은 화면을 학생·기업 대상으로
+      const CW_VIEW = { cocodes: 'codes', cotasks: 'tasks', coallow: 'al', coclose: 'ms' };
+      if (CW_VIEW[tab]) { cwView(CW_VIEW[tab]); tab = 'cowork'; }
+      if (tab === 'notice' || tab === 'conotice') { noticeAud(tab === 'conotice' ? 'company' : 'student'); tab = 'notice'; }
+      if (tab === 'calendar' && cPicker) cPicker.setAud('student');
       const grp = TAB_GROUP[key];
       document.querySelectorAll('.tabs button').forEach(x => {
         const on = x.dataset.group === grp;
@@ -1018,7 +984,7 @@
       });
       renderSubnav(key);
       closeStuSheet();
-      TAB_KEYS.forEach(t => { const el = $('sec-' + t); if (el) el.style.display = (t === tab ? 'block' : 'none'); });
+      TAB_KEYS.concat(['cowork']).forEach(t => { const el = $('sec-' + t); if (el) el.style.display = (t === tab ? 'block' : 'none'); });
       if (tab === 'members') moShow(seg || 'roster');   // 명시적 #members = 항상 현황(배지·지표 진입점 착지 보정). #onboard 만 등록 세그먼트
       if (adminEmail && !(opts && opts.noLoad) && TAB_LOAD[tab]) TAB_LOAD[tab]();   // 로그인 전에는 조회 안 함
     }
@@ -1196,6 +1162,9 @@
     // 한 가입자(p)가 선택(sel)에 해당하는가 — 학생 페이지 matchSel 과 동일 규칙(union)
     function matchSel(sel, p) {
       if (!p) return false;
+      // (10/22) aud = 받는 쪽(학생 'student' / 기업 'company') — 먼저 거르고, 다른 조건이 없으면 그 쪽 전체
+      if (sel.aud && (p.target_type || 'student') !== sel.aud) return false;
+      if (sel.aud && selEmpty(sel)) return true;
       if (sel.targets && sel.targets.includes(p.target_type)) return true;
       if (sel.jobs && p.job_key && sel.jobs.includes(p.job_key)) return true;
       if (sel.companies && sel.companies.length && p.company && sel.companies.some(c => normCo(c) === normCo(p.company))) return true;
@@ -1208,7 +1177,7 @@
     // 작성 폼 대상 선택기: 전체/상세 토글 + 칩(매칭학생 전체·직무 / 기업담당자 전체 / 유형) + 예상 대상 N명
     function buildPicker(mountId, allLabel, allDesc, opts) {
       const noPeople = !!(opts && opts.noPeople);   // 익명 응답(설문·투표)은 명단 지정이 무의미 — 버튼 숨김
-      const sel = { jobs: [], companies: [], targets: [], types: [], managers: [], people: [] };
+      const sel = { jobs: [], companies: [], targets: [], types: [], managers: [], people: [], aud: null };
       const st = { mode: 'all' };
       const mount = $(mountId);
       mount.innerHTML =
@@ -1236,7 +1205,7 @@
           return;
         }
         const dims = await loadRegDims();
-        const n = (st.mode === 'all') ? dims.length : dims.filter(r => matchSel(sel, r)).length;
+        const n = (st.mode === 'all') ? dims.filter(r => !sel.aud || (r.target_type || 'student') === sel.aud).length : dims.filter(r => matchSel(sel, r)).length;
         if (st.mode === 'custom' && selEmpty(sel)) { countEl.style.color = 'var(--coral-600)'; countEl.textContent = '받을 대상을 선택하세요'; }
         else { countEl.style.color = ''; countEl.innerHTML = `예상 대상 <b>${n}명</b>`; }
       }
@@ -1274,6 +1243,15 @@
       }
       function render() {
         chipsBox.innerHTML = '';
+        if (sel.aud === 'company') {   // 기업 공지 — 기업 담당자만(학생 제외)
+          chipsBox.appendChild(group('학습기업', row => {
+            row.style.maxHeight = '170px'; row.style.overflow = 'auto';
+            (companies || []).forEach(co => row.appendChild(tag(co, () => sel.companies.includes(co), () => {
+              if (sel.companies.includes(co)) sel.companies = sel.companies.filter(x => x !== co); else sel.companies.push(co);
+            })));
+          }));
+          recount(); return;
+        }
         chipsBox.appendChild(group('매칭학생', row => {
           row.appendChild(tag('전체', () => sel.targets.includes('student'), () => {
             if (sel.targets.includes('student')) sel.targets = sel.targets.filter(x => x !== 'student');
@@ -1284,14 +1262,14 @@
             if (sel.jobs.includes(j)) sel.jobs = sel.jobs.filter(x => x !== j); else sel.jobs.push(j);
           })));
         }));
-        chipsBox.appendChild(group('기업담당자', row => {
+        if (!sel.aud) chipsBox.appendChild(group('기업담당자', row => {
           row.appendChild(tag('전체', () => sel.targets.includes('company'), () => {
             if (sel.targets.includes('company')) sel.targets = sel.targets.filter(x => x !== 'company');
             else { sel.targets.push('company'); sel.companies = []; }
           }));
         }));
         if ((companies || []).length) {
-          chipsBox.appendChild(group('학습기업(개별)', row => {
+          chipsBox.appendChild(group(sel.aud === 'student' ? '소속 기업' : '학습기업(개별)', row => {
             row.style.maxHeight = '132px'; row.style.overflow = 'auto';
             (companies || []).forEach(co => row.appendChild(tag(co, () => sel.companies.includes(co), () => {
               sel.targets = sel.targets.filter(x => x !== 'company');
@@ -1322,14 +1300,14 @@
       pplBtn.addEventListener('click', () => { setMode('people'); renderPeople(); recount(); });
       recount();
       // custom 직렬화 — people(이름·전화)은 절대 공개 행에 넣지 않음(화이트리스트)
-      const serial = () => JSON.stringify({ jobs: sel.jobs, companies: sel.companies, targets: sel.targets, types: sel.types, managers: sel.managers });
+      const serial = () => JSON.stringify({ jobs: sel.jobs, companies: sel.companies, targets: sel.targets, types: sel.types, managers: sel.managers, ...(sel.aud ? { aud: sel.aud } : {}) });
       return {
         get mode() { return st.mode; }, sel, serial,
         valid() { return st.mode === 'all' || (st.mode === 'people' ? sel.people.length > 0 : !selEmpty(sel)); },
         label() {
-          if (st.mode === 'all') return '전체';
+          if (st.mode === 'all') return sel.aud === 'student' ? '학생 전체' : sel.aud === 'company' ? '기업 담당자 전체' : '전체';
           if (st.mode === 'people') return '명단 지정 ' + sel.people.length + '명';
-          const p = [];
+          const p = sel.aud === 'company' ? ['기업 담당자'] : [];
           if (sel.targets.includes('student')) p.push('매칭학생 전체');
           if (sel.jobs.length) p.push(sel.jobs.join('·'));
           if (sel.targets.includes('company')) p.push('기업담당자 전체');
@@ -1338,7 +1316,18 @@
           if (sel.managers.length) p.push('담당 ' + sel.managers.join('·'));
           return p.join(' / ');
         },
-        async count() { if (st.mode === 'people') return sel.people.length; const d = await loadRegDims(); return st.mode === 'all' ? d.length : d.filter(r => matchSel(sel, r)).length; },
+        async count() { if (st.mode === 'people') return sel.people.length; const d = await loadRegDims(); return st.mode === 'all' ? d.filter(r => !sel.aud || (r.target_type || 'student') === sel.aud).length : d.filter(r => matchSel(sel, r)).length; },
+        // (10/22) 학생/기업 탭 — 받는 쪽을 정함. 'all' 도 저장할 땐 그 쪽 전체(custom {aud})로
+        setAud(a) {
+          if (sel.aud === a) return; sel.aud = a || null;
+          sel.jobs = []; sel.companies = []; sel.targets = []; sel.types = []; sel.managers = []; sel.people = [];
+          allBtn.querySelector('.rc-t').textContent = a === 'student' ? '학생 전체' : a === 'company' ? '기업 전체' : allLabel;
+          allBtn.querySelector('.rc-s').textContent = a === 'student' ? '가입한 학생 모두' : a === 'company' ? '가입한 기업 담당자 모두' : allDesc;
+          cusBtn.querySelector('.rc-s').textContent = a === 'company' ? '기업 고르기' : '직무·기업·유형';
+          pplBtn.style.display = (a === 'company' || noPeople) ? 'none' : '';
+          setMode('all'); recount();
+        },
+        get aud() { return sel.aud; },
         reset() { sel.jobs = []; sel.companies = []; sel.targets = []; sel.types = []; sel.managers = []; sel.people = []; setMode('all'); recount(); },
       };
     }
@@ -1396,12 +1385,22 @@
       return hashes;
     }
     let nPicker = null, lPicker = null, cPicker = null;
+    // (10/22) 공지 받는 쪽 — 학생 › 공지 = 'student', 기업 › 공지 = 'company'(기업 담당자 기기만, 같은 회사 학생에게 안 감)
+    let nAud = 'student';
+    function noticeAud(a) {
+      nAud = a;
+      if ($('n-h')) $('n-h').textContent = a === 'company' ? '기업 공지' : '학생 공지';
+      if ($('n-hint')) $('n-hint').textContent = a === 'company' ? '가입한 기업 담당자에게만 가요 · 발송 기록' : '학생에게만 가요 · 발송 기록';
+      if (nPicker) nPicker.setAud(a);
+    }
+    // 기업 묶음 칸 — sec-cowork 의 [data-cw] 섹션 중 하나만
+    function cwView(v) { document.querySelectorAll('#sec-cowork [data-cw]').forEach(x => { x.style.display = x.dataset.cw === v ? '' : 'none'; }); }
     async function initPickers() {
       await applyCenterVocab();   // [vocab] 센터별 직무·유형·담당 등을 타게팅·드롭다운에 반영(드롭다운 생성 전에)
       await loadJobs(); await loadCompanies();
-      if (!nPicker) nPicker = buildPicker('n-tgt', '전체 발송', '가입자 모두');
+      if (!nPicker) { nPicker = buildPicker('n-tgt', '전체 발송', '가입자 모두'); nPicker.setAud(nAud); }
       if (!lPicker) lPicker = buildPicker('l-tgt', '전체 공개', '가입자 모두 열람');
-      if (!cPicker) cPicker = buildPicker('c-tgt', '전체', '가입자 모두에게 표시');
+      if (!cPicker) { cPicker = buildPicker('c-tgt', '전체', '가입자 모두에게 표시'); cPicker.setAud('student'); }   // 일정은 학생 묶음(10/22)
     }
     // 실제 푸시 대상(알림 켠 기기) 카운트 — registrations(가입자)와 별개
     let pushDims = null;
@@ -1462,8 +1461,8 @@
         $('nv-confirm').disabled = false; closeModal('nv-veil');
         return;
       }
-      const scope = nPicker.mode === 'all' ? 'all' : 'custom';
-      const value = nPicker.mode === 'all' ? null : nPicker.serial();
+      const scope = nPicker.mode === 'all' && !nPicker.aud ? 'all' : 'custom';   // 학생/기업 탭에선 '전체'도 그 쪽만
+      const value = scope === 'all' ? null : nPicker.serial();
       const lbl = nPicker.label();
       $('nv-confirm').disabled = true; setStatus($('n-status'), '발행 중...', 'info');
       // created_by(이메일)는 공개 읽기 테이블에 노출되므로 저장하지 않음 — admin_logs(관리자 전용)가 기록
@@ -1950,7 +1949,7 @@
         $('c-title').value = ''; $('c-memo').value = ''; $('c-push').checked = false; if ($('c-q')) $('c-q').value = ''; cPicker.reset(); cLoad();
         return;
       }
-      const job = cPicker.mode === 'all' ? null : ('custom:' + cPicker.serial());
+      const job = cPicker.mode === 'all' && !cPicker.aud ? null : ('custom:' + cPicker.serial());
       $('c-add').disabled = true;
       const { error } = await supabase.from('calendar_events').insert({ title, event_date: date, kind, job_key: job, memo });
       $('c-add').disabled = false;
@@ -4678,233 +4677,6 @@
     });
     $('at-refresh')?.addEventListener('click', () => { attnCache = null; attnLoad(true); });
 
-    // ===== 현황 — 연도별 학습기업 참여 현황 (sql/68) =====
-    // IPP 공고(ipp_postings, 북마클릿으로 복사→붙여넣기) + 우리 쪽 기록(ipp_company_track: 담당·단계·매칭·합격·메모).
-    // 기업 = _norm_co 이름 키로 묶음. 범위: 전체 / 내 기업(기록의 담당직원 = 내 이름). 고른 값은 이 기기에 기억.
-    const HQ_STAGES = ['① 참여신청 안내', '② 서류 수령·참여신청', '③ 현장실사', '④ 지정·전담인력 교육 안내', '⑤ 과정개발 자료 수령',
-      '⑥ 개발진 서약·직무추가', '⑦ 과정개발·적합성심사', '⑧ 실시신고 준비', '⑨ 실시신고·OJT 안내', '보류'];
-    const HQ_MATCH = ['직무기술서 게시', '이력서 송부', '면접', '합격', '미선발'];
-    const hqPref = (k, d) => { try { return localStorage.getItem('adm_hq_' + k) || d; } catch (_) { return d; } };
-    const hqSavePref = (k, v) => { try { localStorage.setItem('adm_hq_' + k, v); } catch (_) {} };
-    let hqYear = Number(hqPref('year', '')) || null, hqScope = hqPref('scope', 'all'), hqSort = hqPref('sort', 'due');
-    let hqStageOn = '', hqStageFilter = false, hqMe, hqPosts = [], hqTrack = [];
-    const hqKey = s => String(s || '').replace(/㈜|\(주\)|주식회사|\s/g, '');
-    const hqName = s => String(s || '').replace(/㈜|\(주\)|주식회사/g, '').replace(/\s+/g, ' ').trim();
-    const hqDay = s => s ? new Date(s + 'T00:00:00') : null;
-    const hqToday = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; };
-
-    // IPP 북마클릿 — ipp.mju.ac.kr 로그인 화면에서 실행. 바깥 변수를 쓰지 않는다(toString 으로 즐겨찾기 주소가 됨).
-    // 공고 목록·지원자 수·담당교수만 모아 복사(학생 이름·연락처·기업 담당자 연락처는 안 담음).
-    function ippCopy() {
-      if (!/(^|\.)ipp\.mju\.ac\.kr$/.test(location.hostname) || !window.jQuery) { alert('IPP(ipp.mju.ac.kr)에 로그인한 화면에서 눌러 주세요.'); return; }
-      var y = prompt('IPP에서 가져올 참여 연도', String(new Date().getFullYear() + 1));
-      if (!y || !/^\d{4}$/.test(y.trim())) return;
-      y = y.trim();
-      var jq = window.jQuery;
-      var post = function (u, d) { return new Promise(function (ok, no) { jq.ajax({ type: 'POST', url: u, data: d, dataType: 'json' }).then(ok, no); }); };
-      var list = function (r, k) { var v = r && r[k]; if (typeof v === 'string') v = Function('return ' + v)(); return v || []; };
-      var findList = function (r) { var k = Object.keys(r || {}).filter(function (x) { return /List$/.test(x); })[0]; return list(r, k); };
-      Promise.all([
-        post('/myPage/work/centerPF.do?method=workProgramList', { PAGE_SIZE: 1000, CURR_PAGE: 1, SCH_WORK_YEAR: y, SCH_WORK_TERM: '', SCH_COMP_NM: '', MOZIP: '', SCH_DISPOSAL_STATE: '', SCH_PROGRAM: '', SCH_WORK_TYPE: '' }),
-        post('/myPage/work/centerPF.do?method=getMngApplyStudList', { PAGE_SIZE: 1000, CURR_PAGE: 1, SCH_WORK_YEAR: y, SCH_COMP_NM: '', MOZIP: '', NOT_APP: '', SCH_MY_COMP: '', SCH_MY_STD: '' }),
-        post('/myPage/long/centerPF.do?method=getCompList', { CURR_PAGE: 1, PAGE_SIZE: 5000, SCH_COMP_NM: '', SCH_PROF_ID: '', SCH_DISPOSAL_STATE: '', SCH_COMP_PART_TYPE: '' })
-      ]).then(function (res) {
-        var wp = list(res[0], 'workProgramList'), ap = {}, prof = {};
-        list(res[1], 'appStuList').forEach(function (a) { ap[a.WORK_SEQ] = a; });
-        findList(res[2]).forEach(function (c) { prof[c.COMP_SEQ] = c.CENTER_PF_NM; });
-        var rows = wp.map(function (x) {
-          var a = ap[x.WORK_SEQ] || {};
-          return { work_seq: x.WORK_SEQ, comp_seq: x.COMP_SEQ, comp_nm: String(x.COMP_NM || '').trim(), program_nm: x.PROGRAM_NM,
-            work_type: x.WORK_TYPE_NM, mozip: x.MOZIP_NM, disposal: x.DISPOSAL_STATE_NM, recruit_st: x.RECRUIT_ST_DT,
-            recruit_end: x.RECRUIT_END_DT, recruit_num: x.RECRUIT_NUM, reg_date: x.REG_DATE, app_cnt: a.APP_CNT,
-            offjt_st: a.OFFJT_ST_DT, offjt_end: a.OFFJT_END_DT, ojt_st: a.OJT_ST_DT, ojt_end: a.OJT_END_DT, prof_nm: prof[x.COMP_SEQ] || '' };
-        });
-        if (!rows.length) { alert(y + '년 공고가 없어요. 연도를 확인해 주세요.'); return; }
-        var text = JSON.stringify({ kind: 'ipp_postings', v: 1, year: Number(y), fetched_at: new Date().toISOString(), rows: rows });
-        var done = function () { alert(y + '년 공고 ' + rows.length + '건을 복사했어요.\n관리자 앱 [현황] 맨 아래 칸에 붙여넣고 [반영]을 누르세요.'); };
-        var fallback = function () { var t = document.createElement('textarea'); t.value = text; document.body.appendChild(t); t.select(); var o = document.execCommand('copy'); t.remove(); if (o) done(); else prompt('복사가 막혔어요. 아래 내용을 전체 선택해 복사하세요.', text); };
-        if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, fallback); else fallback();
-      }, function () { alert('IPP에서 읽지 못했어요. 로그인이 풀렸는지 확인해 주세요.'); });
-    }
-    (() => {
-      const a = $('hq-bm'); if (!a) return;
-      a.href = 'javascript:' + encodeURIComponent('(' + ippCopy.toString() + ')()');
-      a.addEventListener('click', e => { e.preventDefault(); alert('이 버튼은 즐겨찾기 막대로 끌어다 놓은 뒤, IPP 화면에서 눌러야 해요.'); });
-    })();
-
-    async function hqLoad() {
-      const list = $('hq-list'); if (!list) return;
-      if (hqMe === undefined) {
-        try {
-          const { data: { session } } = await supabase.auth.getSession();
-          const { data } = await supabase.from('admin_users').select('display_name').eq('user_id', session.user.id).maybeSingle();
-          hqMe = ((data && data.display_name) || '').trim();
-        } catch (_) { hqMe = ''; }
-      }
-      const [ys, ts] = await Promise.all([supabase.from('ipp_postings').select('year'), supabase.from('ipp_company_track').select('year')]);
-      if (ys.error || ts.error) {
-        const m = (ys.error || ts.error).message || '';
-        loadFail(list, /relation|does not exist|PGRST205|42P01|schema cache/i.test(m) ? '서버 설정(sql/68) 적용 후 쓸 수 있어요.' : '현황을 불러오지 못했어요. (' + m + ')', hqLoad);
-        return;
-      }
-      const years = [...new Set([...(ys.data || []), ...(ts.data || [])].map(r => r.year))].sort((a, b) => b - a);
-      if (!hqYear || !years.includes(hqYear)) hqYear = years[0] || (new Date().getFullYear() + 1);
-      $('hq-year').innerHTML = (years.length ? years : [hqYear]).map(y => `<option value="${y}"${y === hqYear ? ' selected' : ''}>${y}년</option>`).join('');
-      const [p, t] = await Promise.all([
-        supabase.from('ipp_postings').select('*').eq('year', hqYear),
-        supabase.from('ipp_company_track').select('*').eq('year', hqYear),
-      ]);
-      if (p.error || t.error) { loadFail(list, '현황을 불러오지 못했어요. (' + (p.error || t.error).message + ')', hqLoad); return; }
-      hqPosts = p.data || []; hqTrack = t.data || [];
-      hqDraw();
-    }
-    function hqCompanies() {
-      const m = new Map();
-      const get = (key, nm) => { if (!m.has(key)) m.set(key, { key, name: hqName(nm), posts: [], track: null }); return m.get(key); };
-      hqPosts.forEach(p => get(p.comp_key, p.comp_nm).posts.push(p));
-      hqTrack.forEach(t => { get(t.comp_key, t.comp_nm).track = t; });
-      const today = hqToday();
-      return [...m.values()].map(c => {
-        const open = c.posts.filter(p => p.mozip === '모집중');
-        const due = open.map(p => hqDay(p.recruit_end)).filter(d => d && d >= today).sort((a, b) => a - b)[0] || null;
-        const bad = c.posts.filter(p => (p.ojt_st && p.ojt_end && p.ojt_end < p.ojt_st) || (p.offjt_st && p.offjt_end && p.offjt_end < p.offjt_st));
-        return Object.assign(c, {
-          mine: !!(hqMe && c.track && c.track.manager === hqMe),
-          industry: c.posts.some(p => p.work_type === '산업형'),
-          recruit: c.posts.filter(p => p.mozip !== '모집마감').reduce((a, p) => a + (p.recruit_num || 0), 0),
-          apps: c.posts.reduce((a, p) => a + (p.app_cnt || 0), 0),
-          programs: [...new Set(c.posts.map(p => p.program_nm).filter(Boolean))],
-          prof: c.posts.map(p => p.prof_nm).find(Boolean) || '',
-          due, bad,
-        });
-      });
-    }
-    function hqDraw() {
-      const all = hqCompanies(), today = hqToday();
-      const scoped = hqScope === 'mine' ? all.filter(c => c.mine) : all;
-      $('hq-title').textContent = hqYear + ' 학습기업';
-      const f = hqPosts.map(p => p.fetched_at).filter(Boolean).sort().pop();
-      $('hq-fetched').textContent = f ? 'IPP 반영 ' + fmtFetched(f) : 'IPP 자료 없음 — 맨 아래에서 갱신';
-      document.querySelectorAll('#hq-scope .chip').forEach(b => b.classList.toggle('on', b.dataset.v === hqScope));
-      $('hq-sort').value = hqSort;
-
-      // 숫자
-      const posts = scoped.flatMap(c => c.posts), withPosts = scoped.filter(c => c.posts.length);
-      const open = posts.filter(p => p.mozip === '모집중'), before = posts.filter(p => p.mozip === '모집전');
-      const soon = open.filter(p => { const d = hqDay(p.recruit_end); return d && d >= today && (d - today) / 864e5 <= 14; });
-      const passed = scoped.reduce((a, c) => a + ((c.track && c.track.passed) || 0), 0);
-      const matching = scoped.filter(c => c.track && c.track.matching).length;
-      const cell = (k, v, s, warn) => `<div class="stat-cell${warn ? ' warn' : ''}"><div class="sk">${k}</div><div class="sv">${v}</div>${s ? `<div class="note" style="margin:2px 0 0">${s}</div>` : ''}</div>`;
-      $('hq-stats').innerHTML =
-        cell('참여 기업', withPosts.length + '곳', `산업형 ${withPosts.filter(c => c.industry).length} · 자율형 ${withPosts.filter(c => !c.industry).length}` + (scoped.length > withPosts.length ? ` · IPP 공고 없음 ${scoped.length - withPosts.length}` : '')) +
-        cell('모집 중 공고', open.length + '건', before.length ? `모집 전 ${before.length}건 따로` : '') +
-        cell('지원 / 모집', `${posts.reduce((a, p) => a + (p.app_cnt || 0), 0)} / ${scoped.reduce((a, c) => a + c.recruit, 0)}명`, '모집 중·모집 전 공고') +
-        cell('2주 안 마감', soon.length + '건', soon.map(p => `${Number(p.recruit_end.slice(5, 7))}/${Number(p.recruit_end.slice(8))} ${esc(hqName(p.comp_nm))}`).join('<br/>'), soon.length > 0) +
-        cell('합격', passed + '명', matching ? `매칭 진행 ${matching}곳` : '');
-
-      // 단계 분포(누르면 그 단계만)
-      const stOf = c => (c.track && c.track.stage) || '';
-      const cnt = s => scoped.filter(c => stOf(c) === s).length;
-      const chips = [...HQ_STAGES, ''].map(s => ({ s, n: cnt(s) })).filter(x => x.n || (hqStageFilter && x.s === hqStageOn));
-      $('hq-stage-n').textContent = `${scoped.length - cnt('')} / ${scoped.length}곳 기록`;
-      $('hq-stages').innerHTML = chips.map(x => `<button type="button" class="chip${hqStageFilter && x.s === hqStageOn ? ' on' : ''}" data-s="${esc(x.s)}">${esc(x.s || '단계 없음')} <b>${x.n}</b></button>`).join('');
-      $('hq-stages').querySelectorAll('.chip').forEach(b => b.addEventListener('click', () => {
-        if (hqStageFilter && hqStageOn === b.dataset.s) { hqStageFilter = false; hqStageOn = ''; } else { hqStageFilter = true; hqStageOn = b.dataset.s; }
-        hqDraw();
-      }));
-
-      // 훈련과정별
-      const jobs = new Map();
-      posts.filter(p => p.mozip !== '모집마감').forEach(p => {
-        const k = p.program_nm || '(과정 없음)'; const j = jobs.get(k) || { n: 0, cos: new Set() };
-        j.n += p.recruit_num || 0; j.cos.add(p.comp_key); jobs.set(k, j);
-      });
-      const jl = [...jobs.entries()].sort((a, b) => b[1].n - a[1].n), jmax = Math.max(1, ...jl.map(([, j]) => j.n));
-      $('hq-jobs').innerHTML = jl.length ? jl.map(([k, j]) => `<div class="hq-job"><span>${esc(k)}</span><span class="bar"><i style="width:${Math.round(j.n / jmax * 100)}%"></i></span><span class="note">${j.n}명 · ${j.cos.size}곳</span></div>`).join('')
-        : '<p class="note">IPP 자료를 반영하면 보여요.</p>';
-
-      // 기업 목록
-      let rows = hqStageFilter ? scoped.filter(c => stOf(c) === hqStageOn) : scoped;
-      const si = c => { const i = HQ_STAGES.indexOf(stOf(c)); return i < 0 ? 99 : i; };
-      rows = rows.slice().sort((a, b) =>
-        hqSort === 'name' ? a.name.localeCompare(b.name, 'ko')
-        : hqSort === 'stage' ? (si(a) - si(b)) || a.name.localeCompare(b.name, 'ko')
-        : ((a.due ? a.due.getTime() : 9e15) - (b.due ? b.due.getTime() : 9e15)) || a.name.localeCompare(b.name, 'ko'));
-      $('hq-co-n').textContent = rows.length + '곳' + (hqStageFilter ? ` · ${hqStageOn || '단계 없음'}만` : '');
-      const opt = (list, v, empty) => `<option value="">${empty}</option>` + list.map(x => `<option${x === v ? ' selected' : ''}>${esc(x)}</option>`).join('')
-        + (v && !list.includes(v) ? `<option selected>${esc(v)}</option>` : '');
-      const list = $('hq-list');
-      list.innerHTML = rows.length ? rows.map(c => {
-        const t = c.track || {}, dd = c.due ? Math.round((c.due - today) / 864e5) : null;
-        const meta = [c.programs.join(' · '), c.prof && '담당교수 ' + c.prof].filter(Boolean).join(' · ');
-        const warn = c.bad.length ? `<span class="hq-warn">IPP 날짜 확인 — ${c.bad.map(p => esc(p.program_nm || '')).join(', ')} 교육기간 끝이 시작보다 빨라요</span>` : '';
-        return `<div class="hq-row${c.mine ? ' mine' : ''}" data-key="${esc(c.key)}" data-name="${esc(c.name)}">` +
-          `<span class="nm"><b>${esc(c.name)}</b>${c.industry ? ' <span class="hq-tag">산업형</span>' : ''}<br/><span class="note">${esc(meta) || (c.posts.length ? '' : 'IPP 공고 없음')}</span>${warn}</span>` +
-          `<span class="val">${c.posts.length ? `지원 ${c.apps} / ${c.recruit}명` : '-'}</span>` +
-          `<span class="due${dd !== null && dd <= 14 ? ' hq-soon' : ''}">${c.due ? `${c.due.getMonth() + 1}/${c.due.getDate()} 마감 · D-${dd}` : (c.posts.length ? (c.posts.some(p => p.mozip === '모집전') ? '모집 전' : '마감') : '')}</span>` +
-          `<span class="ctl">` +
-            `<select class="ph-select" data-f="manager" aria-label="담당직원">${opt(window.MANAGERS || [], t.manager || '', '담당 -')}</select>` +
-            `<select class="ph-select" data-f="stage" aria-label="단계">${opt(HQ_STAGES, t.stage || '', '단계 -')}</select>` +
-            `<select class="ph-select" data-f="matching" aria-label="매칭">${opt(HQ_MATCH, t.matching || '', '매칭 -')}</select>` +
-            `<label class="note">합격 <input type="number" min="0" step="1" data-f="passed" value="${t.passed ?? ''}" aria-label="합격 인원"></label>` +
-            `<input type="text" class="hq-memo" data-f="memo" value="${esc(t.memo || '')}" placeholder="메모" aria-label="메모">` +
-            (c.posts.length ? '' : `<button type="button" class="ch-link" data-del="1">기록 지우기</button>`) +
-          `</span></div>`;
-      }).join('') : `<p class="note">${hqScope === 'mine' ? (hqMe ? `${esc(hqMe)} 담당으로 고른 기업이 없어요 — [전체]에서 기업 줄의 '담당'을 고르세요.` : '내 이름이 없어요 — 상담 › 대화방에서 이름을 넣으면 내 기업을 고를 수 있어요.') : 'IPP 자료를 반영하거나 기업을 추가하세요.'}</p>`;
-      list.querySelectorAll('.hq-row').forEach(row => {
-        const name = row.dataset.name;
-        row.querySelectorAll('select[data-f]').forEach(s => s.addEventListener('change', () => hqSave(name, { [s.dataset.f]: s.value })));
-        row.querySelectorAll('input[data-f]').forEach(i => i.addEventListener('change', () => hqSave(name, { [i.dataset.f]: i.value.trim() })));
-        const del = row.querySelector('[data-del]');
-        if (del) del.addEventListener('click', async () => {
-          if (!confirm(`${name} 기록(담당·단계·메모)을 지울까요?`)) return;
-          const { error } = await supabase.rpc('set_ipp_company', { p_year: hqYear, p_company: name, p_delete: true });
-          if (error) { setStatus($('hq-status'), '지우지 못했어요: ' + error.message, 'error'); return; }
-          hqTrack = hqTrack.filter(x => x.comp_key !== hqKey(name)); hqDraw();
-        });
-      });
-    }
-    async function hqSave(name, fields) {
-      const { data, error } = await supabase.rpc('set_ipp_company', { p_year: hqYear, p_company: name, p_fields: fields });
-      if (error || !data || !data.ok) {
-        const m = (error && error.message) || '';
-        setStatus($('hq-status'), /bad_passed/.test(m) ? '합격 인원은 0 이상 숫자로 넣어주세요.' : /PGRST202|42883|function|schema cache/i.test(m) ? '서버 설정(sql/68) 적용 후 쓸 수 있어요.' : '저장하지 못했어요: ' + m, 'error');
-        return;
-      }
-      const key = hqKey(name), i = hqTrack.findIndex(x => x.comp_key === key);
-      const rec = Object.assign(i >= 0 ? hqTrack[i] : { comp_key: key, comp_nm: name, year: hqYear },
-        { manager: data.manager, stage: data.stage, matching: data.matching, passed: data.passed, memo: data.memo });
-      if (i < 0) hqTrack.push(rec);
-      setStatus($('hq-status'), `${name} 저장`, 'ok');
-      logAction('기업 현황 기록', `${hqYear} ${name} ` + Object.entries(fields).map(([k, v]) => `${k}=${v}`).join(' '));
-      hqDraw();
-    }
-    $('hq-year')?.addEventListener('change', e => { hqYear = Number(e.target.value); hqSavePref('year', String(hqYear)); hqStageFilter = false; hqLoad(); });
-    document.querySelectorAll('#hq-scope .chip').forEach(b => b.addEventListener('click', () => { hqScope = b.dataset.v; hqSavePref('scope', hqScope); hqDraw(); }));
-    $('hq-sort')?.addEventListener('change', e => { hqSort = e.target.value; hqSavePref('sort', hqSort); hqDraw(); });
-    $('hq-add-go')?.addEventListener('click', async () => {
-      const nm = $('hq-add-name').value.trim();
-      if (!nm) { setStatus($('hq-status'), '기업 이름을 넣어주세요.', 'error'); return; }
-      await hqSave(nm, { stage: HQ_STAGES[0] });
-      $('hq-add-name').value = '';
-    });
-    $('hq-paste-go')?.addEventListener('click', async () => {
-      const st = $('hq-paste-status');
-      let d; try { d = JSON.parse($('hq-paste').value.trim()); } catch (_) { d = null; }
-      if (!d || d.kind !== 'ipp_postings' || !Array.isArray(d.rows) || !/^\d{4}$/.test(String(d.year))) {
-        setStatus(st, 'IPP 즐겨찾기로 복사한 내용이 아니에요. IPP 화면에서 [IPP 현황 복사]를 다시 눌러 주세요.', 'error'); return;
-      }
-      const have = hqYear === Number(d.year) ? hqPosts.length : null;
-      if (!confirm(`${d.year}년 IPP 공고 ${d.rows.length}건으로 바꿀까요?` + (have ? ` (지금 ${have}건 — 목록에 없는 공고는 지워져요. 담당·단계 기록은 그대로)` : ''))) return;
-      $('hq-paste-go').disabled = true;
-      const { data, error } = await supabase.rpc('upload_ipp_postings', { p_year: Number(d.year), p_rows: d.rows, p_fetched_at: d.fetched_at || null });
-      $('hq-paste-go').disabled = false;
-      if (error) { setStatus(st, /PGRST202|42883|function|schema cache/i.test(error.message || '') ? '서버 설정(sql/68) 적용 후 쓸 수 있어요.' : '반영 실패: ' + error.message, 'error'); return; }
-      setStatus(st, `${d.year}년 공고 ${data.saved}건 반영` + (data.deleted ? ` · 내려간 공고 ${data.deleted}건 지움` : ''), 'ok');
-      logAction('IPP 현황 반영', `${d.year} ${data.saved}건`);
-      $('hq-paste').value = ''; hqYear = Number(d.year); hqSavePref('year', String(hqYear)); hqLoad();
-    });
-
     // ===== [개편 4단계] 출결 결과 올리기 — 출결점검 scripts\app_export.py 결과 → attendance_daily(sql/55) =====
     // 파일은 이 PC에서 고른 JSON 그대로 RPC 로만 보낸다(비밀키 없음 — 관리자 로그인 세션). 올린 학생의 그 달 행은 서버가 통째로 교체.
     const DAILY_LABEL = { ok: '인정', short: '모자람', none: '기록 없음', planned: '예정' };
@@ -5263,9 +5035,8 @@
       await applyCenterVocab();   // [원장] 담당/유형/상태 등을 DB(centers.vocab)에서 먼저 배급 → 이후 모든 로더가 DB값 사용
       dashLoad(); initPickers().then(fillRecruitPickers); nLoad(); plLoad(); lLoad(); cLoad(); tkLoad(); ojLoad().then(ouLoad).catch(() => {}); clLoad(); chLoad(); regLoad(); uvLoad(); rcLoad(); stLoad(); svEvLoadList(); poLoad(); populateAddStudentPickers();
       loadAttOptions().catch(() => {});   // [개편 7단계] 보내기 첨부 목록 — #notice 로 바로 열어도 채워지게
-      hqLoad();     // 현황 — #hq 로 바로 열어도 채워지게
       attnLoad();   // 출석 진도도 첫 로드에 포함 — #attn 으로 바로 열거나 새로고침하면 빈 화면이던 것(기존 누락)
-      if (resolveTab(location.hash.slice(1)) === 'cowork') cwLoad().catch(() => {});   // [sql/70] #cowork 로 바로 열 때만(평소엔 탭을 열 때)
+      if (['cocodes', 'cotasks', 'coallow', 'coclose'].includes(resolveTab(location.hash.slice(1)))) cwLoad().catch(() => {});   // [sql/70] #cowork 로 바로 열 때만(평소엔 탭을 열 때)
       // URL 해시의 탭 복원(새로고침·재로그인 후 작업 위치 유지) — 위에서 전체 로드했으니 중복 조회는 생략
       const t = resolveTab(location.hash.slice(1));
       if (t && TAB_KEYS.includes(t) && !(t === 'centers' && window.ADMIN_ROLE !== 'super_admin')) showTab(t, { noLoad: true });
