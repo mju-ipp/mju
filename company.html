@@ -159,6 +159,7 @@
       <div id="m-todo"></div>
       <div id="m-abs"></div>
       <div class="more">
+        <details id="stage-sec" hidden><summary>우리 회사 진행 현황 <span id="stage-now"></span></summary><div id="stage-view"></div></details>
         <details><summary>능력단위 <span>달마다 배우는 내용</span></summary><p class="lede">실시신고 시간표의 달별 배정이에요. 단위를 누르면 능력단위요소·수행과업이 나와요.</p><div id="u-list"></div></details>
         <details><summary>월별 출결 마감 <span>학습일지·출석확인</span></summary><div id="a-view"></div></details>
         <details><summary>전담인력수당 <span>신청 상태</span></summary><div id="w-view"></div></details>
@@ -263,7 +264,7 @@
       $('head').innerHTML = `<p class="co">${esc(D.company)} · 학생 ${studs().length}명</p><h1>${esc(title)}</h1>`;
       $('t-month').hidden = false; $('links').hidden = false;
       $('foot').textContent = `인정 시간은 센터가 매일 아침 행정지원시스템에서 조회한 값이에요(어제까지). 문의는 센터 담당 선생님께.`;
-      drawMonth(); drawTodo(sh, unpaid); drawAbs(); drawUnits(); drawAttn(); drawAllow();
+      drawMonth(); drawTodo(sh, unpaid); drawAbs(); drawUnits(); drawAttn(); drawAllow(); drawStage();
     }
 
     function taskRow(t) {
@@ -482,6 +483,28 @@
     }
 
     // ---------- 전담인력수당 — OJT 배정 달마다 한 줄(센터가 아직 확인 안 한 달은 '확인 전') ----------
+    // ---------- 우리 회사 진행 현황 — 옛 첫 화면 카드(index renderCompanyStage)와 같은 내용. RPC·데이터 없으면 안 보임 ----------
+    let stageDone = false;
+    async function drawStage() {
+      if (stageDone) return; stageDone = true;   // 달을 넘겨도 다시 부르지 않음
+      let cs = null;
+      try { const res = await supabase.rpc('my_company_stage', { p_company: D.company || prof.company }); if (!res.error) cs = res.data; } catch (_) {}
+      const STAGES = window.COMPANY_STAGES || [];
+      const idx = cs ? STAGES.findIndex(s => s.key === cs.stage_key) : -1;
+      if (idx < 0) return;
+      $('stage-now').textContent = STAGES[idx].label;
+      $('stage-view').innerHTML = `<div class="stage-list">` + STAGES.map((s, i) => {
+        const cls = i < idx ? 'done' : i === idx ? 'now' : 'todo';
+        const dot = i < idx ? '<i data-lucide="check"></i>' : i === idx ? '<i data-lucide="play"></i>' : '';
+        const memo = i === idx && cs.memo ? `<div class="stage-s">${esc(cs.memo)}</div>` : '';
+        const line = i < STAGES.length - 1 ? '<span class="stage-line"></span>' : '';
+        return `<div class="stage-item ${cls}"><span class="stage-col"><span class="stage-dot">${dot}</span>${line}</span>` +
+          `<div class="stage-body"><div class="stage-t">${esc(s.label)}${i === idx ? ' <span class="mju-badge">진행 중</span>' : ''}</div>${memo}</div></div>`;
+      }).join('') + `</div>`;
+      $('stage-sec').hidden = false;
+      window.lucide?.createIcons();
+    }
+
     function drawAllow() {
       const al = D.allowance || [], by = {}; al.forEach(a => { by[a.period] = a; });
       const months = [...new Set(ojtMonths().concat(al.map(a => a.period)))].sort().reverse();
