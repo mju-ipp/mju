@@ -2804,8 +2804,8 @@
     let evSurveys = [];                       // 행사 설문 목록 캐시 (sv-sem 선택지 공유)
     function svSegRender() {
       const seg = $('sv-seg'); seg.innerHTML = ''; seg.style.display = 'flex';
-      // (학생 전용 전환) 기업 설문 세그먼트 폐지 — 복원 시 ['teacher','기업현장교사'],['hrd','HRD담당자'] 되살리기
-      [['event', '행사 설문'], ['student', '학생 학기설문']].forEach(([k, label]) => {
+      // (10/22) 기업 설문 세그먼트 복원 — 기업 담당자 가입이 다시 열려 company-survey.html 되살림
+      [['event', '행사 설문'], ['student', '학생 학기설문'], ['teacher', '기업현장교사'], ['hrd', 'HRD담당자']].forEach(([k, label]) => {
         const b = document.createElement('button'); b.type = 'button';
         b.className = 'chip' + (svSeg === k ? ' on' : '');
         b.setAttribute('aria-pressed', svSeg === k ? 'true' : 'false');

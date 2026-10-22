@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>기업 만족도 조사 · 일학습병행 앱</title>
+  <link rel="manifest" href="./manifest.json" />
+  <meta name="theme-color" content="#002968" />
+  <link rel="apple-touch-icon" href="./icons/icon-192.png" />
+  <link rel="stylesheet" href="./styles.css" />
+  <script src="./config.js"></script>
+  <style>
+    /* 보기(라디오/체크박스) — 어휘형 보기라 세로 카드 행으로 */
+    .opt{display:flex;align-items:flex-start;gap:10px;padding:11px 12px;margin-top:7px;
+      border:1.5px solid var(--border-default);border-radius:11px;background:var(--surface-card);
+      cursor:pointer;font-weight:600;font-size:14px;color:var(--text-secondary);line-height:1.5;transition:.12s}
+    .opt input{width:18px;height:18px;margin:1px 0 0;flex-shrink:0;accent-color:var(--accent)}
+    .opt:has(input:checked){border-color:var(--accent);background:var(--tint-bg);color:var(--tint-fg)}
+    .q-block{margin-top:22px}
+    .q-block .field-label{line-height:1.55}
+    .etc-input{margin-top:7px;display:none}
+    .q-block.miss .field-label{color:var(--danger-500)}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="ph-header">
+      <img class="wm" src="./assets/logo-mono-white.png" alt="" />
+      <div class="ph-lockup"><img src="./assets/logo-mono-white.png" alt="" /><span>일학습병행 공동훈련센터</span></div>
+      <div class="ph-title-row"><a class="ph-back" href="./index.html" aria-label="뒤로"><i data-lucide="chevron-left"></i></a><h1 class="ph-title">기업 만족도 조사</h1></div>
+      <p class="ph-sub"><span id="who"></span> 학습기업 운영 개선을 위한 설문입니다</p>
+    </header>
+    <main class="ph-body">
+      <div class="card" id="form">
+        <div class="mju-alert mju-alert--info">
+          <span class="mju-alert__icon">i</span>
+          <div class="mju-alert__body">
+            <div class="mju-alert__title">센터 자체 설문</div>
+            <div class="mju-alert__text">응답은 기업명과 함께 운영팀에 전달됩니다 (이름·연락처는 저장하지 않아요).</div>
+          </div>
+        </div>
+        <p class="ph-card-title" style="margin-top:14px">어떤 역할로 응답하시나요?</p>
+        <div class="filter-chips" id="role-seg" role="group" aria-label="설문 선택"></div>
+        <p class="ph-card-title" style="margin-top:14px">회차</p>
+        <select id="round" class="ph-select"></select>
+        <div style="margin-top:14px">
+          <span class="field-label">기업명 <span class="req">*</span></span>
+          <input type="text" id="company" placeholder="소속 학습기업명" />
+        </div>
+        <div id="questions"></div>
+        <div class="q-block" id="comment-block">
+          <span class="field-label" id="comment-label"></span>
+          <textarea id="comment" class="ph-ta" rows="3" placeholder="자유롭게 작성해주세요 (선택)"></textarea>
+        </div>
+        <button class="mju-btn mju-btn--full" id="submit" style="margin-top:16px">제출하기</button>
+        <div class="status" id="status"></div>
+      </div>
+      <div class="card accent" id="done" style="display:none;text-align:center">
+        <span class="ei" style="margin:0 auto 10px"><i data-lucide="check"></i></span>
+        <p class="ph-card-title">제출 완료</p>
+        <p class="ph-note">소중한 의견 감사합니다. 운영에 꼭 반영하겠습니다.</p>
+      </div>
+      <a href="./index.html" class="mju-btn mju-btn--secondary mju-btn--full" id="homeBtn" style="margin-top:auto">홈으로</a>
+    </main>
+  </div>
+
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <script type="module">
+    import { supabase, configReady, setStatus, friendlyError, esc, getCenter } from './app.js';
+    if (window.lucide) window.lucide.createIcons();
+    const $ = id => document.getElementById(id);
+    let profile = {}; try { profile = JSON.parse(localStorage.getItem('ilhak_profile') || '{}'); } catch (_) {}
+    $('who').textContent = profile.company ? `${profile.company} ·` : '';
+
+    // 이 설문은 학습기업 담당자(기업현장교사·HRD담당자) 대상
+    if (profile.target_type !== 'company') {
+      $('form').style.display = 'none'; $('homeBtn').style.display = 'none';
+      $('done').style.display = 'block';
+      $('done').innerHTML = profile.target_type
+        ? '<span class="ei" style="margin:0 auto 10px"><i data-lucide="shield"></i></span><p class="ph-card-title">안내</p><p class="ph-note">이 설문은 학습기업 담당자(기업현장교사·HRD담당자) 대상입니다.<br/>재학생 만족도는 <a href="./survey.html">여기</a>에서 참여해주세요.</p><a href="./index.html" class="mju-btn mju-btn--secondary mju-btn--full" style="margin-top:14px">홈으로</a>'
+        : '<span class="ei" style="margin:0 auto 10px"><i data-lucide="user"></i></span><p class="ph-card-title">내 정보가 필요해요</p><p class="ph-note">기업담당자로 가입(또는 내 정보 불러오기) 후 참여할 수 있어요.</p><a href="./index.html" class="mju-btn mju-btn--secondary mju-btn--full" style="margin-top:14px">홈에서 정보 입력하기</a>';
+      window.lucide?.createIcons();
+    }
+
+    const SURVEYS = window.COMPANY_SURVEYS || {};
+    const ROUNDS = window.COMPANY_SURVEY_ROUNDS || ['2026 상반기'];
+    ROUNDS.forEach(r => { const o = document.createElement('option'); o.textContent = r; $('round').appendChild(o); });
+    // (10/22 복원) 지금 시기 회차를 기본으로 — 7월부터는 하반기
+    { const d = new Date(), cur = `${d.getFullYear()} ${d.getMonth() >= 6 ? '하반기' : '상반기'}`; if (ROUNDS.includes(cur)) $('round').value = cur; }
+    $('company').value = profile.company || '';
+
+    let surveyKey = 'teacher';
+    function renderSeg() {
+      const seg = $('role-seg'); seg.innerHTML = ''; seg.style.display = 'flex';
+      [['teacher', '기업현장교사'], ['hrd', 'HRD담당자']].forEach(([k, label]) => {
+        const b = document.createElement('button'); b.type = 'button';
+        b.className = 'chip' + (surveyKey === k ? ' on' : '');
+        b.setAttribute('aria-pressed', surveyKey === k ? 'true' : 'false');
+        b.textContent = label;
+        b.addEventListener('click', () => { if (surveyKey !== k) { surveyKey = k; renderSeg(); renderQuestions(); } });
+        seg.appendChild(b);
+      });
+    }
+    function renderQuestions() {
+      const def = SURVEYS[surveyKey]; if (!def) return;
+      const qEl = $('questions'); qEl.innerHTML = '';
+      def.questions.forEach((q, qi) => {
+        const block = document.createElement('div'); block.className = 'q-block'; block.id = 'blk-' + q.key;
+        const type = q.type === 'multi' ? 'checkbox' : 'radio';
+        let html = `<span class="field-label">${qi + 2}. ${esc(q.label)}${q.type === 'multi' ? ' <span style="font-weight:500;color:var(--text-muted)">(중복 선택 가능)</span>' : ''} <span class="req">*</span></span>`;
+        q.options.forEach((opt, i) => {
+          html += `<label class="opt"><input type="${type}" name="${q.key}" value="${i}"><span>${esc(opt)}</span></label>`;
+        });
+        if (q.etc) html += `<label class="opt"><input type="${type}" name="${q.key}" value="etc"><span>기타 (직접입력)</span></label><input type="text" class="etc-input" id="${q.key}-etc" placeholder="기타 내용을 입력해주세요" />`;
+        block.innerHTML = html;
+        qEl.appendChild(block);
+        if (q.etc) block.addEventListener('change', () => {
+          const on = block.querySelector(`input[name=${q.key}][value=etc]`).checked;
+          $(q.key + '-etc').style.display = on ? 'block' : 'none';
+        });
+      });
+      $('comment-label').textContent = def.commentLabel + ' (선택)';
+      setStatus($('status'), '', 'info');
+    }
+    renderSeg(); renderQuestions();
+
+    // 기기 식별값(랜덤, PII 아님) — 서버측 1인1표(설문·회차별)용. 학생 설문과 같은 키 재사용.
+    const deviceId = (() => {
+      try { let d = localStorage.getItem('ilhak_device_id'); if (!d) { d = 'dev_' + Math.random().toString(36).slice(2) + Date.now().toString(36); localStorage.setItem('ilhak_device_id', d); } return d; }
+      catch (_) { return null; }
+    })();
+
+    $('submit').addEventListener('click', async () => {
+      const def = SURVEYS[surveyKey]; if (!def) return;
+      const round = $('round').value;
+      const company = $('company').value.trim();
+      if (!company) { setStatus($('status'), '기업명을 입력해주세요.', 'error'); $('company').focus(); return; }
+      const dupKey = `ilhak_cosurvey_${surveyKey}_${round}`;
+      if (localStorage.getItem(dupKey)) { setStatus($('status'), '이미 이 회차 설문을 제출하셨어요. 감사합니다.', 'ok'); return; }
+      const answers = {};
+      for (const q of def.questions) {
+        const block = $('blk-' + q.key); block.classList.remove('miss');
+        const sel = [...document.querySelectorAll(`input[name=${q.key}]:checked`)].map(i => i.value);
+        if (!sel.length) {
+          block.classList.add('miss'); block.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          setStatus($('status'), `${q.key.replace('q', '')}번 문항에 응답해주세요.`, 'error'); return;
+        }
+        if (sel.includes('etc')) {
+          const etcVal = ($(q.key + '-etc').value || '').trim();
+          if (!etcVal) {
+            block.classList.add('miss'); block.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            setStatus($('status'), `${q.key.replace('q', '')}번 문항의 '기타' 내용을 입력해주세요.`, 'error'); return;
+          }
+          answers[q.key + '_etc'] = etcVal.slice(0, 500);
+        }
+        answers[q.key] = q.type === 'multi' ? sel : sel[0];
+      }
+      if (!configReady()) { setStatus($('status'), 'Supabase 연결이 필요합니다.', 'error'); return; }
+      const row = { survey_key: surveyKey, round, company, answers, comment: $('comment').value.trim().slice(0, 2000) || null, device_id: deviceId };
+      $('submit').disabled = true; setStatus($('status'), '제출 중...', 'info');
+      const { data, error } = await supabase.rpc('submit_company_survey_response', { p_slug: getCenter(), p_code: profile.code || null, p_row: row });
+      $('submit').disabled = false;
+      // 23505 = 이 기기가 이 설문·회차에 이미 제출(서버측 유일 제약) → 정상 처리
+      if ((data && data.ok === false) || (error && error.code !== '23505')) {
+        if (data && data.reason === 'center') {
+          setStatus($('status'), '센터 정보를 확인할 수 없어요. 올바른 센터 링크로 다시 접속해주세요.', 'error'); return;
+        }
+        if (error && /relation|does not exist|schema cache/i.test(error.message || '')) {
+          setStatus($('status'), '설문이 아직 준비 중이에요. 잠시 후 다시 시도해주세요. (관리자: sql/10_company_survey.sql 실행 필요)', 'error'); return;
+        }
+        setStatus($('status'), friendlyError(error), 'error'); return;
+      }
+      try { localStorage.setItem(dupKey, '1'); } catch (_) {}
+      $('form').style.display = 'none'; $('homeBtn').style.display = 'none'; $('done').style.display = 'block';
+      window.lucide?.createIcons();
+    });
+  </script>
+</body>
+</html>
