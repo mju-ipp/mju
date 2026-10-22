@@ -148,8 +148,6 @@
     .cal .lb{font-size:12px; font-weight:600; line-height:18px; border-radius:4px}
     .lb.tr{background:var(--v-cobalt); color:#fff}
     .lb.chk{background:var(--v-warn); color:#fff}
-    .legend{display:flex; flex-wrap:wrap; gap:6px 10px; margin:12px 2px 0; font-size:12px}
-    .legend .lb{display:inline-block; padding:0 6px; font-size:12px; font-weight:600; line-height:20px; border-radius:4px}
     .sel{margin-top:12px; padding:16px}
     .sel-h{display:flex; align-items:baseline; flex-wrap:wrap; gap:6px 10px; padding-bottom:12px; margin-bottom:4px; border-bottom:1px solid var(--v-line)}
     .sel-h b{font-size:18px; font-weight:700; color:var(--v-ink)}
@@ -175,6 +173,35 @@
     .more{margin:0; border-top:0; padding:0 16px}
     .more > details:last-child{border-bottom:0}
     .more > details > summary{min-height:56px; font-size:16px; font-weight:700}
+    /* 더보기 안 — 능력단위(달 묶음 띠) · 월별 출결 마감/전담인력수당(한 줄씩 + 상태 알약) */
+    .more .lede{margin:0 0 12px; font-size:13px}
+    .more .chips{margin-bottom:12px}
+    .more .grp{margin:4px 0 10px; font-size:13px}
+    .mo{display:flex; align-items:baseline; gap:8px; margin:16px 0 0; padding:10px 12px; border-radius:8px; background:var(--v-sunken); font-size:13px; color:var(--v-mute)}
+    .mo b{font-size:15px; font-weight:700; color:var(--v-ink)}
+    .mo em{margin-left:auto; font-style:normal; font-size:12px; font-weight:700; color:#fff; background:var(--v-cobalt); padding:0 8px; border-radius:10px; line-height:20px}
+    .mo.now{background:var(--v-cobalt-bg)} .mo.now b{color:var(--v-cobalt)}
+    .unit{padding:12px 12px 12px 14px; border-top:0; border-left:3px solid var(--v-line); margin:8px 0 0 4px}
+    .unit:last-child{border-bottom:0}
+    .mo.now ~ .unit{border-left-color:var(--v-cobalt)}
+    .mo.now ~ .mo:not(.now) ~ .unit{border-left-color:var(--v-line)}
+    .unit .t b{font-size:15px; font-weight:700}
+    .more .mnav{margin:0 0 10px}
+    .more .mnav b{font-size:16px; font-weight:700}
+    .more .steps div{font-size:12px; font-weight:500}
+    .rows{border-top:1px solid var(--v-line); margin-top:12px}
+    .row{display:flex; align-items:center; gap:12px; padding:12px 0; border-bottom:1px solid var(--v-line)}
+    .row:last-child{border-bottom:0}
+    .row .l{flex:1; min-width:0}
+    .row .l b{display:block; font-size:15px; font-weight:700; color:var(--v-ink)}
+    .row .l span{display:block; margin-top:2px; font-size:13px; color:var(--v-mute)}
+    .row .rr{flex:none; display:flex; flex-direction:column; align-items:flex-end; gap:4px}
+    .row .rr small{font-size:12px; color:var(--v-mute)}
+    .pill{display:inline-block; padding:2px 10px; border-radius:12px; font-size:13px; font-weight:600; line-height:20px; white-space:nowrap}
+    .pill.ok{background:var(--v-cobalt-bg); color:var(--v-cobalt)}
+    .pill.w{background:var(--v-warn-bg); color:var(--v-warn)}
+    .pill.dn{background:var(--v-ink); color:var(--v-bg)}
+    .pill.mu{border:1px solid var(--v-line); color:var(--v-mute)}
     .links{display:block; margin:16px 0 0; padding:0 16px}
     .links[hidden]{display:none}
     .links a{display:flex; align-items:center; min-height:52px; padding:0; border:0; border-bottom:1px solid var(--v-line); border-radius:0; background:none; font-size:15px; font-weight:500}
@@ -209,9 +236,7 @@
       <h2 class="sec">훈련 일정</h2>
       <div class="card calcard">
         <div class="mnav"><button type="button" id="m-prev" aria-label="이전 달">‹</button><b id="m-title"></b><button type="button" id="m-next" aria-label="다음 달">›</button></div>
-        <div class="cal" id="m-cal"></div>
-        <p class="legend"><span class="lb tr">훈련</span><span class="lb off">휴가·출장</span><span class="lb chk">확인</span><span class="lb ev">평가</span><span class="lb iv">면담</span><span class="lb ex">센터 일정</span></p>
-      </div>
+        <div class="cal" id="m-cal"></div>      </div>
       <div id="m-day"></div>
       <h2 class="sec">할 일</h2>
       <div id="m-todo"></div>
@@ -493,7 +518,7 @@
         if (!months.length) { h += `<p class="msg" style="margin:8px 0">OJT 배정이 아직 없어요.</p>`; return; }
         months.forEach(m => {
           const now = m.month === thisYm;
-          h += `<p class="mo${now ? ' now' : ''}">${moName(m.month)}${m.month.slice(0, 4) !== thisYm.slice(0, 4) ? ` (${m.month.slice(0, 4)})` : ''} · ${Number(m.planned) || 0}시간${now ? ' · 이번 달' : ''}</p>`;
+          h += `<p class="mo${now ? ' now' : ''}"><b>${moName(m.month)}${m.month.slice(0, 4) !== thisYm.slice(0, 4) ? ` (${m.month.slice(0, 4)})` : ''}</b><span>${Number(m.planned) || 0}시간</span>${now ? '<em>이번 달</em>' : ''}</p>`;
           const us = unitsOf(m.units);
           h += us.length ? us.map(u => {
             const i = info(u), els = (i && i.elements) || [];
@@ -532,11 +557,11 @@
         `<div class="steps">${steps.map(([l, d], k) => `<div class="${d ? 'd' : k === firstNo ? 'n' : ''}">${l}</div>`).join('')}</div>`;
       if (!cur && lack.length) h += `<div class="alert"><p><b>${esc(lack.map(r => r.s.name).join(', '))} 학생이 아직 ${moName(m)} 학습일지·출석확인을 마치지 않았어요.</b></p><p>센터도 알림을 보내요. 회사에서도 한 번 알려 주세요.</p></div>`;
       else if (cur) h += `<p class="lede">${moName(m)}분은 다음 달 1일부터 마감해요(마감 ${moName(ymAdd(m, 1))} 3일).</p>`;
-      h += `<table class="tbl"><thead><tr><th>학생</th><th class="r">인정 / 계획</th><th class="r">학습일지·출석확인</th><th class="r">센터 확인</th></tr></thead><tbody>` +
-        rows.map(({ s, mr, ok, cc }) => `<tr><td>${esc(s.name)}${courseOf(s) && multiCourse() ? `<small>${esc(courseOf(s))}</small>` : ''}</td>` +
-          `<td class="r">${mr.actual != null ? Number(mr.actual) : '—'} / ${Number(mr.planned) || 0}h</td>` +
-          `<td class="r${ok ? '' : cur ? ' mu' : ' w'}">${ok ? '완료' : cur ? '진행 중' : '전'}</td>` +
-          `<td class="r${cc ? '' : ' mu'}">${cc ? md(cc) : '—'}</td></tr>`).join('') + `</tbody></table>`;
+      // 학생마다 한 줄(폰에서 4칸 표는 좁아 읽기 어려움 — 사용자 10/22 가시성): 이름·인정/계획 / 오른쪽 학습일지·출석확인 상태 + 센터 확인일
+      h += `<div class="rows">` + rows.map(({ s, mr, ok, cc }) => `<div class="row"><div class="l"><b>${esc(s.name)}</b>` +
+          `<span>인정 ${mr.actual != null ? Number(mr.actual) : '—'} / 계획 ${Number(mr.planned) || 0}시간${courseOf(s) && multiCourse() ? ' · ' + esc(courseOf(s)) : ''}</span></div>` +
+          `<div class="rr"><span class="pill ${ok ? 'ok' : cur ? 'mu' : 'w'}">${ok ? '학습일지 완료' : cur ? '진행 중' : '학습일지 전'}</span>` +
+          `<small>${cc ? '센터 확인 ' + md(cc) : '센터 확인 전'}</small></div></div>`).join('') + `</div>`;
       $('a-view').innerHTML = h;
       $('a-prev')?.addEventListener('click', () => { attnYm = ms[i - 1]; drawAttn(); });
       $('a-next')?.addEventListener('click', () => { attnYm = ms[i + 1]; drawAttn(); });
@@ -570,13 +595,15 @@
       const months = [...new Set(ojtMonths().concat(al.map(a => a.period)))].sort().reverse();
       const un = al.filter(a => a.state === '미신청');
       const lastCheck = al.reduce((x, a) => (a.checked_at && a.checked_at > x ? a.checked_at : x), '');
-      let h = `<h2>전담인력활동수당</h2><p class="lede">OJT 출결이 있는 달마다 신청할 수 있어요. 상태는 센터가 행정지원시스템에서 확인한 값이에요${lastCheck ? `(${md(lastCheck)} 확인)` : ''}.</p>`;
-      if (un.length) h += `<div class="alert" style="margin-top:6px"><p><b>${un.map(a => moName(a.period) + '분').join(', ')} 아직 신청 안 됨</b></p><p>그 달 OJT 출결이 있어 신청 대상이에요. 신청 방법은 센터 담당 선생님께 문의해 주세요.</p></div>`;
-      h += months.length ? `<table class="tbl"><thead><tr><th>기간</th><th>상태</th><th class="r">신청일</th></tr></thead><tbody>` +
-          months.map(m => { const a = by[m]; const st = a ? a.state : m === thisYm ? '출결 진행 중' : '확인 전';
-            return `<tr><td>${m.slice(0, 4) !== thisYm.slice(0, 4) ? m.slice(0, 4) + '년 ' : ''}${moName(m)}분</td><td class="${a && a.state === '미신청' ? 'w' : a ? '' : 'mu'}">${esc(st)}</td>` +
-              `<td class="r${a && a.applied_on ? '' : ' mu'}">${a && a.applied_on ? md(a.applied_on) : '—'}</td></tr>`; }).join('') +
-          `</tbody></table><p class="lede" style="margin-top:10px">상태 순서: 신청 → 승인 → 확정 → 지급완료</p>`
+      // 제목은 더보기 줄에 있으니 안내만, 달마다 한 줄 + 상태 알약(미신청 주황 · 신청~확정 파랑 · 지급완료 진함 · 확인 전 회색)
+      let h = `<p class="lede">OJT 출결이 있는 달마다 신청할 수 있어요. 상태는 센터가 행정지원시스템에서 확인한 값이에요${lastCheck ? `(${md(lastCheck)} 확인)` : ''}. 순서: 신청 → 승인 → 확정 → 지급완료</p>`;
+      if (un.length) h += `<div class="alert" style="margin:0 0 12px"><p><b>${un.map(a => moName(a.period) + '분').join(', ')} 아직 신청 안 됨</b></p><p>그 달 OJT 출결이 있어 신청 대상이에요. 신청 방법은 센터 담당 선생님께 문의해 주세요.</p></div>`;
+      const PILL = { '미신청': 'w', '신청': 'ok', '승인': 'ok', '확정': 'ok', '지급완료': 'dn' };
+      h += months.length ? `<div class="rows">` + months.map(m => {
+            const a = by[m]; const st = a ? a.state : m === thisYm ? '출결 진행 중' : '확인 전';
+            return `<div class="row"><div class="l"><b>${m.slice(0, 4) !== thisYm.slice(0, 4) ? m.slice(0, 4) + '년 ' : ''}${moName(m)}분</b>` +
+              `<span>${a && a.applied_on ? '신청일 ' + md(a.applied_on) : '신청일 —'}</span></div>` +
+              `<div class="rr"><span class="pill ${PILL[st] || 'mu'}">${esc(st)}</span></div></div>`; }).join('') + `</div>`
         : `<p class="msg" style="margin:8px 0">아직 OJT 배정 달이 없어요.</p>`;
       $('w-view').innerHTML = h;
     }
