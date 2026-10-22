@@ -61,6 +61,7 @@
     .sr .n{flex:1; min-width:0; color:var(--v-ink)}
     .sr .n b{font-weight:500}
     .sr .n span{margin-left:6px; font-size:12px; color:var(--v-mute)}
+    .sr .n small.u{display:block; margin:1px 0 4px; font-size:12px; line-height:1.4; color:var(--v-cobalt)}
     .sr.off{background:var(--v-cobalt-bg)}
     .sr.off .st{color:var(--v-cobalt); font-weight:700}
     .sr.tk{background:var(--v-sunken)} .sr.tk .n b{font-size:13px} .sr.tk .st{font-size:12px; color:var(--v-ink)}
@@ -321,7 +322,10 @@
       h += rows.map(({ s, d, a }) => {
         const st = a ? `<span class="st">${AK[a.kind]}${a.state === 'applied' ? ' · 옮김' : ''}</span>`
           : `<span class="st ${d.status}">${d.status === 'ok' || d.status === 'short' ? (Number(d.recognized) || 0) + 'h ' : ''}${ST[d.status] || ''}</span>`;
-        return `<div class="sr${a ? ' off' : ''}"><span class="n"><b>${esc(s.name)}</b>${mc && d.course ? `<span>${esc(d.course)}</span>` : ''}</span>${st}</div>`;
+        // 훈련날엔 그 학생의 그 달 OJT 능력단위(실시신고 시간표 월 배정, 사용자 10/22)
+        const us = unitsOf((monthRow(s, ds.slice(0, 7)) || {}).units);
+        return `<div class="sr${a ? ' off' : ''}"><span class="n"><b>${esc(s.name)}</b>${mc && d.course ? `<span>${esc(d.course)}</span>` : ''}` +
+          `${us.length ? `<small class="u">${esc(us.join(' · '))}</small>` : ''}</span>${st}</div>`;
       }).join('');
       h += inf.evs.map(e => `<div class="sr tk"><span class="n"><b>${esc(e.kind)}</b><span>${esc(e.title)}${e.memo ? ' · ' + esc(e.memo) : ''}</span></span></div>`).join('');
       if (!rows.length && !inf.tasks.length && !inf.evs.length) h += `<p class="lede" style="margin:0">이 날은 OJT 훈련이 없어요.</p>`;
