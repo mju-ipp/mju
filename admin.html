@@ -6,7 +6,7 @@
   <title>관리자 · 일학습병행 앱</title>
   <meta name="theme-color" content="#121318" />
   <link rel="stylesheet" href="./styles.css" />
-  <link rel="stylesheet" href="./admin.css?v=20261022-1" /><!-- 배포 때 v 를 올려 캐시된 옛 스타일과 새 HTML 이 섞이지 않게 -->
+  <link rel="stylesheet" href="./admin.css?v=20261022-3" /><!-- 배포 때 v 를 올려 캐시된 옛 스타일과 새 HTML 이 섞이지 않게 -->
   <script src="./config.js"></script>
   <style>
     .msg{max-width:80%;padding:9px 12px;border-radius:12px;margin:5px 0;font-size:14px;white-space:pre-wrap}
@@ -234,6 +234,42 @@
 
       <!-- 투표 (공지에서 분리) -->
       <!-- 진도 탭 — 학생별 월 출석 진행 현황 (attendance_monthly, sql/42) -->
+      <!-- [sql/70] 학생 › 기업 담당자 자료 — 기업 담당자 앱 '우리 학생 OJT'(company.html)에 보이는 월말 할 일·전담인력수당·월 마감 -->
+      <div class="tabsec" id="sec-cowork" style="display:none">
+        <div class="hq-head">
+          <h2 class="adm-h2" style="margin:0">기업 담당자 자료 <span class="hint">기업 담당자 앱 '우리 학생 OJT'에 그대로 보여요</span></h2>
+          <input type="month" id="cw-month" class="ph-select" aria-label="달" />
+          <span class="ch-seg" id="cw-scope" role="group" aria-label="보는 범위"><button type="button" class="chip" data-v="mine">내 학생</button><button type="button" class="chip" data-v="all">전체</button></span>
+        </div>
+        <div class="status" id="cw-status"></div>
+        <section class="dsec">
+          <h3 class="dsec-h">월말 할 일 <span class="n" id="cw-task-n"></span>
+            <button type="button" class="phone-btn dsec-act" id="cw-task-bulk">이 달 면담일지 모든 기업에 넣기</button></h3>
+          <p class="dsec-lede">내부평가·면담일지처럼 기업이 그 달 말까지 센터로 보내야 하는 것. 받으면 [받음]을 누르세요.</p>
+          <div id="cw-task-list"></div>
+          <div class="cw-add">
+            <select id="cw-t-co" class="ph-select" aria-label="기업"></select>
+            <select id="cw-t-course" class="ph-select" aria-label="과정"><option value="">기업 전체</option></select>
+            <select id="cw-t-kind" class="ph-select" aria-label="종류"><option>내부평가</option><option>면담일지</option><option>기타</option></select>
+            <input type="text" id="cw-t-title" maxlength="80" placeholder="제목 (예: 인공지능 학습데이터 획득 내부평가)" aria-label="제목" />
+            <input type="date" id="cw-t-due" class="ph-select" aria-label="마감" />
+            <input type="text" id="cw-t-note" maxlength="120" placeholder="메모 (선택)" aria-label="메모" />
+            <button type="button" class="mju-btn mju-btn--sm" id="cw-t-go">넣기</button>
+          </div>
+        </section>
+        <section class="dsec">
+          <h3 class="dsec-h">전담인력활동수당 <span class="n" id="cw-al-n"></span></h3>
+          <p class="dsec-lede">행정지원시스템 비용관리(전담자) › 전담인력활동수당 신청 › [신청내역]에서 본 상태를 고르세요. 고르면 바로 저장돼요(확인 시각도 함께).</p>
+          <div id="cw-al-list"></div>
+        </section>
+        <section class="dsec">
+          <h3 class="dsec-h">월 마감 <span class="n" id="cw-ms-n"></span>
+            <button type="button" class="phone-btn dsec-act" id="cw-ms-fill">정규시간으로 훈련일 채우기</button></h3>
+          <p class="dsec-lede">학생마다 그 달 학습활동서·출석확인·센터 확인. 칸을 벗어나면 저장돼요. 훈련일은 올린 출결의 정규시간 날 수예요.</p>
+          <div id="cw-ms-list"></div>
+        </section>
+      </div>
+
       <div class="tabsec" id="sec-attn" style="display:none">
         <div class="card">
           <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
@@ -921,7 +957,7 @@
 
     // 탭 전환 — location.hash 기록·복원(새로고침·뒤로가기·링크 공유에도 탭 유지) + 활성화 시 해당 탭 재조회
     // ⚠️ 'onboard'는 단독 탭이 아니지만 제거 금지 — #onboard 해시 호환(showTab 재매핑)과 sec-onboard 끄기(display 루프)가 이 항목에 의존
-    const TAB_KEYS = ['dash', 'hq', 'notice', 'library', 'calendar', 'consult', 'chat', 'survey', 'members', 'attn', 'onboard', 'recruit']; // (파일럿) 'stages','centers','vote' 탭 제거 — 섹션·로직은 보존, 키만 빼서 진입 차단
+    const TAB_KEYS = ['dash', 'hq', 'notice', 'library', 'calendar', 'consult', 'chat', 'survey', 'members', 'attn', 'cowork', 'onboard', 'recruit']; // (파일럿) 'stages','centers','vote' 탭 제거 — 섹션·로직은 보존, 키만 빼서 진입 차단
     // 탭별 로더 — 아침에 켜둔 콘솔이 로그인 시점 스냅샷에 고정되지 않게, 탭을 열 때마다 새로 조회
     const TAB_LOAD = {
       dash: () => dashLoad(),
@@ -936,14 +972,15 @@
       // 인라인 편집기(.le-save)가 열려 있으면 표 재조회를 건너뜀 — 탭 전환만으로 입력이 날아가지 않게
       members: () => { if (!document.querySelector('#rg-table .le-save')) regLoad(); uvLoad(); },
       attn: () => attnLoad(),
+      cowork: () => cwLoad(),
       recruit: () => rcLoad(),
       stages: () => stLoad(),
     };
     // [개편 2단계] 메뉴 묶음 — 화면 키 → 묶음, 묶음별 하위 탭(순서 = 표시 순서). 새 메뉴 해시(#today 등)는 첫 화면 별칭.
-    const TAB_GROUP = { dash: 'today', hq: 'status', members: 'students', onboard: 'students', attn: 'students', notice: 'send', consult: 'consult', chat: 'consult',
+    const TAB_GROUP = { dash: 'today', hq: 'status', members: 'students', onboard: 'students', attn: 'students', cowork: 'students', notice: 'send', consult: 'consult', chat: 'consult',
       library: 'settings', calendar: 'settings', recruit: 'settings', survey: 'settings' };
     const GROUP_SUBS = {
-      students: [['members', '명단'], ['onboard', '명단 등록·추가'], ['attn', '출석 진도']],
+      students: [['members', '명단'], ['onboard', '명단 등록·추가'], ['attn', '출석 진도'], ['cowork', '기업 담당자 자료']],
       consult: [['chat', '대화방 (기업방·1:1)'], ['consult', '1:1 상담']],
       settings: [['library', '자료'], ['calendar', '일정·할 일'], ['recruit', 'FAQ'], ['survey', '만족도·설문']],
     };
@@ -4191,6 +4228,190 @@
       logAction('휴가·출장 이동 계획 받기', absPlans.map(p => p.month + ' ' + p.items.length + '과정').join(', '));
     });
 
+    // ===== [sql/70] 학생 › 기업 담당자 자료 — 월말 할 일(field_tasks) · 전담인력수당(allowance_status) · 월 마감(attendance_month_status) =====
+    // 기업 = 명단 students.company(진행중), 기업 키는 서버 _co_key 와 같은 규칙. '내 학생' = 명단 담당이 내 이름(admin_users.display_name)인 기업·학생.
+    const coKey = c => (c || '').toLowerCase().replace(/㈜/g, '').replace(/\(주\)/g, '').replace(/주식회사/g, '').replace(/\s+/g, '') || null;
+    const AL_STATES = ['미신청', '신청', '승인', '확정', '지급완료'];
+    let cwMe, cwScope = 'mine', cwData = null;
+    try { cwScope = localStorage.getItem('adm_cw_scope') || 'mine'; } catch (_) {}
+    const cwYm = () => $('cw-month').value || ymdLocal(0).slice(0, 7);
+    const ymPlus = (ym, n) => { const d = new Date(Number(ym.slice(0, 4)), Number(ym.slice(5)) - 1 + n, 1); return `${d.getFullYear()}-${p2(d.getMonth() + 1)}`; };
+    const lastDay = ym => `${ym}-${p2(new Date(Number(ym.slice(0, 4)), Number(ym.slice(5)), 0).getDate())}`;
+    const moOf = ym => `${Number(ym.slice(5))}월`;
+    async function cwLoad() {
+      if (!$('cw-month').value) $('cw-month').value = ymdLocal(0).slice(0, 7);
+      if (cwMe === undefined) {
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          const { data } = await supabase.from('admin_users').select('display_name').eq('user_id', session.user.id).maybeSingle();
+          cwMe = ((data && data.display_name) || '').trim();
+        } catch (_) { cwMe = ''; }
+      }
+      document.querySelectorAll('#cw-scope .chip').forEach(b => b.classList.toggle('on', b.dataset.v === cwScope));
+      const ym = cwYm(), from = ym + '-01', to = ymPlus(ym, 1) + '-01';
+      const alFrom = ymPlus(ym, -3) + '-01';
+      const [st, tk, al, ms, dy] = await Promise.all([
+        supabase.from('students').select('id,name,company,manager,status'),
+        supabase.from('field_tasks').select('id,company_key,course,kind,month,due_on,title,note,done_on').gte('month', ymPlus(ym, -2) + '-01').lt('month', ymPlus(ym, 2) + '-01').order('month').order('due_on'),
+        supabase.from('allowance_status').select('id,company_key,company_label,period,state,applied_on,checked_at').gte('period', alFrom).lt('period', to),
+        supabase.from('attendance_month_status').select('id,name,month,course,train_days,diary_days,student_confirmed_on,center_confirmed_on').eq('month', from),
+        supabase.from('attendance_daily').select('name,day,course,planned_hours').eq('track', 'ojt').gte('day', from).lt('day', to),
+      ]);
+      if (tk.error || al.error || ms.error) { setStatus($('cw-status'), 'sql/70 적용 전이거나 읽지 못했어요: ' + friendlyError(tk.error || al.error || ms.error), 'error'); return; }
+      $('cw-status').textContent = '';
+      const studs = (st.data || []).filter(s => (s.status || '진행중') === '진행중' && s.company && (cwScope === 'all' || !cwMe || (s.manager || '').trim() === cwMe));
+      const cos = new Map();   // 기업 키 → { label, studs: [] }
+      studs.forEach(s => { const k = coKey(s.company); if (!cos.has(k)) cos.set(k, { key: k, label: s.company.trim(), studs: [] }); cos.get(k).studs.push(s); });
+      const courseByName = {}, trainDays = {};
+      (dy.data || []).forEach(r => { const n = normNm(r.name); if (r.course) courseByName[n] = r.course; if (Number(r.planned_hours) > 0) (trainDays[n] = trainDays[n] || new Set()).add(r.day); });
+      cwData = { ym, cos: [...cos.values()].sort((a, b) => a.label.localeCompare(b.label, 'ko')), tasks: (tk.data || []).filter(t => cos.has(t.company_key)),
+        allow: al.data || [], ms: ms.data || [], courseByName, trainDays };
+      cwDrawTasks(); cwDrawAllow(); cwDrawMs();
+    }
+    $('cw-month').addEventListener('change', () => cwLoad());
+    document.querySelectorAll('#cw-scope .chip').forEach(b => b.addEventListener('click', () => { cwScope = b.dataset.v; try { localStorage.setItem('adm_cw_scope', cwScope); } catch (_) {} cwLoad(); }));
+
+    // 월말 할 일 — 그 달 목록(기업별) + 넣기 + 받음/되돌리기/지우기
+    function cwDrawTasks() {
+      const { ym, cos, tasks } = cwData;
+      const sel = $('cw-t-co'), keep = sel.value;
+      sel.innerHTML = cos.map(c => `<option value="${esc(c.key)}"${c.key === keep ? ' selected' : ''}>${esc(c.label)}</option>`).join('');
+      cwCourseOpts();
+      if (!$('cw-t-due').value || $('cw-t-due').value.slice(0, 7) !== ym) $('cw-t-due').value = lastDay(ym);
+      const label = k => (cos.find(c => c.key === k) || {}).label || k;
+      const rows = tasks.filter(t => t.month.slice(0, 7) === ym || (t.month.slice(0, 7) < ym && !t.done_on));
+      $('cw-task-n').textContent = rows.length ? `${rows.filter(t => !t.done_on).length}건 남음 / ${rows.length}건` : '';
+      $('cw-task-list').innerHTML = rows.length ? rows.map(t => {
+        const late = !t.done_on && t.due_on && t.due_on < ymdLocal(0);
+        return `<div class="cw-row${t.done_on ? ' done' : ''}"><span class="cw-co">${esc(label(t.company_key))}</span>` +
+          `<span class="cw-k">${esc(t.kind)}</span><span class="cw-t">${esc(t.title)}${t.course ? ` <span class="note">· ${esc(t.course)}</span>` : ''}${t.month.slice(0, 7) !== ym ? ` <span class="note">· ${moOf(t.month.slice(0, 7))}분</span>` : ''}</span>` +
+          `<span class="cw-d${late ? ' late' : ''}">${t.done_on ? '받음 ' + esc(mdOf(t.done_on)) : t.due_on ? esc(mdOf(t.due_on)) + '까지' : '-'}</span>` +
+          `<button type="button" class="phone-btn" data-done="${esc(t.id)}" data-v="${t.done_on ? '' : '1'}">${t.done_on ? '되돌리기' : '받음'}</button>` +
+          `<button type="button" class="phone-btn" data-del="${esc(t.id)}" aria-label="지우기">지우기</button></div>`;
+      }).join('') : `<p class="note">${moOf(ym)} 월말 할 일이 없어요.</p>`;
+      $('cw-task-list').querySelectorAll('[data-done]').forEach(b => b.addEventListener('click', async () => {
+        b.disabled = true;
+        const { error } = await supabase.from('field_tasks').update({ done_on: b.dataset.v ? ymdLocal(0) : null, updated_at: new Date().toISOString() }).eq('id', b.dataset.done);
+        if (error) { setStatus($('cw-status'), friendlyError(error), 'error'); b.disabled = false; return; }
+        cwLoad();
+      }));
+      $('cw-task-list').querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', async () => {
+        if (!confirm('이 할 일을 지울까요? 기업 화면에서도 사라져요.')) return;
+        b.disabled = true;
+        const { error } = await supabase.from('field_tasks').delete().eq('id', b.dataset.del);
+        if (error) { setStatus($('cw-status'), friendlyError(error), 'error'); b.disabled = false; return; }
+        logAction('월말 할 일 지우기', b.closest('.cw-row').innerText.replace(/\s+/g, ' ').slice(0, 60));
+        cwLoad();
+      }));
+    }
+    function cwCourseOpts() {
+      const c = (cwData.cos.find(x => x.key === $('cw-t-co').value) || { studs: [] });
+      const courses = [...new Set(c.studs.map(s => cwData.courseByName[normNm(s.name)]).filter(Boolean))].sort();
+      $('cw-t-course').innerHTML = '<option value="">기업 전체</option>' + courses.map(x => `<option>${esc(x)}</option>`).join('');
+    }
+    $('cw-t-co').addEventListener('change', cwCourseOpts);
+    $('cw-t-go').addEventListener('click', async () => {
+      const key = $('cw-t-co').value, title = $('cw-t-title').value.trim();
+      if (!key || !title) { setStatus($('cw-status'), '기업과 제목을 넣어 주세요.', 'error'); return; }
+      $('cw-t-go').disabled = true;
+      const { data: m } = await supabase.from('admin_users').select('center_id').eq('user_id', (await supabase.auth.getSession()).data.session.user.id).maybeSingle();
+      const { error } = await supabase.from('field_tasks').insert({ center_id: m && m.center_id, company_key: key, course: $('cw-t-course').value || null, kind: $('cw-t-kind').value,
+        month: cwYm() + '-01', due_on: $('cw-t-due').value || null, title, note: $('cw-t-note').value.trim() || null });
+      $('cw-t-go').disabled = false;
+      if (error) { setStatus($('cw-status'), friendlyError(error), 'error'); return; }
+      logAction('월말 할 일 넣기', `${$('cw-t-co').selectedOptions[0].textContent} · ${title}`);
+      $('cw-t-title').value = ''; $('cw-t-note').value = '';
+      cwLoad();
+    });
+    $('cw-task-bulk').addEventListener('click', async () => {
+      const ym = cwYm(), have = new Set(cwData.tasks.filter(t => t.kind === '면담일지' && t.month.slice(0, 7) === ym).map(t => t.company_key));
+      const todo = cwData.cos.filter(c => !have.has(c.key));
+      if (!todo.length) { setStatus($('cw-status'), `${moOf(ym)} 면담일지는 보이는 기업 모두 이미 있어요.`, 'info'); return; }
+      if (!confirm(`${todo.map(c => c.label).join(', ')} — ${todo.length}개 기업에 '${moOf(ym)} 면담일지'(${mdOf(lastDay(ym))}까지)를 넣을까요?`)) return;
+      const { data: m } = await supabase.from('admin_users').select('center_id').eq('user_id', (await supabase.auth.getSession()).data.session.user.id).maybeSingle();
+      const { error } = await supabase.from('field_tasks').insert(todo.map(c => ({ center_id: m && m.center_id, company_key: c.key, kind: '면담일지',
+        month: ym + '-01', due_on: lastDay(ym), title: `${moOf(ym)} 면담일지` })));
+      if (error) { setStatus($('cw-status'), friendlyError(error), 'error'); return; }
+      logAction('월말 할 일 넣기', `${moOf(ym)} 면담일지 ${todo.length}개 기업`);
+      cwLoad();
+    });
+
+    // 전담인력수당 — 기업 × 지난 3개월·이번 달, 칸마다 상태 고르기(바로 저장, 빈칸 = 확인 안 함)
+    function cwDrawAllow() {
+      const { ym, cos, allow } = cwData;
+      const months = [ymPlus(ym, -3), ymPlus(ym, -2), ymPlus(ym, -1), ym];
+      const get = (k, m) => allow.find(a => a.company_key === k && a.period.slice(0, 7) === m) || null;
+      const unpaid = cos.filter(c => months.some(m => (get(c.key, m) || {}).state === '미신청')).length;
+      $('cw-al-n').textContent = unpaid ? `미신청 있는 기업 ${unpaid}곳` : '';
+      $('cw-al-list').innerHTML = cos.length ? `<table class="mtbl cw-al"><thead><tr><th>기업</th>${months.map(m => `<th>${moOf(m)}분</th>`).join('')}</tr></thead><tbody>` +
+        cos.map(c => `<tr><td>${esc(c.label)}</td>` + months.map(m => {
+          const a = get(c.key, m);
+          return `<td><select class="ph-select cw-al-sel${a && a.state === '미신청' ? ' warn' : ''}" data-k="${esc(c.key)}" data-l="${esc(c.label)}" data-m="${m}" aria-label="${esc(c.label)} ${moOf(m)}분">` +
+            `<option value="">—</option>${AL_STATES.map(s => `<option${a && a.state === s ? ' selected' : ''}>${s}</option>`).join('')}</select>` +
+            (a && a.applied_on ? `<small>${esc(mdOf(a.applied_on))}</small>` : '') + `</td>`;
+        }).join('') + `</tr>`).join('') + `</tbody></table>` : '<p class="note">보이는 기업이 없어요.</p>';
+      $('cw-al-list').querySelectorAll('.cw-al-sel').forEach(sel => sel.addEventListener('change', async () => {
+        const k = sel.dataset.k, m = sel.dataset.m, v = sel.value, ex = get(k, m);
+        sel.disabled = true;
+        let error;
+        if (!v) { if (ex) ({ error } = await supabase.from('allowance_status').delete().eq('id', ex.id)); }
+        else {
+          let applied = ex && ex.applied_on;
+          if (v !== '미신청' && !applied) applied = (prompt(`${sel.dataset.l} ${moOf(m)}분 신청일 (YYYY-MM-DD, 모르면 비워 두세요)`, '') || '').trim() || null;
+          if (applied && !/^\d{4}-\d{2}-\d{2}$/.test(applied)) applied = null;
+          const row = { state: v, applied_on: v === '미신청' ? null : applied, checked_at: new Date().toISOString() };
+          if (ex) ({ error } = await supabase.from('allowance_status').update(row).eq('id', ex.id));
+          else {
+            const { data: me } = await supabase.from('admin_users').select('center_id').eq('user_id', (await supabase.auth.getSession()).data.session.user.id).maybeSingle();
+            ({ error } = await supabase.from('allowance_status').insert({ ...row, center_id: me && me.center_id, company_key: k, company_label: sel.dataset.l, period: m + '-01' }));
+          }
+        }
+        if (error) { setStatus($('cw-status'), friendlyError(error), 'error'); sel.disabled = false; return; }
+        logAction('전담인력수당 상태', `${sel.dataset.l} ${m} ${v || '지움'}`);
+        cwLoad();
+      }));
+    }
+
+    // 월 마감 — 그 달 학생마다 훈련일·학습활동서·학생 출석확인·센터 확인(칸을 벗어나면 저장)
+    function cwDrawMs() {
+      const { ym, cos, ms, courseByName, trainDays } = cwData;
+      const byName = {}; ms.forEach(r => { byName[normNm(r.name)] = r; });
+      const rows = cos.flatMap(c => c.studs.map(s => ({ c, s, r: byName[normNm(s.name)] || null })));
+      const done = rows.filter(x => x.r && x.r.center_confirmed_on).length;
+      $('cw-ms-n').textContent = rows.length ? `센터 확인 ${done} / ${rows.length}명` : '';
+      $('cw-ms-list').innerHTML = rows.length ? `<table class="mtbl cw-ms"><thead><tr><th>기업</th><th>학생</th><th>훈련일</th><th>학습활동서</th><th>학생 출석확인</th><th>센터 확인</th></tr></thead><tbody>` +
+        rows.map(({ c, s, r }) => {
+          const td = (trainDays[normNm(s.name)] || new Set()).size;
+          return `<tr data-n="${esc(s.name)}" data-course="${esc(courseByName[normNm(s.name)] || '')}" data-id="${r ? esc(r.id) : ''}"><td>${esc(c.label)}</td><td>${esc(s.name)}</td>` +
+            `<td><input type="number" min="0" max="31" class="ph-select cw-n" data-f="train_days" value="${r && r.train_days != null ? r.train_days : ''}" placeholder="${td || ''}" aria-label="${esc(s.name)} 훈련일" /></td>` +
+            `<td><input type="number" min="0" max="31" class="ph-select cw-n${r && r.train_days != null && (r.diary_days || 0) < r.train_days ? ' warn' : ''}" data-f="diary_days" value="${r && r.diary_days != null ? r.diary_days : ''}" aria-label="${esc(s.name)} 학습활동서 일수" /></td>` +
+            `<td><input type="date" class="ph-select" data-f="student_confirmed_on" value="${r && r.student_confirmed_on ? r.student_confirmed_on : ''}" aria-label="${esc(s.name)} 학생 출석확인" /></td>` +
+            `<td><input type="date" class="ph-select" data-f="center_confirmed_on" value="${r && r.center_confirmed_on ? r.center_confirmed_on : ''}" aria-label="${esc(s.name)} 센터 확인" /></td></tr>`;
+        }).join('') + `</tbody></table>` : '<p class="note">보이는 학생이 없어요.</p>';
+      $('cw-ms-list').querySelectorAll('input').forEach(inp => inp.addEventListener('change', () => cwMsSave(inp.closest('tr'), inp)));
+    }
+    async function cwMsSave(tr, inp) {
+      const f = inp.dataset.f, raw = inp.value.trim();
+      const v = f.endsWith('_on') ? (raw || null) : (raw === '' ? null : Math.max(0, Math.min(31, Number(raw) || 0)));
+      let error;
+      if (tr.dataset.id) ({ error } = await supabase.from('attendance_month_status').update({ [f]: v, updated_at: new Date().toISOString() }).eq('id', tr.dataset.id));
+      else {
+        const { data: me } = await supabase.from('admin_users').select('center_id').eq('user_id', (await supabase.auth.getSession()).data.session.user.id).maybeSingle();
+        const ins = await supabase.from('attendance_month_status').insert({ center_id: me && me.center_id, name: tr.dataset.n, month: cwData.ym + '-01', course: tr.dataset.course || null, [f]: v }).select('id').single();
+        error = ins.error; if (!error) tr.dataset.id = ins.data.id;
+      }
+      if (error) { setStatus($('cw-status'), friendlyError(error), 'error'); return; }
+      inp.classList.add('saved'); setTimeout(() => inp.classList.remove('saved'), 900);
+    }
+    $('cw-ms-fill').addEventListener('click', async () => {
+      // 훈련일이 비어 있는 학생만 올린 출결의 정규시간 날 수로 채움
+      const trs = [...$('cw-ms-list').querySelectorAll('tr[data-n]')].filter(tr => { const i = tr.querySelector('[data-f="train_days"]'); return !i.value && i.placeholder; });
+      if (!trs.length) { setStatus($('cw-status'), '채울 칸이 없어요(이미 있거나 그 달 정규시간이 없음).', 'info'); return; }
+      for (const tr of trs) { const i = tr.querySelector('[data-f="train_days"]'); i.value = i.placeholder; await cwMsSave(tr, i); }
+      logAction('월 마감 훈련일 채우기', `${cwData.ym} ${trs.length}명`);
+      cwLoad();
+    });
+
     // ===== 학생 › 출석 진도 — 이번 달은 정규시간 기준(attendance_daily), 지난달·일별 자료 없는 학생은 월 실적(sql/61) =====
     let attnMonth = null, attnCache = null, attnComp = {}, attnTrack = null;   // attnTrack = [OFF-JT | OJT] 전환(한 번에 한 구분만)
     let attnStu = {};   // 정규화 이름 → { manager, jobs, type } — 담당·직무·유형 거르기
@@ -4940,6 +5161,7 @@
       loadAttOptions().catch(() => {});   // [개편 7단계] 보내기 첨부 목록 — #notice 로 바로 열어도 채워지게
       hqLoad();     // 현황 — #hq 로 바로 열어도 채워지게
       attnLoad();   // 출석 진도도 첫 로드에 포함 — #attn 으로 바로 열거나 새로고침하면 빈 화면이던 것(기존 누락)
+      if (resolveTab(location.hash.slice(1)) === 'cowork') cwLoad().catch(() => {});   // [sql/70] #cowork 로 바로 열 때만(평소엔 탭을 열 때)
       // URL 해시의 탭 복원(새로고침·재로그인 후 작업 위치 유지) — 위에서 전체 로드했으니 중복 조회는 생략
       const t = resolveTab(location.hash.slice(1));
       if (t && TAB_KEYS.includes(t) && !(t === 'centers' && window.ADMIN_ROLE !== 'super_admin')) showTab(t, { noLoad: true });

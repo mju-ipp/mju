@@ -496,3 +496,30 @@ body.adm .abs-link.off{opacity:.55}
   body.adm .abs-row .aw{grid-column:1 / 3; white-space:normal}
   body.adm .abs-row .phone-btn{grid-column:3; grid-row:2}
 }
+
+/* [sql/70] 학생 › 기업 담당자 자료 — 월말 할 일 줄, 넣기 칸, 수당·월 마감 표 */
+body.adm #sec-cowork .hq-head{display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:8px}
+body.adm .cw-row{display:grid; grid-template-columns:130px 64px minmax(0,1fr) 96px auto auto; gap:10px; align-items:center; min-height:44px; padding:4px 0; border-top:1px solid var(--v-line)}
+body.adm .cw-row:last-child{border-bottom:1px solid var(--v-line)}
+body.adm .cw-row.done{color:var(--v-mute)}
+body.adm .cw-row .cw-co{font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+body.adm .cw-row .cw-k{font-size:13px; font-weight:600}
+body.adm .cw-row .cw-d{font-size:13px; color:var(--v-mute); text-align:right}
+body.adm .cw-row .cw-d.late{color:var(--v-warn); font-weight:600}
+body.adm .cw-add{display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:10px}
+body.adm .cw-add > select,body.adm .cw-add > input{width:auto; flex:0 1 auto; margin:0}
+body.adm .cw-add > select{min-width:120px; max-width:220px}
+body.adm .cw-add input[type=text]{flex:1 1 180px; min-width:160px}
+body.adm .cw-al select,body.adm .cw-ms input{width:auto; margin:0}
+body.adm .cw-al td,body.adm .cw-ms td{vertical-align:middle}
+body.adm .cw-al select{min-width:96px}
+body.adm .cw-al select.warn,body.adm .cw-ms input.warn{border-color:var(--v-warn); color:var(--v-warn)}
+body.adm .cw-al small{display:block; font-size:12px; color:var(--v-mute)}
+body.adm .cw-ms input[type=number]{width:72px}
+body.adm .cw-ms input.saved{border-color:var(--v-cobalt)}
+@media (max-width:640px){
+  body.adm .cw-row{grid-template-columns:minmax(0,1fr) auto; row-gap:2px}
+  body.adm .cw-row .cw-co,body.adm .cw-row .cw-t{grid-column:1}
+  body.adm .cw-row .cw-k,body.adm .cw-row .cw-d{grid-column:2; text-align:right}
+  body.adm #cw-al-list,body.adm #cw-ms-list{overflow-x:auto}
+}
