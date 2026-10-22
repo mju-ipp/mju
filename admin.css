@@ -523,3 +523,12 @@ body.adm .cw-ms input.saved{border-color:var(--v-cobalt)}
   body.adm .cw-row .cw-k,body.adm .cw-row .cw-d{grid-column:2; text-align:right}
   body.adm #cw-al-list,body.adm #cw-ms-list{overflow-x:auto}
 }
+/* [sql/71] 기업 초대코드 줄 · 월 마감 앱 체크 상태 */
+body.adm .cw-code{display:flex; align-items:center; gap:10px; flex-wrap:wrap; min-height:44px; padding:4px 0; border-top:1px solid var(--v-line)}
+body.adm .cw-code:last-child{border-bottom:1px solid var(--v-line)}
+body.adm .cw-code .cw-co{min-width:140px; font-weight:500}
+body.adm .cw-code code{font-family:ui-monospace,Consolas,monospace; font-size:14px; letter-spacing:.04em; padding:2px 8px; border:1px solid var(--v-line); border-radius:4px; background:var(--v-sunken)}
+body.adm .cw-ck{font-size:13px; font-weight:600}
+body.adm .cw-ck.done{color:var(--v-ink)}
+body.adm .cw-ck.pending{color:var(--v-warn)}
+body.adm .cw-ck.unknown,body.adm .cw-ck.na{color:var(--v-mute); font-weight:400}

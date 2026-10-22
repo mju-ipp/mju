@@ -72,6 +72,8 @@
     .sr .n span{margin-left:6px; font-size:12px; color:var(--v-mute)}
     .sr.off{background:var(--v-cobalt-bg)}
     .sr.off .st{color:var(--v-cobalt); font-weight:700}
+    .sr.tk{background:var(--v-sunken)} .sr.tk .n b{font-size:13px} .sr.tk .st{font-size:12px; color:var(--v-ink)}
+    .sr.tk.done{opacity:.6}
     .st{font-size:13px; font-weight:500; white-space:nowrap; color:var(--v-ink)}
     .st.short,.st.none{color:var(--v-warn); font-weight:700} .st.planned{color:var(--v-mute)}
     .unit{padding:12px 0; border-top:1px solid var(--v-line)}
@@ -213,7 +215,7 @@
       const leftDays = new Set(fut).size;
       const unpaid = (D.allowance || []).filter(a => a.state === '미신청');
       const lastSt = latestStatusMonth();
-      const lastOpen = lastSt ? statusRows(lastSt).filter(x => !x.st || !x.st.center_confirmed_on).length : 0;
+      const lastOpen = lastSt ? statusRows(lastSt).filter(x => !x.st).length : 0;   // 지난달 학습일지·출석확인 앱 체크 안 한 학생
       // 머리 — 결론 한 줄(수당 미신청이 가장 급함 → 확인 필요한 날 → 남은 훈련일)
       const title = unpaid.length ? `${moName(unpaid[0].period)}분 전담인력수당을 아직 신청하지 않았어요`
         : sh.length ? `확인이 필요한 날이 ${sh.length}건 있어요` : `${moName(thisYm)} OJT, 남은 훈련일 ${leftDays}일이에요`;
@@ -276,10 +278,15 @@
       // 날짜별 — 상태만, 휴가·출장 줄은 띠. 오늘·앞으로 먼저, 지난 날은 아래
       const byDay = {};
       studs().forEach(s => (s.days || []).forEach(d => { (byDay[d.day] = byDay[d.day] || []).push({ s, d }); }));
-      const days = Object.keys(byDay).sort(), mc = multiCourse();
+      const byDue = {};   // 마감일 → 그 달 월말 할 일(내부평가·면담일지)
+      (D.tasks || []).filter(t => t.due_on && t.due_on.slice(0, 7) === ym).forEach(t => { (byDue[t.due_on] = byDue[t.due_on] || []).push(t); });
+      const days = [...new Set(Object.keys(byDay).concat(Object.keys(byDue)))].sort(), mc = multiCourse();
+      const taskLines = ds => (byDue[ds] || []).map(t => `<div class="sr tk${t.done_on ? ' done' : ''}"><span class="n"><b>${esc(t.kind)}</b><span>${esc(t.title)}${t.course && mc ? ' · ' + esc(t.course) : ''}</span></span>` +
+        `<span class="st">${t.done_on ? '받음' : '마감'}</span></div>`).join('');
       const row = ds => {
+        if (!byDay[ds]) return `<div class="day${ds < today ? ' past' : ''}"><p class="dh">${md(ds)}<small>월말 할 일</small>${ds === today ? '<span class="today">오늘</span>' : ''}</p>${taskLines(ds)}</div>`;
         const it = byDay[ds].sort((a, b) => a.s.name.localeCompare(b.s.name, 'ko')), t = it[0].d;
-        return `<div class="day${ds < today ? ' past' : ''}"><p class="dh">${md(ds)}<small>${t.start && t.end ? `${esc(t.start)}–${esc(t.end)} · ` : ''}${Number(t.hours) || 0}시간</small>${ds === today ? '<span class="today">오늘</span>' : ''}</p>` +
+        return `<div class="day${ds < today ? ' past' : ''}"><p class="dh">${md(ds)}<small>${t.start && t.end ? `${esc(t.start)}–${esc(t.end)} · ` : ''}${Number(t.hours) || 0}시간</small>${ds === today ? '<span class="today">오늘</span>' : ''}</p>` + taskLines(ds) +
           it.map(({ s, d }) => {
             const a = absOn(s, ds);
             const st = a ? `<span class="st">${AK[a.kind]}</span>`
@@ -396,49 +403,54 @@
         : `<p class="msg" style="margin:8px 0">센터가 아직 올린 할 일이 없어요.</p>`;
     }
 
-    // ---------- HRD: 월별 출결 ----------
-    function latestStatusMonth() {
-      const ms = [...new Set(studs().flatMap(s => (s.status || []).map(x => x.month)))].sort();
-      return ms.length ? ms[ms.length - 1] : null;
-    }
-    const statusRows = m => studs().map(s => ({ s, st: (s.status || []).find(x => x.month === m) || null, mr: monthRow(s, m) }));
+    // ---------- 월별 출결 — 월 마감 = 학생 앱 완료 체크(학습일지 작성 + 출석결과확인 등록, sql/71 checks) + 센터 확인 ----------
+    // 달 = 학생들의 OJT 배정 달(예정>0) 중 이번 달까지
+    const ojtMonths = () => [...new Set(studs().flatMap(s => (s.months || []).filter(m => Number(m.planned) > 0 && m.month <= thisYm).map(m => m.month)))].sort();
+    const checked = (s, m) => (s.checks || []).includes(m);
+    const centerOn = (s, m) => ((s.status || []).find(x => x.month === m) || {}).center_confirmed_on || null;
+    // 머리 숫자용: 지난달까지 중 가장 최근 달, 그 달 앱 체크 안 한 학생 수
+    function latestStatusMonth() { const ms = ojtMonths().filter(m => m < thisYm); return ms.length ? ms[ms.length - 1] : null; }
+    const statusRows = m => studs().filter(s => monthRow(s, m)).map(s => ({ s, st: checked(s, m) ? { center_confirmed_on: centerOn(s, m) || 'checked' } : null, mr: monthRow(s, m) }));
     let attnYm = null;
     function drawAttn() {
-      const ms = [...new Set(studs().flatMap(s => (s.status || []).map(x => x.month)))].sort();
-      if (!ms.length) { $('a-view').innerHTML = `<h2>월별 출결</h2><p class="msg" style="margin:8px 0">센터가 아직 월 마감 자료를 올리지 않았어요. 올라오면 달마다 학습활동서·출석확인 진행을 여기서 볼 수 있어요.</p>`; return; }
-      if (!attnYm || !ms.includes(attnYm)) attnYm = ms[ms.length - 1];
-      const rows = statusRows(attnYm), i = ms.indexOf(attnYm);
-      const all = f => rows.every(f), any = f => rows.some(f);
-      const diaryOk = r => r.st && r.st.train_days != null && r.st.diary_days >= r.st.train_days;
-      const steps = [['정규시간 등록', true], ['출결', true], ['학습활동서', all(diaryOk)], ['학생 출석확인', all(r => r.st && r.st.student_confirmed_on)], ['센터 확인', all(r => r.st && r.st.center_confirmed_on)]];
+      const ms = ojtMonths();
+      if (!ms.length) { $('a-view').innerHTML = `<h2>월별 출결</h2><p class="msg" style="margin:8px 0">아직 OJT 배정 달이 없어요.</p>`; return; }
+      if (!attnYm || !ms.includes(attnYm)) attnYm = latestStatusMonth() || ms[ms.length - 1];
+      const i = ms.indexOf(attnYm), m = attnYm, cur = m === thisYm;
+      const rows = studs().filter(s => monthRow(s, m)).map(s => ({ s, mr: monthRow(s, m), ok: checked(s, m), cc: centerOn(s, m) }));
+      const allOk = rows.length && rows.every(r => r.ok), allCc = rows.length && rows.every(r => r.cc);
+      const steps = [['정규시간 등록', true], ['출결', !cur], ['학습일지·출석확인', allOk], ['센터 확인', allCc]];
       const firstNo = steps.findIndex(x => !x[1]);
-      const lack = rows.filter(r => !diaryOk(r)), unconf = rows.filter(r => diaryOk(r) && !(r.st && r.st.student_confirmed_on));
-      let h = `<div class="mnav"><button type="button" id="a-prev" aria-label="이전 달"${i <= 0 ? ' disabled' : ''}>‹</button><b>${attnYm.slice(0, 4)}년 ${moName(attnYm)}분</b><button type="button" id="a-next" aria-label="다음 달"${i >= ms.length - 1 ? ' disabled' : ''}>›</button></div>` +
-        `<p class="lede">한 달 출결은 아래 순서로 마감돼요. 센터 확인까지 끝나야 그 달 훈련이 인정돼요.</p>` +
+      const lack = rows.filter(r => !r.ok);
+      let h = `<div class="mnav"><button type="button" id="a-prev" aria-label="이전 달"${i <= 0 ? ' disabled' : ''}>‹</button><b>${m.slice(0, 4)}년 ${moName(m)}분</b><button type="button" id="a-next" aria-label="다음 달"${i >= ms.length - 1 ? ' disabled' : ''}>›</button></div>` +
+        `<p class="lede">한 달 출결은 아래 순서로 마감돼요. 학생이 고용24에서 학습일지를 쓰고 [출석결과확인 등록]을 누른 뒤 앱에서 완료 체크하면 '완료'로 바뀌어요.</p>` +
         `<div class="steps">${steps.map(([l, d], k) => `<div class="${d ? 'd' : k === firstNo ? 'n' : ''}">${l}</div>`).join('')}</div>`;
-      if (lack.length) h += `<div class="alert"><p><b>${esc(lack.map(r => r.s.name).join(', '))} 학생의 학습활동서가 비어 있어요.</b></p><p>학생이 다 쓰고 출석확인을 눌러야 센터가 확인할 수 있어요. 학생에게 한 번 알려 주세요.</p></div>`;
-      else if (unconf.length) h += `<div class="alert"><p><b>${esc(unconf.map(r => r.s.name).join(', '))} 학생이 아직 출석확인을 누르지 않았어요.</b></p><p>고용24 학습근로자 화면에서 출석확인을 누르도록 알려 주세요.</p></div>`;
-      h += `<table class="tbl"><thead><tr><th>학생</th><th class="r">인정 / 계획</th><th class="r">학습활동서</th><th class="r">출석확인</th></tr></thead><tbody>` +
-        rows.map(({ s, st, mr }) => `<tr><td>${esc(s.name)}${(st && st.course) ? `<small>${esc(st.course)}</small>` : ''}</td>` +
-          `<td class="r">${mr ? `${mr.actual != null ? Number(mr.actual) : '—'} / ${Number(mr.planned) || 0}h` : '—'}</td>` +
-          `<td class="r${st && !diaryOk({ st }) ? ' w' : ''}">${st && st.train_days != null ? `${st.diary_days || 0} / ${st.train_days}일` : '—'}</td>` +
-          `<td class="r${st && st.student_confirmed_on ? '' : ' mu'}">${st && st.student_confirmed_on ? md(st.student_confirmed_on) : '전'}</td></tr>`).join('') + `</tbody></table>` +
-        (any(r => r.st && r.st.center_confirmed_on) ? `<p class="lede" style="margin-top:10px">센터 확인: ${rows.filter(r => r.st && r.st.center_confirmed_on).map(r => `${esc(r.s.name)} ${md(r.st.center_confirmed_on)}`).join(' · ')}</p>` : '');
+      if (!cur && lack.length) h += `<div class="alert"><p><b>${esc(lack.map(r => r.s.name).join(', '))} 학생이 아직 ${moName(m)} 학습일지·출석확인을 마치지 않았어요.</b></p><p>센터도 알림을 보내요. 회사에서도 한 번 알려 주세요.</p></div>`;
+      else if (cur) h += `<p class="lede">${moName(m)}분은 다음 달 1일부터 마감해요(마감 ${moName(ymAdd(m, 1))} 3일).</p>`;
+      h += `<table class="tbl"><thead><tr><th>학생</th><th class="r">인정 / 계획</th><th class="r">학습일지·출석확인</th><th class="r">센터 확인</th></tr></thead><tbody>` +
+        rows.map(({ s, mr, ok, cc }) => `<tr><td>${esc(s.name)}${courseOf(s) && multiCourse() ? `<small>${esc(courseOf(s))}</small>` : ''}</td>` +
+          `<td class="r">${mr.actual != null ? Number(mr.actual) : '—'} / ${Number(mr.planned) || 0}h</td>` +
+          `<td class="r${ok ? '' : cur ? ' mu' : ' w'}">${ok ? '완료' : cur ? '진행 중' : '전'}</td>` +
+          `<td class="r${cc ? '' : ' mu'}">${cc ? md(cc) : '—'}</td></tr>`).join('') + `</tbody></table>`;
       $('a-view').innerHTML = h;
       $('a-prev')?.addEventListener('click', () => { attnYm = ms[i - 1]; drawAttn(); });
       $('a-next')?.addEventListener('click', () => { attnYm = ms[i + 1]; drawAttn(); });
     }
 
-    // ---------- HRD: 전담인력수당 ----------
+    // ---------- 전담인력수당 — OJT 배정 달마다 한 줄(센터가 아직 확인 안 한 달은 '확인 전') ----------
     function drawAllow() {
-      const al = D.allowance || [], un = al.filter(a => a.state === '미신청');
-      const checked = al.reduce((m, a) => (a.checked_at && a.checked_at > m ? a.checked_at : m), '');
-      let h = `<h2>전담인력활동수당</h2><p class="lede">OJT 출결이 있는 달마다 신청할 수 있어요. 상태는 센터가 행정지원시스템에서 확인한 값이에요${checked ? `(${md(checked)} 확인)` : ''}.</p>`;
+      const al = D.allowance || [], by = {}; al.forEach(a => { by[a.period] = a; });
+      const months = [...new Set(ojtMonths().concat(al.map(a => a.period)))].sort().reverse();
+      const un = al.filter(a => a.state === '미신청');
+      const lastCheck = al.reduce((x, a) => (a.checked_at && a.checked_at > x ? a.checked_at : x), '');
+      let h = `<h2>전담인력활동수당</h2><p class="lede">OJT 출결이 있는 달마다 신청할 수 있어요. 상태는 센터가 행정지원시스템에서 확인한 값이에요${lastCheck ? `(${md(lastCheck)} 확인)` : ''}.</p>`;
       if (un.length) h += `<div class="alert" style="margin-top:6px"><p><b>${un.map(a => moName(a.period) + '분').join(', ')} 아직 신청 안 됨</b></p><p>그 달 OJT 출결이 있어 신청 대상이에요. 신청 방법은 센터 담당 선생님께 문의해 주세요.</p></div>`;
-      h += al.length ? `<table class="tbl"><thead><tr><th>기간</th><th>상태</th><th class="r">신청일</th></tr></thead><tbody>` +
-          al.map(a => `<tr><td>${a.period.slice(0, 4) !== thisYm.slice(0, 4) ? a.period.slice(0, 4) + '년 ' : ''}${moName(a.period)}분</td><td class="${a.state === '미신청' ? 'w' : ''}">${esc(a.state)}</td><td class="r${a.applied_on ? '' : ' mu'}">${a.applied_on ? md(a.applied_on) : '—'}</td></tr>`).join('') +
+      h += months.length ? `<table class="tbl"><thead><tr><th>기간</th><th>상태</th><th class="r">신청일</th></tr></thead><tbody>` +
+          months.map(m => { const a = by[m]; const st = a ? a.state : m === thisYm ? '출결 진행 중' : '확인 전';
+            return `<tr><td>${m.slice(0, 4) !== thisYm.slice(0, 4) ? m.slice(0, 4) + '년 ' : ''}${moName(m)}분</td><td class="${a && a.state === '미신청' ? 'w' : a ? '' : 'mu'}">${esc(st)}</td>` +
+              `<td class="r${a && a.applied_on ? '' : ' mu'}">${a && a.applied_on ? md(a.applied_on) : '—'}</td></tr>`; }).join('') +
           `</tbody></table><p class="lede" style="margin-top:10px">상태 순서: 신청 → 승인 → 확정 → 지급완료</p>`
-        : `<p class="msg" style="margin:8px 0">센터가 아직 확인한 신청 내역이 없어요.</p>`;
+        : `<p class="msg" style="margin:8px 0">아직 OJT 배정 달이 없어요.</p>`;
       $('w-view').innerHTML = h;
     }
 
