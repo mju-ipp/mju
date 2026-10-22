@@ -170,6 +170,24 @@ body{background:var(--v-bg); color:var(--v-ink); font-variant-numeric:tabular-nu
 .w24-path b{font-weight:600; color:var(--v-ink, inherit)}
 .w24 .mju-btn{display:flex; justify-content:center; text-decoration:none}
 
+/* 휴가·출장 체크(sql/69) — 날짜 펼침 칸 안의 한 묶음, 달력 칸에는 '휴가'/'출장' 글자 */
+.ab-box{margin:6px 0 4px; padding:12px; border:1px solid var(--v-line); border-radius:8px; background:var(--v-paper)}
+.ab-box.on{border-color:var(--v-cobalt); background:var(--v-cobalt-bg)}
+.ab-box.done{background:var(--v-sunken)}
+.ab-t{margin:0; font-size:14px; font-weight:600; color:var(--v-ink)}
+.ab-s{margin:4px 0 0; font-size:13px; line-height:1.5; color:var(--v-mute)}
+.ab-s b{font-weight:600; color:var(--v-ink)}
+.ab-warn{color:var(--v-warn)}
+.ab-note{display:block; width:100%; box-sizing:border-box; margin:10px 0 0; padding:9px 10px; font:inherit; font-size:14px;
+  color:var(--v-ink); background:var(--v-paper); border:1px solid var(--v-line); border-radius:6px}
+.ab-btns{display:flex; gap:8px; margin-top:8px}
+.ab-btn,.ab-cancel{min-height:40px; padding:0 16px; font:inherit; font-size:14px; font-weight:600; border-radius:6px; cursor:pointer}
+.ab-btn{flex:1; color:#fff; background:var(--v-cobalt); border:0}
+.ab-btn:active{background:var(--v-cobalt-d)}
+.ab-cancel{margin-top:10px; color:var(--v-ink); background:var(--v-paper); border:1px solid var(--v-line)}
+.ab-btn:disabled,.ab-cancel:disabled{opacity:.5; cursor:default}
+.ab-tag{font-size:12px; font-weight:600; color:var(--v-cobalt)}
+
 /* ── 7. 기능 글자 12px 하한(DESIGN.md) ── */
 .notice-card-time,.scale-ends,.pv-table th,.pv-table td,.cite,.act-row .at{font-size:12px}
 .cal-dow{font-size:12px}

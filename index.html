@@ -301,6 +301,7 @@
     // [sql/63] 학생 홈 상태 — 아래 renderAttendance/renderSchedule 호출보다 먼저 선언(let 은 선언 줄 전에 읽으면 오류)
     let _stuData = null;     // stuData() 한 번만 부른 결과(Promise)
     let homeYm = null, homeSel = null;   // 홈 달력이 보여주는 달·펼친 날(완료 체크 후 다시 그려도 유지)
+    const _absByYm = {};     // [sql/69] 달마다 내 휴가·출장 체크 { byDay, size } — 체크·취소하면 그 달만 지우고 다시 읽음
     let homeKind = '';  // 그 달 일정 목록의 종류 거르기(옛 일정 화면 기능을 홈으로)
     let _centerBlocked = false;
     if (configReady()) {
@@ -726,6 +727,44 @@
       const ST = { ok: '인정', short: '모자람', none: '기록 없음', planned: '예정' };
       const unitInfo = (s, u) => ((sd && sd.units) || []).find(x => x.subject === s && x.unit === u) || null;
 
+      // [sql/69] 휴가·출장 체크 — OJT 정규시간(예정 포함)이 있는 날만, 마감 없음(지난 날도). 선생님이 다른 날로 옮김.
+      //   sql/69 적용 전이거나 실패하면 체크 칸 없이 기존 화면(회귀 0)
+      const AK = { leave: '휴가', trip: '출장' }, AKRO = { leave: '휴가로', trip: '출장으로' };
+      const absOn = !!(sd && sd.ok);
+      function loadAbs(ym) {
+        if (!absOn || _absByYm[ym]) return;
+        _absByYm[ym] = { loading: true, byDay: {}, size: 1 };
+        supabase.rpc('my_absences', { p_code: prof.code || null, p_token: prof.token || null, p_month: ym })
+          .then(({ data, error }) => {
+            if (error || !data || data.ok !== true) { _absByYm[ym] = { off: true, byDay: {}, size: 1 }; return; }
+            const byDay = {};
+            (data.absences || []).forEach(a => { byDay[a.day] = a; });
+            _absByYm[ym] = { byDay, size: Number(data.course_size) || 1 };
+            if (homeYm === ym) draw();
+          }, () => { _absByYm[ym] = { off: true, byDay: {}, size: 1 }; });
+      }
+      const absOf = ds => { const m = _absByYm[ds.slice(0, 7)]; return m && !m.loading && !m.off ? m.byDay[ds] || null : null; };
+      const isOjtDay = r => !isSchedDay(r) && r.track !== 'offjt' && Number(r.planned) > 0;
+      function absBlock(ds) {
+        const m = _absByYm[ds.slice(0, 7)];
+        if (!m || m.loading || m.off) return '';
+        const a = m.byDay[ds];
+        const who = a && a.by_role === 'teacher' ? ` · 현장교사${a.by_name ? ' ' + esc(a.by_name) : ''} 체크` : '';
+        if (a && a.state === 'applied')
+          return `<div class="ab-box done"><p class="ab-t">${AK[a.kind] || '휴가'} · 다른 날로 옮겼어요${who}</p><p class="ab-s">바뀐 훈련 날짜는 달력에서 확인하세요.</p></div>`;
+        if (a && a.state === 'open')
+          return `<div class="ab-box on"><p class="ab-t">${AKRO[a.kind] || '휴가로'} 체크했어요${who}</p>` +
+            `<p class="ab-s">센터 선생님이 이 날 훈련을 다른 날로 옮겨요.${a.note ? ' 메모: ' + esc(a.note) : ''}</p>` +
+            `<button type="button" class="ab-cancel" data-id="${esc(a.id)}">체크 취소</button></div>`;
+        return `<div class="ab-box"><p class="ab-t">이 날 휴가·출장인가요?</p>` +
+          `<p class="ab-s">체크하면 센터 선생님이 이 날 훈련을 다른 날로 옮겨요.` +
+          (m.size > 1 ? ` 같은 과정 학생 ${m.size}명이 함께 훈련해서 <b>이 날은 과정 전체가 옮겨져요.</b>` : '') + `</p>` +
+          (a && a.state === 'rejected' ? `<p class="ab-s ab-warn">지난번 체크는 반려됐어요. 궁금하면 센터에 문의하세요.</p>` : '') +
+          `<input type="text" class="ab-note" maxlength="300" placeholder="메모 (선택)" aria-label="휴가·출장 메모">` +
+          `<div class="ab-btns"><button type="button" class="ab-btn" data-kind="leave" data-d="${ds}">휴가</button>` +
+          `<button type="button" class="ab-btn" data-kind="trip" data-d="${ds}">출장</button></div></div>`;
+      }
+
       // 다가오는 일정 — 일정+마감일 합본(오늘 이후) 최대 4건 + 마감 미정(최대 2건). 링크 있으면 '바로가기'.
       const rowHtml = (r, badge) => {
         const safeLink = (r.link && /^https?:\/\//i.test(r.link)) ? r.link : null;
@@ -817,6 +856,7 @@
           h += `<div class="oj-u"><span class="oj-u-s">${TL[r.track === 'offjt' ? 'offjt' : 'ojt']}</span>` +
             `<span class="oj-u-n">${r.start ? `${esc(r.start)}–${esc(r.end)}` : '훈련'} · ${Number(r.planned) || 0}시간</span>` +
             `<span class="ojt-st ${st}" style="font-size:12.5px">${ST[st] || st}${st !== 'planned' && st !== 'none' ? ' ' + (Number(r.recognized) || 0) + '시간' : ''}</span></div>`;
+          if (isOjtDay(r) && (st !== 'ok' || absOf(ds))) h += absBlock(ds);   // 인정된 날은 체크할 일이 없음(이미 체크한 건 보여 줌)
           if (r.track !== 'offjt') h += ojtUnits(ds.slice(0, 7));
         });
         evts.forEach(r => { h += `<div class="oj-u"><span class="oj-u-s">${esc(r.kind || '일정')}</span><span class="oj-u-n">${esc(r.title)}</span>${r.memo ? `<span class="oj-u-meta">${esc(r.memo)}</span>` : ''}</div>`; });
@@ -857,8 +897,10 @@
           let inner = `<span>${d}</span>`;
           // 수업 칸 — 과목 이름만 12px(DESIGN.md 하한), 칸이 내용만큼 늘어남. 능력단위·요소는 날짜를 누르면 아래에
           if (sch) inner += offItems(sch.course).map(x => `<span class="hc-it">${wordBreaks(x.s)}</span>`).join('');
+          const ab = att.some(isOjtDay) ? absOf(ds) : null;
           att.forEach(r => {
             const st = r.status || 'planned';
+            if (ab && isOjtDay(r) && st === 'planned') { inner += `<span class="ab-tag">${AK[ab.kind] || '휴가'}</span>`; return; }
             inner += st === 'planned' ? `<span class="ojt-t">${esc(r.start || '')}</span>` : `<span class="ojt-st ${st}">${st === 'none' ? '없음' : (Number(r.recognized) || 0) + 'h'}</span>`;
           });
           if (evts.length) inner += `<span class="cal-dots">${evts.slice(0, 3).map(() => '<span class="cal-dot"></span>').join('')}</span>`;
@@ -887,6 +929,32 @@
         mount.querySelector('#hc-next')?.addEventListener('click', () => { homeYm = ymAdd(homeYm, 1); homeSel = null; draw(); });
         mount.querySelector('#hc-today')?.addEventListener('click', () => { homeYm = thisYm; homeSel = null; draw(); });
         mount.querySelectorAll('.cal-cell[data-d]').forEach(b => b.addEventListener('click', () => { homeSel = homeSel === b.dataset.d ? null : b.dataset.d; draw(); }));
+        // [sql/69] 휴가·출장 체크·취소 — 처리 후 그 달 체크를 다시 읽어 그림
+        const absDone = ym => { delete _absByYm[ym]; loadAbs(ym); };
+        const absFail = r => alert(r && r.reason === 'applied' ? '이미 다른 날로 옮긴 날이라 바꿀 수 없어요. 센터에 문의해주세요.'
+          : r && r.reason === 'no_day' ? '이 날은 훈련(정규시간)이 없어 체크할 수 없어요.'
+          : r && r.reason === 'rate' ? '잠시 후 다시 시도해주세요.' : '처리하지 못했어요. 잠시 후 다시 시도해주세요.');
+        mount.querySelectorAll('.ab-btn').forEach(b => b.addEventListener('click', async () => {
+          const ds = b.dataset.d, kind = b.dataset.kind, m = _absByYm[ds.slice(0, 7)] || {};
+          if (!confirm(`${fmtDate(ds)} 훈련을 ${AKRO[kind]} 체크할까요?` + (m.size > 1 ? `\n같은 과정 학생 ${m.size}명의 이 날 훈련이 함께 옮겨져요.` : ''))) return;
+          b.disabled = true;
+          const note = (b.closest('.ab-box').querySelector('.ab-note') || {}).value || '';
+          try {
+            const { data, error } = await supabase.rpc('report_absence', { p_code: prof.code || null, p_token: prof.token || null, p_day: ds, p_kind: kind, p_note: note });
+            if (error || !data || !data.ok) absFail(data);
+          } catch (_) { alert('연결이 불안정해요. 잠시 후 다시 시도해주세요.'); }
+          absDone(ds.slice(0, 7));
+        }));
+        mount.querySelectorAll('.ab-cancel').forEach(b => b.addEventListener('click', async () => {
+          if (!confirm('휴가·출장 체크를 취소할까요?')) return;
+          b.disabled = true;
+          try {
+            const { data, error } = await supabase.rpc('cancel_absence', { p_code: prof.code || null, p_token: prof.token || null, p_id: b.dataset.id });
+            if (error || !data || !data.ok) absFail(data);
+          } catch (_) { alert('연결이 불안정해요. 잠시 후 다시 시도해주세요.'); }
+          absDone(homeYm);
+        }));
+        loadAbs(homeYm);
         // [TASKS v2] 완료 체크·해제 — 처리 후 재렌더로 상태 동기화. 마감 지난 할 일은 해제 불가(서버 게이트, Q3)
         if (checksOn) mount.querySelectorAll('.task-chk').forEach(b => b.addEventListener('click', async () => {
           b.disabled = true;
