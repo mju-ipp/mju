@@ -4278,6 +4278,8 @@
     const cwYm = () => $('cw-month').value || ymdLocal(0).slice(0, 7);
     const ymPlus = (ym, n) => { const d = new Date(Number(ym.slice(0, 4)), Number(ym.slice(5)) - 1 + n, 1); return `${d.getFullYear()}-${p2(d.getMonth() + 1)}`; };
     const lastDay = ym => `${ym}-${p2(new Date(Number(ym.slice(0, 4)), Number(ym.slice(5)), 0).getDate())}`;
+    // 면담일지·내부평가 마감 = 그 달 맨 마지막 평일(사용자 10/22) — 토·일이면 금요일로
+    const lastWeekday = ym => { const d = new Date(Number(ym.slice(0, 4)), Number(ym.slice(5)), 0); while (d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() - 1); return `${ym}-${p2(d.getDate())}`; };
     const moOf = ym => `${Number(ym.slice(5))}월`;
     // 내 이름(admin_users.display_name) — '내 학생' = 명단 담당(students.manager)이 이 이름인 학생. 휴가·출장 체크도 같이 씀.
     async function myAdminName() {
@@ -4362,7 +4364,7 @@
       const sel = $('cw-t-co'), keep = sel.value;
       sel.innerHTML = cos.map(c => `<option value="${esc(c.key)}"${c.key === keep ? ' selected' : ''}>${esc(c.label)}</option>`).join('');
       cwCourseOpts();
-      if (!$('cw-t-due').value || $('cw-t-due').value.slice(0, 7) !== ym) $('cw-t-due').value = lastDay(ym);
+      if (!$('cw-t-due').value || $('cw-t-due').value.slice(0, 7) !== ym) $('cw-t-due').value = lastWeekday(ym);
       const label = k => (cos.find(c => c.key === k) || {}).label || k;
       const rows = tasks.filter(t => t.month.slice(0, 7) === ym || (t.month.slice(0, 7) < ym && !t.done_on));
       $('cw-task-n').textContent = rows.length ? `${rows.filter(t => !t.done_on).length}건 남음 / ${rows.length}건` : '';
@@ -4412,10 +4414,10 @@
       const ym = cwYm(), have = new Set(cwData.tasks.filter(t => t.kind === '면담일지' && t.month.slice(0, 7) === ym).map(t => t.company_key));
       const todo = cwData.cos.filter(c => !have.has(c.key));
       if (!todo.length) { setStatus($('cw-status'), `${moOf(ym)} 면담일지는 보이는 기업 모두 이미 있어요.`, 'info'); return; }
-      if (!confirm(`${todo.map(c => c.label).join(', ')} — ${todo.length}개 기업에 '${moOf(ym)} 면담일지'(${mdOf(lastDay(ym))}까지)를 넣을까요?`)) return;
+      if (!confirm(`${todo.map(c => c.label).join(', ')} — ${todo.length}개 기업에 '${moOf(ym)} 면담일지'(${mdOf(lastWeekday(ym))}까지)를 넣을까요?`)) return;
       const { data: m } = await supabase.from('admin_users').select('center_id').eq('user_id', (await supabase.auth.getSession()).data.session.user.id).maybeSingle();
       const { error } = await supabase.from('field_tasks').insert(todo.map(c => ({ center_id: m && m.center_id, company_key: c.key, kind: '면담일지',
-        month: ym + '-01', due_on: lastDay(ym), title: `${moOf(ym)} 면담일지` })));
+        month: ym + '-01', due_on: lastWeekday(ym), title: `${moOf(ym)} 면담일지` })));
       if (error) { setStatus($('cw-status'), friendlyError(error), 'error'); return; }
       logAction('월말 할 일 넣기', `${moOf(ym)} 면담일지 ${todo.length}개 기업`);
       cwLoad();

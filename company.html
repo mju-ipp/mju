@@ -148,6 +148,7 @@
     .cal .lb{font-size:12px; font-weight:600; line-height:18px; border-radius:4px}
     .lb.tr{background:var(--v-cobalt); color:#fff}
     .lb.chk{background:var(--v-warn); color:#fff}
+    .lb.pl{background:var(--v-cobalt-bg); color:var(--v-cobalt)}   /* 앞으로의 예정 시간 — 지난 인정(진한 파랑)과 구분 */
     .sel{margin-top:12px; padding:16px}
     .sel-h{display:flex; align-items:baseline; flex-wrap:wrap; gap:6px 10px; padding-bottom:12px; margin-bottom:4px; border-bottom:1px solid var(--v-line)}
     .sel-h b{font-size:18px; font-weight:700; color:var(--v-ink)}
@@ -382,14 +383,19 @@
       for (let i = 0; i < first; i++) h += `<button type="button" class="blank" tabindex="-1" aria-hidden="true"></button>`;
       all.forEach((ds, i) => {
         const inf = dayInfo(ds), dow = (first + i) % 7, lbs = [];
-        if (inf.off.length) [...new Set(inf.off.map(x => x.a.kind))].forEach(k => lbs.push(`<span class="lb off">${AK[k]}</span>`));
-        if (inf.chk) lbs.push(`<span class="lb chk">확인</span>`);
-        else if (inf.tr.length) lbs.push(`<span class="lb tr">훈련</span>`);
+        // 훈련한 학생마다 '이름 시간'(사용자 10/22) — 이름은 성 빼고 두 글자, 지난 날은 인정 시간(모자라면 주황), 앞으로는 예정 시간, 휴가·출장은 회색
+        const nick = n => { const t = String(n || '').trim(); return t.length >= 3 ? t.slice(1) : t; };
+        inf.tr.concat(inf.off).sort((a, b) => a.s.name.localeCompare(b.s.name, 'ko')).forEach(({ s, d, a }) => {
+          if (a) { lbs.push(`<span class="lb off" title="${esc(s.name)} ${AK[a.kind]}">${esc(nick(s.name))} ${AK[a.kind].slice(0, 1)}</span>`); return; }
+          const past = d.status === 'ok' || d.status === 'short' || d.status === 'none';
+          const hrs = past ? (Number(d.recognized) || 0) : (Number(d.hours) || 0);
+          lbs.push(`<span class="lb ${d.status === 'short' || d.status === 'none' ? 'chk' : past ? 'tr' : 'pl'}" title="${esc(s.name)} ${hrs}시간">${esc(nick(s.name))} ${hrs}</span>`);
+        });
         inf.evs.forEach(e => lbs.push(`<span class="lb ex">${esc(String(e.kind).slice(0, 2))}</span>`));
         inf.tasks.forEach(t => lbs.push(`<span class="lb ${t.done_on ? 'done' : t.kind === '내부평가' ? 'ev' : 'iv'}">${esc(KL[t.kind] || t.kind)}</span>`));
         const cls = [dow === 0 ? 'sun' : '', ds < today ? 'past' : '', ds === today ? 'today' : ''].filter(Boolean).join(' ');
         const say = `${md(ds)}${lbs.length ? ' ' + lbs.map(x => x.replace(/<[^>]+>/g, '')).join(', ') : ''}`;
-        h += `<button type="button" class="${cls}" data-d="${ds}" aria-pressed="${ds === selDay}" aria-label="${esc(say)}"><span class="dn">${i + 1}</span>${lbs.slice(0, 3).join('')}</button>`;
+        h += `<button type="button" class="${cls}" data-d="${ds}" aria-pressed="${ds === selDay}" aria-label="${esc(say)}"><span class="dn">${i + 1}</span>${lbs.slice(0, 5).join('')}</button>`;
       });
       $('m-cal').innerHTML = h;
       $('m-cal').querySelectorAll('button[data-d]').forEach(b => b.addEventListener('click', () => { selDay = b.dataset.d; drawMonth(); }));
