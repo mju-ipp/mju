@@ -396,9 +396,10 @@ function showPushToast(title, body, link) {
 // 하단 탭 네비게이션 — .ph-body 가 있는 학생 페이지에만 주입(관리자 콘솔 등은 제외)
 (function injectTabbar() {
   try {
-    if (!document.querySelector('.ph-body')) return;
+    if (!document.querySelector('.ph-body, [data-tabbar]')) return;
     if (document.querySelector('.tabbar')) return;
-    const page = location.pathname.split('/').pop() || 'index.html';
+    let page = location.pathname.split('/').pop() || 'index.html';
+    if (page === 'company.html') page = 'index.html';   // 기업 담당자 첫 화면 = 우리 학생 OJT(10/22)
     // (학생 전용 전환) 지원자·모집 탭 폐지 — 가입된 학생 기기에만 운영 탭 표시
     const prof = getProfile();
     if (!prof.name || prof.target_type === 'applicant') return;
