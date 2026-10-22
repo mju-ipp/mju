@@ -106,25 +106,13 @@
           <p class="dsec-lede" id="d-short-hint"></p>
           <div id="d-short-list"><p class="note">불러오는 중…</p></div>
         </section>
-        <!-- [sql/69] 휴가·출장 체크 — 학생·현장교사가 체크한 날 → 과정 단위로 옮길 날 제안 → move.py 계획 받기 (docs/LEAVE.md 4단계) -->
+        <!-- [sql/69·70] 휴가·출장 체크 — 학생·기업 담당자가 체크한 날 → 과정 단위로 옮길 날 제안 → move.py 계획 받기 (docs/LEAVE.md 4단계) -->
         <section class="dsec" id="d-abs-sec">
           <h3 class="dsec-h">휴가·출장 체크 <span class="n" id="d-abs-n"></span>
             <button type="button" class="phone-btn dsec-act" id="d-abs-plan" disabled>이동 계획 받기</button></h3>
           <p class="dsec-lede" id="d-abs-hint">과정 단위 — 한 명이라도 빠지는 날은 그 날 전체를 옮겨요. 옮길 날 = 오늘 이후 빈 평일(주말·공휴일 제외), 하루 6시간까지.</p>
           <div class="status" id="d-abs-status"></div>
           <div id="d-abs-list"><p class="note">불러오는 중…</p></div>
-          <details class="abs-links" id="d-abs-links">
-            <summary>기업 담당자 링크 <span class="n" id="d-link-n"></span></summary>
-            <p class="dsec-lede">링크를 받은 사람은 로그인 없이 그 기업 학생만 봐요 — 현장교사: 이번 달·능력단위·월말 할 일, HRD담당자: 월별 출결·전담인력수당·휴가·출장(sql/70). 링크 주소는 만들 때 한 번만 보여요.</p>
-            <div class="abs-mk">
-              <select id="d-link-co" class="ph-select" aria-label="기업"></select>
-              <select id="d-link-role" class="ph-select" aria-label="역할"><option value="teacher">현장교사</option><option value="hrd">HRD담당자</option></select>
-              <input type="text" id="d-link-label" maxlength="40" placeholder="누구에게 주는지 (예: 현장교사 홍길동)" aria-label="링크 받는 사람" />
-              <button type="button" class="mju-btn mju-btn--sm" id="d-link-go">링크 만들기</button>
-            </div>
-            <div class="status" id="d-link-status"></div>
-            <div id="d-link-list"></div>
-          </details>
         </section>
         <section class="dsec" id="d-consult-sec" hidden>
           <h3 class="dsec-h">답하지 않은 상담 <span class="n" id="d-consult-n"></span></h3>
@@ -3118,7 +3106,6 @@
       dashShortLoad();   // [개편 5단계] 정규시간보다 인정시간이 모자란 학생
       dashPushLoad();    // [디자인 재정리] 알림 못 받는 학생
       dashAbsLoad().catch(() => {});    // [sql/69] 휴가·출장 체크
-      dashLinkLoad().catch(() => {});   // [sql/69] 현장교사 기업 링크
     }
 
     // ===== [medium-1] 이달의 확인 업무 — tasks 완료체크(sql/40 admin_task_progress) 진행률·미완료자 독촉 =====
@@ -4170,7 +4157,7 @@
         if (course && p.ops.length) (byMonth[month] = byMonth[month] || []).push({ label: course, ops: p.ops });
         h += `<div class="abs-g"><p class="abs-gh"><b>${esc(course || '(과정 모름)')}</b> <span class="note">${Number(month.slice(5))}월 · 학생 ${studs.size}명</span></p>`;
         items.forEach(a => {
-          const who = a.by_role === 'teacher' ? `현장교사 ${a.by_name || ''}` : a.by_role === 'admin' ? '센터' : '학생 본인';
+          const who = a.by_role === 'company' || a.by_role === 'teacher' ? `기업 담당자 ${a.by_name || ''}` : a.by_role === 'admin' ? '센터' : '학생 본인';
           h += `<div class="abs-row"><span class="ad">${esc(mdOf(a.day))}(${dowOf(a.day)})</span><span class="an">${esc(a.name)}</span>` +
             `<span class="ak ${a.kind}">${ABS_K[a.kind] || a.kind}</span><span class="aw">${esc(who.trim())}${a.note ? ' · ' + esc(a.note) : ''}</span>` +
             `<button type="button" class="phone-btn" data-reject="${esc(a.id)}">반려</button></div>`;
@@ -4202,57 +4189,6 @@
         setTimeout(() => URL.revokeObjectURL(a.href), 2000);
       });
       logAction('휴가·출장 이동 계획 받기', absPlans.map(p => p.month + ' ' + p.items.length + '과정').join(', '));
-    });
-
-    // 현장교사 기업 링크 — 만들기(원문은 이때만) · 목록 · 끊기
-    async function dashLinkLoad() {
-      const sel = $('d-link-co'); if (!sel) return;
-      let [st, lk] = await Promise.all([
-        supabase.from('students').select('company,manager'),
-        supabase.from('company_links').select('id,company_label,label,role,created_at,expires_at,revoked_at,last_used_at').order('created_at', { ascending: false }),
-      ]);
-      if (lk.error && /role/.test(lk.error.message || '')) {   // sql/70 적용 전 — 역할 칸 없이
-        lk = await supabase.from('company_links').select('id,company_label,label,created_at,expires_at,revoked_at,last_used_at').order('created_at', { ascending: false });
-        $('d-link-role').hidden = true;
-      }
-      if (lk.error) { $('d-abs-links').hidden = true; return; }
-      const cos = [...new Set((st.data || []).map(s => (s.company || '').trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ko'));
-      const keep = sel.value;
-      sel.innerHTML = '<option value="">기업 고르기</option>' + cos.map(c => `<option${c === keep ? ' selected' : ''}>${esc(c)}</option>`).join('');
-      const live = (lk.data || []).filter(l => !l.revoked_at && (!l.expires_at || l.expires_at > new Date().toISOString()));
-      $('d-link-n').textContent = live.length ? `· 쓰는 링크 ${live.length}개` : '';
-      const fd = t => t ? new Date(t).toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' }) : '-';
-      $('d-link-list').innerHTML = (lk.data || []).map(l => {
-        const off = !!l.revoked_at || (l.expires_at && l.expires_at <= new Date().toISOString());
-        return `<div class="abs-link${off ? ' off' : ''}"><span class="lc">${esc(l.company_label)}</span><span class="note">${l.role === 'hrd' ? 'HRD담당자' : '현장교사'}</span><span class="ll">${esc(l.label || '')}</span>` +
-          `<span class="note">만든 날 ${fd(l.created_at)} · 마지막 사용 ${fd(l.last_used_at)}</span>` +
-          (off ? `<span class="note">${l.revoked_at ? '끊음' : '기한 지남'}</span>` : `<button type="button" class="phone-btn" data-revoke="${esc(l.id)}">끊기</button>`) + `</div>`;
-      }).join('') || '<p class="note">만든 링크가 없어요.</p>';
-      $('d-link-list').querySelectorAll('[data-revoke]').forEach(b => b.addEventListener('click', async () => {
-        if (!confirm('이 링크를 끊을까요? 끊으면 그 링크로는 더 열 수 없어요(다시 쓰려면 새로 만들어야 해요).')) return;
-        b.disabled = true;
-        const { error } = await supabase.from('company_links').update({ revoked_at: new Date().toISOString() }).eq('id', b.dataset.revoke);
-        if (error) { setStatus($('d-link-status'), friendlyError(error), 'error'); b.disabled = false; return; }
-        logAction('현장교사 링크 끊기', b.closest('.abs-link').querySelector('.lc').textContent);
-        dashLinkLoad();
-      }));
-    }
-    $('d-link-go').addEventListener('click', async () => {
-      const co = $('d-link-co').value, label = $('d-link-label').value.trim();
-      if (!co) { setStatus($('d-link-status'), '기업을 골라 주세요.', 'error'); return; }
-      $('d-link-go').disabled = true;
-      const role = $('d-link-role').hidden ? null : $('d-link-role').value;
-      const { data, error } = await supabase.rpc('admin_make_company_link', role ? { p_company: co, p_label: label || null, p_days: null, p_role: role } : { p_company: co, p_label: label || null, p_days: null });
-      $('d-link-go').disabled = false;
-      if (error || !data || !data.ok) { setStatus($('d-link-status'), error ? friendlyError(error) : data && data.reason === 'company' ? '명단에 그 기업 학생이 없어요.' : '만들지 못했어요.', 'error'); return; }
-      const url = new URL('field.html', location.href).href.split('#')[0] + '#k=' + data.token;
-      const st = $('d-link-status'); st.className = 'status ok';
-      st.innerHTML = `<b>${esc(data.company)}</b> ${data.role === "hrd" ? "HRD담당자" : "현장교사"} 링크 — 지금만 보여요. 복사해서 전해 주세요.` +
-        `<div class="abs-url"><input type="text" readonly value="${esc(url)}" aria-label="링크 주소" /><button type="button" class="mju-btn mju-btn--sm" id="d-link-copy">복사</button></div>`;
-      $('d-link-copy').addEventListener('click', async () => { try { await navigator.clipboard.writeText(url); $('d-link-copy').textContent = '복사됨'; } catch (_) { st.querySelector('input').select(); } });
-      $('d-link-label').value = '';
-      logAction('현장교사 링크 만들기', data.company + (label ? ' · ' + label : ''));
-      dashLinkLoad();
     });
 
     // ===== 학생 › 출석 진도 — 이번 달은 정규시간 기준(attendance_daily), 지난달·일별 자료 없는 학생은 월 실적(sql/61) =====

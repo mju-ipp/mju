@@ -74,6 +74,7 @@
         <div class="menu-grid">
           <a href="./notice.html"   class="menu-tile"><span class="mi"><i data-lucide="megaphone"></i></span><span class="ml">공지사항</span></a>
           <a href="./library.html"  class="menu-tile"><span class="mi"><i data-lucide="folder"></i></span><span class="ml">자료실</span></a>
+          <a href="./company.html" id="m-coojt" class="menu-tile" style="display:none"><span class="mi"><i data-lucide="calendar-check"></i></span><span class="ml">우리 학생 OJT (출결·일정)</span></a>
           <a href="./mycompany.html" id="m-myco" class="menu-tile" style="display:none"><span class="mi"><i data-lucide="building-2"></i></span><span class="ml">내 학습기업</span></a>
         </div>
         <p class="menu-group-label">소통·참여</p>
@@ -348,6 +349,7 @@
         if (_prof.target_type === 'company') {
           const s = document.getElementById('m-survey'); if (s) s.href = './company-survey.html';
           const hn = document.getElementById('home-name'); if (hn) hn.textContent += ' (기업 담당자)';
+          if (_prof.code) document.getElementById('m-coojt').style.display = '';   // [sql/70] 우리 학생 OJT — 기업 코드로 본인 확인
           renderCompanyStage(_prof);
         }
         // 학생: 내 출석 진도 카드 (sql/42·44 — 코드 또는 토큰, RPC·데이터 없으면 조용히 미표시)
@@ -749,7 +751,7 @@
         const m = _absByYm[ds.slice(0, 7)];
         if (!m || m.loading || m.off) return '';
         const a = m.byDay[ds];
-        const who = a && a.by_role === 'teacher' ? ` · 현장교사${a.by_name ? ' ' + esc(a.by_name) : ''} 체크` : '';
+        const who = a && (a.by_role === 'company' || a.by_role === 'teacher') ? ` · 기업 담당자${a.by_name ? ' ' + esc(a.by_name) : ''} 체크` : '';
         if (a && a.state === 'applied')
           return `<div class="ab-box done"><p class="ab-t">${AK[a.kind] || '휴가'} · 다른 날로 옮겼어요${who}</p><p class="ab-s">바뀐 훈련 날짜는 달력에서 확인하세요.</p></div>`;
         if (a && a.state === 'open')
