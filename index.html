@@ -1245,20 +1245,9 @@
           setStatus(statusEl, friendlyError(r.error), 'error'); return;
         }
         if (!r.data || !r.data.ok) { setStatus(statusEl, '기업 코드가 올바르지 않아요. 지정완료 안내 메일을 확인하거나 담당자에게 문의해주세요.', 'error'); return; }
+        // (10/22 사용자) 기업은 사람이 아니라 기업으로만 가입 — 이름 = 기업명, 휴대폰 없음. HRD·현장교사 누가 가입해도 같은 기업 하나.
         const co = r.data.company;
-        const hn = (r.data.hrd_name || '').trim();
-        const hp = (r.data.hrd_phone || '').trim();
-        if (hn && hp) {
-          return doRegister({ name: hn, phone: hp, target_type: 'company', job_key: null, company: co, type1: null, manager: null, token: null, code: coCode });
-        }
-        // 노션 명단에 HRD담당자 정보가 비어 있음(또는 sql/13 전) → 이름·휴대폰 직접 입력 2단계
-        pendingCompany = { co, code: coCode };
-        document.getElementById('grp-id').hidden = false;
-        if (hn) nameEl.value = hn;
-        if (hp) phoneEl.value = hp;
-        btn.textContent = '가입 완료';
-        setStatus(statusEl, `${co} 확인됐어요. 명단에 담당자 정보가 비어 있어 이름·휴대폰을 입력하고 '가입 완료'를 눌러주세요.`, 'ok');
-        return;
+        return doRegister({ name: co, phone: '', target_type: 'company', job_key: null, company: co, type1: null, manager: null, token: null, code: coCode });
       }
 
       // ── 매칭학생: 직무가 여러 개면 2단계(본인 직무 선택 후 완료) ──
