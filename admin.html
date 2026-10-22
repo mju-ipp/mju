@@ -4747,8 +4747,9 @@
     (() => {
       const file = $('d-daily-file'), go = $('d-daily-go'); if (!file || !go) return;
       let payloads = null;   // [{ month, rows }] — 달마다 한 번씩 올린다
+      let extras = {};       // (10/22, sql/75) month → { status: 월 마감 학생 목록, allowance: 전담인력수당 } — app_upload JSON 에 같이 실려 옴
       file.addEventListener('change', async () => {
-        payloads = null; go.disabled = true; setStatus($('d-daily-status'), '', 'info'); $('d-daily-preview').textContent = '';
+        payloads = null; extras = {}; go.disabled = true; setStatus($('d-daily-status'), '', 'info'); $('d-daily-preview').textContent = '';
         const files = [...(file.files || [])]; if (!files.length) return;
         const all = []; const errs = [];
         for (const f of files) {
@@ -4757,6 +4758,7 @@
               const j = JSON.parse(await f.text());
               if (!/^\d{4}-\d{2}$/.test((j && j.month) || '') || !Array.isArray(j.rows) || !j.rows.length) throw new Error(`${f.name}: month·rows 가 있는 app_upload 파일이어야 해요`);
               j.rows.forEach(r => all.push(r));
+              if (Array.isArray(j.month_status) || j.allowance) extras[j.month] = { status: j.month_status || [], allowance: j.allowance || null };
             } else {
               setStatus($('d-daily-status'), '엑셀 읽는 중…', 'info');
               const XLSX = await loadXlsx();
@@ -4782,7 +4784,10 @@
             + Object.keys(DAILY_LABEL).filter(k => cnt[k]).map(k => `${DAILY_LABEL[k]} ${cnt[k]}`).join(' · ')
             + (miss.length ? ` · 명단에 없는 이름 ${miss.length}명(${miss.join(', ')})` : '');
         });
-        $('d-daily-preview').textContent = `파일 ${files.length - errs.length}개 — ` + lines.join(' / ');
+        const exs = Object.values(extras);
+        const exLine = exs.length ? ' / 함께: 월 마감 ' + exs.reduce((n, e) => n + e.status.length, 0) + '명' +
+          (exs.some(e => e.allowance) ? ' · 전담인력수당 ' + Math.max(...exs.map(e => e.allowance ? e.allowance.companies.length : 0)) + '곳' : '') : '';
+        $('d-daily-preview').textContent = `파일 ${files.length - errs.length}개 — ` + lines.join(' / ') + exLine;
         payloads = [...byMonth.entries()].sort().map(([month, rows]) => ({ month, rows }));
         go.disabled = false;
       });
@@ -4793,11 +4798,16 @@
         for (const p of payloads) {
           const { data, error } = await supabase.rpc('bulk_upsert_attendance_daily', { p_month: p.month, p_rows: p.rows });
           if (error) { setStatus($('d-daily-status'), (done.length ? done.join(' / ') + ' / ' : '') + `${p.month} 올리기 실패: ` + (/not_admin/.test(error.message || '') ? '관리자 계정으로만 올릴 수 있어요.' : error.message), 'error'); go.disabled = false; return; }
+          const ex = extras[p.month];
+          if (ex) {   // 월 마감·수당 — 실패해도 출결은 이미 반영됨(따로 알림)
+            const { data: d2, error: e2 } = await supabase.rpc('admin_upload_status', { p_month: p.month, p_status: ex.status, p_allowance: ex.allowance });
+            done.push(e2 ? `${p.month} 월 마감·수당 반영 실패: ${e2.message}` : `월 마감 ${d2.month_status}명 · 수당 ${d2.allowance}건${d2.missing ? ' (미신청 ' + d2.missing + '건)' : ''}`);
+          }
           done.push(`${p.month} 반영 — 학생 ${data.students}명 · ${data.inserted}일분` + (data.deleted ? ` (이전 ${data.deleted}일분 교체)` : '') + (data.skipped ? ` · 건너뜀 ${data.skipped}` : '') + (data.months != null ? ` · 월 실적 ${data.months}건 다시 계산` : ''));
           try { logAction('출결 결과 올리기', p.month + ' · ' + data.students + '명 ' + data.inserted + '일'); } catch (_) {}
         }
         setStatus($('d-daily-status'), done.join(' / '), 'ok');
-        payloads = null; file.value = ''; $('d-daily-preview').textContent = '';
+        payloads = null; extras = {}; cwData = null; file.value = ''; $('d-daily-preview').textContent = '';
         dailyLastLoad(); dailyCache = null; attnCache = null; dashShortLoad(); attnLoad(true);
       });
     })();
