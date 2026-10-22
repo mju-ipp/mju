@@ -6,7 +6,7 @@
   <title>관리자 · 일학습병행 앱</title>
   <meta name="theme-color" content="#121318" />
   <link rel="stylesheet" href="./styles.css" />
-  <link rel="stylesheet" href="./admin.css?v=20261019-1" /><!-- 배포 때 v 를 올려 캐시된 옛 스타일과 새 HTML 이 섞이지 않게 -->
+  <link rel="stylesheet" href="./admin.css?v=20261022-1" /><!-- 배포 때 v 를 올려 캐시된 옛 스타일과 새 HTML 이 섞이지 않게 -->
   <script src="./config.js"></script>
   <style>
     .msg{max-width:80%;padding:9px 12px;border-radius:12px;margin:5px 0;font-size:14px;white-space:pre-wrap}
@@ -105,6 +105,25 @@
           <h3 class="dsec-h">정규시간보다 인정시간이 모자라요 <span class="n" id="d-short-n"></span></h3>
           <p class="dsec-lede" id="d-short-hint"></p>
           <div id="d-short-list"><p class="note">불러오는 중…</p></div>
+        </section>
+        <!-- [sql/69] 휴가·출장 체크 — 학생·현장교사가 체크한 날 → 과정 단위로 옮길 날 제안 → move.py 계획 받기 (docs/LEAVE.md 4단계) -->
+        <section class="dsec" id="d-abs-sec">
+          <h3 class="dsec-h">휴가·출장 체크 <span class="n" id="d-abs-n"></span>
+            <button type="button" class="phone-btn dsec-act" id="d-abs-plan" disabled>이동 계획 받기</button></h3>
+          <p class="dsec-lede" id="d-abs-hint">과정 단위 — 한 명이라도 빠지는 날은 그 날 전체를 옮겨요. 옮길 날 = 오늘 이후 빈 평일(주말·공휴일 제외), 하루 6시간까지.</p>
+          <div class="status" id="d-abs-status"></div>
+          <div id="d-abs-list"><p class="note">불러오는 중…</p></div>
+          <details class="abs-links" id="d-abs-links">
+            <summary>현장교사 기업 링크 <span class="n" id="d-link-n"></span></summary>
+            <p class="dsec-lede">링크를 받은 사람은 로그인 없이 그 기업 학생의 휴가·출장을 체크할 수 있어요. 링크 주소는 만들 때 한 번만 보여요.</p>
+            <div class="abs-mk">
+              <select id="d-link-co" class="ph-select" aria-label="기업"></select>
+              <input type="text" id="d-link-label" maxlength="40" placeholder="누구에게 주는지 (예: 현장교사 홍길동)" aria-label="링크 받는 사람" />
+              <button type="button" class="mju-btn mju-btn--sm" id="d-link-go">링크 만들기</button>
+            </div>
+            <div class="status" id="d-link-status"></div>
+            <div id="d-link-list"></div>
+          </details>
         </section>
         <section class="dsec" id="d-consult-sec" hidden>
           <h3 class="dsec-h">답하지 않은 상담 <span class="n" id="d-consult-n"></span></h3>
@@ -3097,6 +3116,8 @@
       dailyLastLoad();   // [개편 4단계] 이번 달 출결 결과 반영 상태
       dashShortLoad();   // [개편 5단계] 정규시간보다 인정시간이 모자란 학생
       dashPushLoad();    // [디자인 재정리] 알림 못 받는 학생
+      dashAbsLoad().catch(() => {});    // [sql/69] 휴가·출장 체크
+      dashLinkLoad().catch(() => {});   // [sql/69] 현장교사 기업 링크
     }
 
     // ===== [medium-1] 이달의 확인 업무 — tasks 완료체크(sql/40 admin_task_progress) 진행률·미완료자 독촉 =====
@@ -3729,7 +3750,7 @@
     });
 
     // ===== [디자인 재정리] 오늘 머리 — '오늘 처리할 일 N건' = 모자란 학생 + 미답변 상담 + 알림 못 받는 학생 + 3일 안 마감 =====
-    const dashCnt = { short: null, consult: null, push: null, due: null };
+    const dashCnt = { short: null, absence: null, consult: null, push: null, due: null };
     function renderHero() {
       const d = new Date();
       $('d-when').textContent = `${d.getMonth() + 1}월 ${d.getDate()}일 ${'일월화수목금토'[d.getDay()]}요일`;
@@ -3741,6 +3762,7 @@
       sec('d-due-sec', dashCnt.due, 'd-due-n', '건');
       const quiet = [];
       if (dashCnt.short === 0) quiet.push('모자란 학생 없음');
+      if (dashCnt.absence === 0) quiet.push('휴가·출장 체크 없음');
       if (dashCnt.consult === 0) quiet.push('답하지 않은 상담 없음');
       if (dashCnt.due === 0) quiet.push('3일 안 마감 없음');
       if (dashCnt.push === 0) quiet.push('명단 학생 모두 알림 켬');
@@ -4050,6 +4072,182 @@
         row.appendChild(b); list.appendChild(row);
       });
     }
+
+    // ===== [sql/69] 오늘 › 휴가·출장 체크 — 접수 목록 · 과정 단위 옮길 날 제안 · move.py 계획 받기 · 반려 · 기업 링크 =====
+    // 옮기기 규칙(출결점검 스킬과 같음): 과정 단위(한 명이라도 빠지는 날은 그 날 전체), 과정 월 합계 유지,
+    //   옮길 곳 = 오늘 이후 ① 이미 등록된 날 6시간까지 늘리기 ② 가장 빠른 빈 평일(주말·공휴일 제외)에 6시간씩, 마지막 날만 줄임.
+    //   비콘 있고 미등록인 지난 평일(①순위)은 앱에 비콘 자료가 없어 제안하지 않음 — 그런 날이 있으면 계획을 손으로 고친다.
+    // 반영: 다시 조회해 올렸을 때 그 날 정규시간이 없어졌으면 '반영'으로 자동 표시(예정이 사라진 날 = 옮김).
+    // 공휴일(평일만 의미) 2026-10 ~ 2027-02 — 2027 설 연휴 2/6~2/9(대체 포함)는 달력으로 다시 확인할 것
+    const ABS_HOLI = new Set(['2026-10-05', '2026-10-09', '2026-12-25', '2027-01-01', '2027-02-08', '2027-02-09']);
+    const ABS_K = { leave: '휴가', trip: '출장' };
+    const p2 = n => String(n).padStart(2, '0');
+    const ymdOf = d => `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`;
+    const dowOf = ds => '일월화수목금토'[new Date(ds + 'T00:00:00').getDay()];
+    let absPlans = [];   // [{ month, items: [{ label, ops }] }] — [이동 계획 받기]
+    // move.py 시간: 9시 시작 6/4/2 는 숫자 프리셋, 나머지는 행 문자열(점심 12~13시 뺌) — 프리셋 3 은 13-16 이라 9시 3시간은 문자열
+    function absHours(start, h) {
+      if (start === 9 && [6, 4, 2].includes(h)) return h;
+      const a = Math.max(0, Math.min(h, 12 - start)), rows = [];
+      if (a > 0) rows.push(`${start}-${start + a}`);
+      if (h - a > 0) rows.push(`13-${13 + h - a}`);
+      return rows.join(',');
+    }
+    // 한 과정·한 달의 제안: out = 뺄 날, ops = move.py ops, short = 못 옮긴 시간
+    function absPropose(month, rows, removeDays, today) {
+      const day = {};   // 날짜 → { h: 그날 정규시간(학생 중 큰 값), s: 시작 시 }
+      rows.forEach(r => {
+        const h = Number(r.planned_hours) || 0; if (h <= 0) return;
+        const s = Number(String(r.start_time || '09').slice(0, 2)) || 9;
+        if (!day[r.day] || h > day[r.day].h) day[r.day] = { h, s };
+      });
+      const starts = Object.values(day).map(x => x.s);
+      const start = starts.length ? starts.sort((a, b) => starts.filter(v => v === b).length - starts.filter(v => v === a).length)[0] : 9;
+      const out = [...removeDays].filter(d => day[d]).sort();
+      let need = out.reduce((s, d) => s + day[d].h, 0);
+      const ops = out.map(d => [d, 'del', 0]), adds = [];
+      // ① 오늘 이후 등록된 날을 6시간까지
+      Object.keys(day).sort().forEach(d => {
+        if (need <= 0 || d <= today || removeDays.has(d) || day[d].h >= 6) return;
+        const add = Math.min(6 - day[d].h, need); need -= add;
+        ops.push([d, 'reset', absHours(start, day[d].h + add)]); adds.push(`${mdOf(d)} ${day[d].h}→${day[d].h + add}h`);
+      });
+      // ② 빈 평일
+      const last = new Date(Number(month.slice(0, 4)), Number(month.slice(5)), 0).getDate();
+      for (let i = 1; i <= last && need > 0; i++) {
+        const d = `${month}-${p2(i)}`, wd = new Date(d + 'T00:00:00').getDay();
+        if (d <= today || wd === 0 || wd === 6 || ABS_HOLI.has(d) || day[d] || removeDays.has(d)) continue;
+        const h = Math.min(6, need); need -= h;
+        ops.push([d, 'fill', absHours(start, h)]); adds.push(`${mdOf(d)}(${dowOf(d)}) ${h}h`);
+      }
+      ops.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
+      return { out: out.map(d => ({ d, h: day[d].h })), ops, adds, short: need };
+    }
+    async function dashAbsLoad() {
+      const list = $('d-abs-list'); if (!list) return;
+      const today = ymdLocal(0);
+      const { data: abs, error } = await supabase.from('attendance_absences')
+        .select('id,name,company,course,day,kind,note,by_role,by_name,state,created_at').eq('state', 'open').order('day');
+      if (error) { $('d-abs-sec').hidden = true; setDashCnt('absence', null); return; }   // sql/69 적용 전
+      $('d-abs-sec').hidden = false;
+      // 그 달 과정 정규시간 — 과정 단위 제안과 '반영' 판정에 씀
+      const months = [...new Set((abs || []).map(a => a.day.slice(0, 7)))];
+      const courses = [...new Set((abs || []).map(a => a.course).filter(Boolean))];
+      const daily = {};   // month → rows
+      let dailyErr = !courses.length && (abs || []).length > 0;   // 과정 없는 체크만 있으면 판정 못 함
+      for (const m of months) {
+        const nx = new Date(Number(m.slice(0, 4)), Number(m.slice(5)), 1);
+        const { data, error: de } = courses.length ? await supabase.from('attendance_daily').select('name,day,course,planned_hours,start_time')
+          .eq('track', 'ojt').in('course', courses).gte('day', m + '-01').lt('day', ymdOf(nx)) : { data: [] };
+        if (de) dailyErr = true;
+        daily[m] = data || [];
+      }
+      // 반영 판정: 그 학생의 그 날 정규시간이 없어졌으면 'applied' — 정규시간을 못 읽었으면 판정하지 않음(전부 반영으로 바뀌는 사고 방지)
+      const has = (a) => dailyErr || (daily[a.day.slice(0, 7)] || []).some(r => r.day === a.day && normNm(r.name) === normNm(a.name) && Number(r.planned_hours) > 0);
+      const gone = (abs || []).filter(a => !has(a));
+      if (gone.length) {
+        const uid = ((await supabase.auth.getSession()).data.session || {}).user?.id || null;
+        await supabase.from('attendance_absences').update({ state: 'applied', handled_at: new Date().toISOString(), handled_by: uid, updated_at: new Date().toISOString() })
+          .in('id', gone.map(a => a.id));
+      }
+      const open = (abs || []).filter(a => has(a));
+      $('d-abs-n').textContent = open.length ? open.length + '건' : '';
+      setDashCnt('absence', open.length);
+      $('d-abs-status').textContent = gone.length ? `정규시간이 없어진 ${gone.length}건은 '반영'으로 표시했어요.` : '';
+      absPlans = [];
+      if (!open.length) { list.innerHTML = '<p class="note">체크된 날이 없어요.</p>'; $('d-abs-plan').disabled = true; return; }
+      // 과정·달마다 묶음
+      const groups = new Map();
+      open.forEach(a => { const k = (a.course || a.company || '') + '|' + a.day.slice(0, 7); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(a); });
+      const byMonth = {};
+      let h = '';
+      groups.forEach((items, k) => {
+        const [course, month] = k.split('|');
+        const rows = daily[month].filter(r => r.course === course);
+        const studs = new Set(rows.map(r => normNm(r.name)));
+        const p = absPropose(month, rows, new Set(items.map(a => a.day)), today);
+        if (course && p.ops.length) (byMonth[month] = byMonth[month] || []).push({ label: course, ops: p.ops });
+        h += `<div class="abs-g"><p class="abs-gh"><b>${esc(course || '(과정 모름)')}</b> <span class="note">${Number(month.slice(5))}월 · 학생 ${studs.size}명</span></p>`;
+        items.forEach(a => {
+          const who = a.by_role === 'teacher' ? `현장교사 ${a.by_name || ''}` : a.by_role === 'admin' ? '센터' : '학생 본인';
+          h += `<div class="abs-row"><span class="ad">${esc(mdOf(a.day))}(${dowOf(a.day)})</span><span class="an">${esc(a.name)}</span>` +
+            `<span class="ak ${a.kind}">${ABS_K[a.kind] || a.kind}</span><span class="aw">${esc(who.trim())}${a.note ? ' · ' + esc(a.note) : ''}</span>` +
+            `<button type="button" class="phone-btn" data-reject="${esc(a.id)}">반려</button></div>`;
+        });
+        h += `<p class="abs-pr">빼기 ${p.out.map(x => `${mdOf(x.d)}(${dowOf(x.d)}) ${x.h}h`).join(', ') || '-'} → 넣기 ${esc(p.adds.join(', ') || '-')}</p>` +
+          (p.short > 0 ? `<p class="abs-pr warn">이 달 안에 ${p.short}시간을 넣을 빈 평일이 없어요 — 다른 날을 직접 정해 주세요.</p>` : '') +
+          (studs.size > 1 ? `<p class="abs-pr note">같은 과정 ${studs.size}명 모두 이 날짜로 함께 옮겨져요.</p>` : '') + `</div>`;
+      });
+      list.innerHTML = h;
+      absPlans = Object.keys(byMonth).sort().map(m => ({ month: m, items: byMonth[m] }));
+      $('d-abs-plan').disabled = !absPlans.length;
+      list.querySelectorAll('[data-reject]').forEach(b => b.addEventListener('click', async () => {
+        if (!confirm('이 체크를 반려할까요? 학생·현장교사 화면에 "반려됐어요"로 보이고, 같은 날을 다시 체크할 수 있어요.')) return;
+        b.disabled = true;
+        const uid = ((await supabase.auth.getSession()).data.session || {}).user?.id || null;
+        const { error: e2 } = await supabase.from('attendance_absences').update({ state: 'rejected', handled_at: new Date().toISOString(), handled_by: uid, updated_at: new Date().toISOString() }).eq('id', b.dataset.reject);
+        if (e2) { setStatus($('d-abs-status'), friendlyError(e2), 'error'); b.disabled = false; return; }
+        logAction('휴가·출장 반려', b.closest('.abs-row').innerText.replace(/\s+/g, ' ').slice(0, 60));
+        dashAbsLoad();
+      }));
+    }
+    $('d-abs-plan').addEventListener('click', () => {
+      // 달마다 한 파일 — 출결점검 scripts\plan_<MMDD>.json 으로 두고 move.py 로 실행(프라임솔루션은 사용자 결정으로 제외 — 받은 뒤 확인)
+      const d = new Date(), tag = p2(d.getMonth() + 1) + p2(d.getDate());
+      absPlans.forEach(pl => {
+        const blob = new Blob([JSON.stringify(pl, null, 1)], { type: 'application/json' });
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+        a.download = `plan_${tag}${absPlans.length > 1 ? '_' + pl.month.slice(5) : ''}.json`; a.click();
+        setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+      });
+      logAction('휴가·출장 이동 계획 받기', absPlans.map(p => p.month + ' ' + p.items.length + '과정').join(', '));
+    });
+
+    // 현장교사 기업 링크 — 만들기(원문은 이때만) · 목록 · 끊기
+    async function dashLinkLoad() {
+      const sel = $('d-link-co'); if (!sel) return;
+      const [st, lk] = await Promise.all([
+        supabase.from('students').select('company,manager'),
+        supabase.from('company_links').select('id,company_label,label,created_at,expires_at,revoked_at,last_used_at').order('created_at', { ascending: false }),
+      ]);
+      if (lk.error) { $('d-abs-links').hidden = true; return; }
+      const cos = [...new Set((st.data || []).map(s => (s.company || '').trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ko'));
+      const keep = sel.value;
+      sel.innerHTML = '<option value="">기업 고르기</option>' + cos.map(c => `<option${c === keep ? ' selected' : ''}>${esc(c)}</option>`).join('');
+      const live = (lk.data || []).filter(l => !l.revoked_at && (!l.expires_at || l.expires_at > new Date().toISOString()));
+      $('d-link-n').textContent = live.length ? `· 쓰는 링크 ${live.length}개` : '';
+      const fd = t => t ? new Date(t).toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' }) : '-';
+      $('d-link-list').innerHTML = (lk.data || []).map(l => {
+        const off = !!l.revoked_at || (l.expires_at && l.expires_at <= new Date().toISOString());
+        return `<div class="abs-link${off ? ' off' : ''}"><span class="lc">${esc(l.company_label)}</span><span class="ll">${esc(l.label || '')}</span>` +
+          `<span class="note">만든 날 ${fd(l.created_at)} · 마지막 사용 ${fd(l.last_used_at)}</span>` +
+          (off ? `<span class="note">${l.revoked_at ? '끊음' : '기한 지남'}</span>` : `<button type="button" class="phone-btn" data-revoke="${esc(l.id)}">끊기</button>`) + `</div>`;
+      }).join('') || '<p class="note">만든 링크가 없어요.</p>';
+      $('d-link-list').querySelectorAll('[data-revoke]').forEach(b => b.addEventListener('click', async () => {
+        if (!confirm('이 링크를 끊을까요? 끊으면 그 링크로는 더 열 수 없어요(다시 쓰려면 새로 만들어야 해요).')) return;
+        b.disabled = true;
+        const { error } = await supabase.from('company_links').update({ revoked_at: new Date().toISOString() }).eq('id', b.dataset.revoke);
+        if (error) { setStatus($('d-link-status'), friendlyError(error), 'error'); b.disabled = false; return; }
+        logAction('현장교사 링크 끊기', b.closest('.abs-link').querySelector('.lc').textContent);
+        dashLinkLoad();
+      }));
+    }
+    $('d-link-go').addEventListener('click', async () => {
+      const co = $('d-link-co').value, label = $('d-link-label').value.trim();
+      if (!co) { setStatus($('d-link-status'), '기업을 골라 주세요.', 'error'); return; }
+      $('d-link-go').disabled = true;
+      const { data, error } = await supabase.rpc('admin_make_company_link', { p_company: co, p_label: label || null, p_days: null });
+      $('d-link-go').disabled = false;
+      if (error || !data || !data.ok) { setStatus($('d-link-status'), error ? friendlyError(error) : data && data.reason === 'company' ? '명단에 그 기업 학생이 없어요.' : '만들지 못했어요.', 'error'); return; }
+      const url = new URL('field.html', location.href).href.split('#')[0] + '#k=' + data.token;
+      const st = $('d-link-status'); st.className = 'status ok';
+      st.innerHTML = `<b>${esc(data.company)}</b> 링크 — 지금만 보여요. 복사해서 현장교사에게 전해 주세요.` +
+        `<div class="abs-url"><input type="text" readonly value="${esc(url)}" aria-label="링크 주소" /><button type="button" class="mju-btn mju-btn--sm" id="d-link-copy">복사</button></div>`;
+      $('d-link-copy').addEventListener('click', async () => { try { await navigator.clipboard.writeText(url); $('d-link-copy').textContent = '복사됨'; } catch (_) { st.querySelector('input').select(); } });
+      $('d-link-label').value = '';
+      logAction('현장교사 링크 만들기', data.company + (label ? ' · ' + label : ''));
+      dashLinkLoad();
+    });
 
     // ===== 학생 › 출석 진도 — 이번 달은 정규시간 기준(attendance_daily), 지난달·일별 자료 없는 학생은 월 실적(sql/61) =====
     let attnMonth = null, attnCache = null, attnComp = {}, attnTrack = null;   // attnTrack = [OFF-JT | OJT] 전환(한 번에 한 구분만)

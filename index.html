@@ -738,7 +738,7 @@
           .then(({ data, error }) => {
             if (error || !data || data.ok !== true) { _absByYm[ym] = { off: true, byDay: {}, size: 1 }; return; }
             const byDay = {};
-            (data.absences || []).forEach(a => { byDay[a.day] = a; });
+            (data.absences || []).forEach(a => { if (!byDay[a.day] || byDay[a.day].state === 'rejected') byDay[a.day] = a; });   // 반려 뒤 다시 체크한 건이 앞섬
             _absByYm[ym] = { byDay, size: Number(data.course_size) || 1 };
             if (homeYm === ym) draw();
           }, () => { _absByYm[ym] = { off: true, byDay: {}, size: 1 }; });

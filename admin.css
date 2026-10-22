@@ -464,3 +464,35 @@ body.adm #hq-bm{cursor:grab}
   body.adm .hq-job{grid-template-columns:minmax(0,1fr) 80px}
   body.adm .hq-job .bar{grid-column:1 / -1; grid-row:2}
 }
+
+/* [sql/69] 오늘 › 휴가·출장 체크 — 과정·달 묶음, 체크 줄, 제안 한 줄, 현장교사 기업 링크 */
+body.adm .abs-g{padding:10px 0 12px; border-top:1px solid var(--v-line)}
+body.adm .abs-g:last-child{border-bottom:1px solid var(--v-line)}
+body.adm .abs-gh{margin:0 0 4px; font-size:14px}
+body.adm .abs-gh b{font-weight:600}
+body.adm .abs-row{display:grid; grid-template-columns:76px 72px 44px minmax(0,1fr) auto; gap:12px; align-items:center; min-height:44px; padding:4px 0}
+body.adm .abs-row .ad{font-weight:500}
+body.adm .abs-row .ak{font-size:13px; font-weight:600; color:var(--v-cobalt)}
+body.adm .abs-row .ak.trip{color:var(--v-ink)}
+body.adm .abs-row .aw{font-size:13px; color:var(--v-mute); overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+body.adm .abs-pr{margin:6px 0 0; font-size:13px; color:var(--v-ink)}
+body.adm .abs-pr.warn{color:var(--v-warn); font-weight:500}
+body.adm .abs-pr.note{color:var(--v-mute)}
+body.adm .abs-links{margin-top:14px}
+body.adm .abs-links > summary{cursor:pointer; font-size:14px; font-weight:500; padding:8px 0}
+body.adm .abs-links .n{font-weight:400; color:var(--v-mute)}
+body.adm .abs-mk{display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin:4px 0 8px}
+body.adm .abs-mk select{min-width:180px}
+body.adm .abs-mk input{flex:1; min-width:200px}
+body.adm .abs-url{display:flex; gap:8px; margin-top:8px}
+body.adm .abs-url input{flex:1; min-width:0; font-family:ui-monospace,Consolas,monospace; font-size:12px}
+body.adm .abs-link{display:flex; gap:12px; align-items:center; flex-wrap:wrap; min-height:44px; padding:4px 0; border-top:1px solid var(--v-line)}
+body.adm .abs-link .lc{font-weight:500}
+body.adm .abs-link .ll{flex:1; min-width:120px; font-size:13px}
+body.adm .abs-link.off{opacity:.55}
+@media (max-width:640px){
+  body.adm .abs-row{grid-template-columns:64px minmax(0,1fr) auto; row-gap:2px}
+  body.adm .abs-row .ak{grid-column:3; grid-row:1}
+  body.adm .abs-row .aw{grid-column:1 / 3; white-space:normal}
+  body.adm .abs-row .phone-btn{grid-column:3; grid-row:2}
+}

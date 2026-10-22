@@ -101,7 +101,7 @@
       // 날짜 → [{ 학생, 그날 정규시간, 체크 }]
       const byDay = {};
       studs.forEach(s => {
-        const ab = {}; (s.absences || []).forEach(a => { ab[a.day] = a; });
+        const ab = {}; (s.absences || []).forEach(a => { if (!ab[a.day] || ab[a.day].state === 'rejected') ab[a.day] = a; });   // 반려 뒤 다시 체크한 건이 앞섬
         s.days.forEach(d => { (byDay[d.day] = byDay[d.day] || []).push({ s, d, a: ab[d.day] || null }); });
       });
       const days = Object.keys(byDay).sort();
