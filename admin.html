@@ -883,6 +883,16 @@
     import { supabase, configReady, setStatus, applyCenterVocab } from './app.js';
     const $ = id => document.getElementById(id);
     const esc = s => { const e = document.createElement('div'); e.textContent = s || ''; return e.innerHTML; };
+    // (10/23 점검) 서버는 한 번에 1000행까지만 줌 → 1000행씩 끝까지 읽기. mk() 는 매번 새 쿼리(정렬 끝에 id 를 붙여 페이지가 겹치지 않게)
+    async function selAll(mk, page = 1000) {
+      const out = [];
+      for (let i = 0; ; i += page) {
+        const { data, error } = await mk().range(i, i + page - 1);
+        if (error) return { data: null, error };
+        out.push(...(data || []));
+        if (!data || data.length < page) return { data: out, error: null };
+      }
+    }
     const maskPhone = p => (p && p.length >= 7) ? (p.slice(0, 3) + '-****-' + p.slice(-4)) : (p || '');
     // 삭제 버튼 공통 (다 쓴 콘텐츠 정리용 — 복구 불가 확인 후 실행)
     const delErr = e => {
@@ -3906,9 +3916,9 @@
       if (dailyCache && !force && dailyCache.ym === ym) return dailyCache;
       const nx = new Date(Number(ym.slice(0, 4)), Number(ym.slice(5)), 1);
       const to = nx.getFullYear() + '-' + String(nx.getMonth() + 1).padStart(2, '0') + '-01';
-      const { data, error } = await supabase.from('attendance_daily')
+      const { data, error } = await selAll(() => supabase.from('attendance_daily')
         .select('name,day,track,start_time,end_time,planned_hours,recognized_hours,in_time,out_time,method,status,fetched_at')
-        .gte('day', ym + '-01').lt('day', to).order('day');
+        .gte('day', ym + '-01').lt('day', to).order('day').order('id'));
       const byName = new Map();
       (error ? [] : (data || [])).forEach(r => { const k = normNm(r.name); if (!byName.has(k)) byName.set(k, []); byName.get(k).push(r); });
       dailyCache = { ym, byName, ok: !error };
@@ -4074,9 +4084,9 @@
         .map(r => `${TRACK_LABEL[trk(r)]} 능력단위 — ${r.units}`).join(' / ');
       $('stu-units').textContent = unitTxt; $('stu-units').hidden = !unitTxt;
       stuPlanTable(name, ym, months);
-      const { data, error } = await supabase.from('attendance_daily')
+      const { data, error } = await selAll(() => supabase.from('attendance_daily')
         .select('name,day,track,start_time,end_time,planned_hours,recognized_hours,in_time,out_time,status,course,fetched_at')
-        .gte('day', ym + '-01').lt('day', to).order('day');
+        .gte('day', ym + '-01').lt('day', to).order('day').order('id'));
       if (tok !== stuTok) return;   // 그사이 다른 달을 눌렀으면 버림
       if (error) { $('stu-lede').textContent = '조회에 실패했어요: ' + error.message; return; }
       const rows = (data || []).filter(r => normNm(r.name) === normNm(name));
@@ -4293,8 +4303,8 @@
       let dailyErr = !courses.length && (abs || []).length > 0;   // 과정 없는 체크만 있으면 판정 못 함
       for (const m of months) {
         const nx = new Date(Number(m.slice(0, 4)), Number(m.slice(5)), 1);
-        const { data, error: de } = courses.length ? await supabase.from('attendance_daily').select('name,day,course,planned_hours,start_time')
-          .eq('track', 'ojt').in('course', courses).gte('day', m + '-01').lt('day', ymdOf(nx)) : { data: [] };
+        const { data, error: de } = courses.length ? await selAll(() => supabase.from('attendance_daily').select('name,day,course,planned_hours,start_time')
+          .eq('track', 'ojt').in('course', courses).gte('day', m + '-01').lt('day', ymdOf(nx)).order('id')) : { data: [] };
         if (de) dailyErr = true;
         daily[m] = data || [];
       }
@@ -4398,7 +4408,9 @@
       }
       return cwMe;
     }
+    let cwTok = 0;   // (10/23 점검) 달을 빠르게 넘기면 늦게 온 이전 달 응답을 버림
     async function cwLoad() {
+      const tok = ++cwTok;
       if (!$('cw-month').value) $('cw-month').value = ymdLocal(0).slice(0, 7);
       await myAdminName();
       document.querySelectorAll('#cw-scope .chip').forEach(b => b.classList.toggle('on', b.dataset.v === cwScope));
@@ -4409,9 +4421,9 @@
         supabase.from('field_tasks').select('id,company_key,course,kind,month,due_on,title,note,done_on').gte('month', ymPlus(ym, -2) + '-01').lt('month', ymPlus(ym, 2) + '-01').order('month').order('due_on'),
         supabase.from('allowance_status').select('id,company_key,company_label,period,state,applied_on,checked_at').gte('period', alFrom).lt('period', to),
         supabase.from('attendance_month_status').select('id,name,month,course,train_days,diary_days,student_confirmed_on,center_confirmed_on').eq('month', from),
-        supabase.from('attendance_daily').select('name,day,course,planned_hours,recognized_hours,status').eq('track', 'ojt').gte('day', from).lt('day', to),
+        selAll(() => supabase.from('attendance_daily').select('name,day,course,planned_hours,recognized_hours,status').eq('track', 'ojt').gte('day', from).lt('day', to).order('id')),
         supabase.from('company_codes').select('company,code,active'),
-        supabase.from('attendance_monthly').select('name,month,planned_hours').eq('track', 'ojt').gt('planned_hours', 0),
+        selAll(() => supabase.from('attendance_monthly').select('name,month,planned_hours').eq('track', 'ojt').gt('planned_hours', 0).order('id')),
         supabase.from('tasks').select('id,due_date').eq('auto_key', 'diary:' + ym).maybeSingle(),
       ]);
       if (tk.error || al.error || ms.error) { setStatus($('cw-status'), 'sql/70 적용 전이거나 읽지 못했어요: ' + friendlyError(tk.error || al.error || ms.error), 'error'); return; }
@@ -4441,7 +4453,8 @@
       const codes = {}; (cc.data || []).forEach(c => { codes[coKey(c.company)] = c; });
       // 과정 → 학생 이름(월 마감 행의 과정명, 모든 달) — 달력 평가 칸에 누구 평가인지(앞으로의 달은 출결 행이 없어서)
       const courseNames = {};
-      ((await supabase.from('attendance_month_status').select('name,course')).data || []).forEach(r => { if (r.course) (courseNames[r.course] = courseNames[r.course] || new Set()).add(r.name); });
+      ((await selAll(() => supabase.from('attendance_month_status').select('name,course').order('id'))).data || []).forEach(r => { if (r.course) (courseNames[r.course] = courseNames[r.course] || new Set()).add(r.name); });
+      if (tok !== cwTok) return;
       cwData = { ym, cos: [...cos.values()].sort((a, b) => a.label.localeCompare(b.label, 'ko')), tasks: (tk.data || []).filter(t => cos.has(t.company_key)),
         allow: al.data || [], ms: ms.data || [], daily: dy.data || [], courseNames, coOfAll: Object.fromEntries(active.map(s => [normNm(s.name), coKey(s.company)])), courseByName, trainDays, ojtMonths, prog, diaryTask: dt.data || null, codes };
       cwDrawCodes(); cwDrawTasks(); cwDrawAllow(); cwDrawMs();
@@ -4492,11 +4505,12 @@
       else if (!$('cw-t-due').value || $('cw-t-due').value.slice(0, 7) !== ym) $('cw-t-due').value = lastWeekday(ym);
       const label = k => (cos.find(c => c.key === k) || {}).label || k;
       const mgrOf = k => coMgrs(cos.find(c => c.key === k) || {}).join(', ');
-      const all = tasks.filter(t => t.month.slice(0, 7) === ym || (t.month.slice(0, 7) < ym && !t.done_on));
-      $('cw-task-n').textContent = all.length ? `${all.filter(t => !t.done_on).length}건 남음 / ${all.length}건` : '';
       if (cwSelDay && cwSelDay.slice(0, 7) !== ym) cwSelDay = null;
-      cwDrawCal();
-      const rows = (cwSelDay ? tasks.filter(t => t.due_on === cwSelDay) : all).filter(t => !cwCalCo || t.company_key === cwCalCo);
+      cwDrawCal();   // 달력 기업(cwCalCo) 기본값이 여기서 정해짐 → 건수·목록은 그 뒤에 같은 기준으로(10/23 점검)
+      const coName = cwCalCo ? label(cwCalCo) : '';
+      const all = tasks.filter(t => (t.month.slice(0, 7) === ym || (t.month.slice(0, 7) < ym && !t.done_on)) && (!cwCalCo || t.company_key === cwCalCo));
+      $('cw-task-n').textContent = all.length ? `${coName ? coName + ' · ' : ''}${all.filter(t => !t.done_on).length}건 남음 / ${all.length}건` : '';
+      const rows = cwSelDay ? tasks.filter(t => t.due_on === cwSelDay && (!cwCalCo || t.company_key === cwCalCo)) : all;
       $('cw-cal-sel').innerHTML = cwSelDay ? `<b>${esc(mdOf(cwSelDay))} 마감</b> ${rows.length}건 · 받음 ${rows.filter(t => t.done_on).length} · 아래 칸에 제목을 쓰고 [넣기]하면 이 날 마감으로 들어가요 <button type="button" class="phone-btn" id="cw-cal-all">${moOf(ym)} 전체 보기</button>` : '';
       if (cwSelDay) $('cw-cal-all').addEventListener('click', () => { cwSelDay = null; cwDrawTasks(); });
       $('cw-task-list').innerHTML = rows.length ? rows.map(t => {
@@ -4507,7 +4521,7 @@
           `<span class="cw-d${late ? ' late' : ''}">${t.done_on ? '받음 ' + esc(mdOf(t.done_on)) : t.due_on ? esc(mdOf(t.due_on)) + '까지' : '-'}</span>` +
           `<button type="button" class="phone-btn" data-done="${esc(t.id)}" data-v="${t.done_on ? '' : '1'}">${t.done_on ? '되돌리기' : '받음'}</button>` +
           `<button type="button" class="phone-btn" data-del="${esc(t.id)}" aria-label="지우기">지우기</button></div>`;
-      }).join('') : `<p class="note">${moOf(ym)} 월말 할 일이 없어요.</p>`;
+      }).join('') : `<p class="note">${coName ? esc(coName) + '의 ' : ''}${cwSelDay ? esc(mdOf(cwSelDay)) + ' 마감' : moOf(ym)} 월말 할 일이 없어요.</p>`;
       $('cw-task-list').querySelectorAll('[data-done]').forEach(b => b.addEventListener('click', async () => {
         b.disabled = true;
         const { error } = await supabase.from('field_tasks').update({ done_on: b.dataset.v ? ymdLocal(0) : null, updated_at: new Date().toISOString() }).eq('id', b.dataset.done);
@@ -4714,7 +4728,7 @@
     }));
     async function fetchAttn(force) {
       if (attnCache && !force) return true;
-      const sel = c => supabase.from('attendance_monthly').select(c).order('month');
+      const sel = c => selAll(() => supabase.from('attendance_monthly').select(c).order('month').order('id'));
       let [a, s] = await Promise.all([
         sel('name,month,track,planned_hours,actual_hours,auto_actual,source,note,units,updated_at,edited_by,edited_at'),
         supabase.from('students').select('name,company,manager,job_keys,type1,status'),
@@ -4778,11 +4792,15 @@
         const k = normNm(r.name); if (!byName.has(k)) byName.set(k, []); byName.get(k).push(r);
       });
       // (10/23 사용자 요청) OJT 는 그 달 행이 없는 학생도 0 / 0h 로 — 정규시간을 아직 등록하지 않은 과정(예: 10월 길은경 선생님 반)
-      //  · 진행중이고 OJT 예정 행이 한 번이라도 있는 학생만(OJT 시작 전 학생은 빼고)
+      //  · 진행중이고, 고른 달이 그 학생의 OJT 기간(예정 행이 있는 첫 달~마지막 달) 안일 때만(10/23 점검 — 시작 전·끝난 달은 빼고)
       if (attnTrack === 'ojt') {
-        const started = new Set(attnCache.filter(r => trk(r) === 'ojt' && Number(r.planned_hours) > 0).map(r => normNm(r.name)));
+        const span = {};   // 이름 → [첫 달, 마지막 달]
+        attnCache.filter(r => trk(r) === 'ojt' && Number(r.planned_hours) > 0).forEach(r => {
+          const k = normNm(r.name), m = String(r.month).slice(0, 7), v = span[k];
+          span[k] = v ? [m < v[0] ? m : v[0], m > v[1] ? m : v[1]] : [m, m];
+        });
         Object.entries(attnStu).forEach(([k, s]) => {
-          if (byName.has(k) || s.status !== '진행중' || !started.has(k) || !pass(s.name)) return;
+          if (byName.has(k) || s.status !== '진행중' || !span[k] || attnMonth < span[k][0] || attnMonth > span[k][1] || !pass(s.name)) return;
           byName.set(k, [{ name: s.name, month: attnMonth + '-01', track: 'ojt', planned_hours: 0, actual_hours: 0, noreg: true }]);
         });
       }
@@ -4884,8 +4902,8 @@
     async function dailyLastLoad() {
       const el = $('d-daily-last'); if (!el) return;
       const ym = ymdLocal(0).slice(0, 7);
-      const { data, error } = await supabase.from('attendance_daily').select('name,fetched_at,updated_at')
-        .gte('day', ym + '-01').order('updated_at', { ascending: false }).limit(1000);
+      const { data, error } = await selAll(() => supabase.from('attendance_daily').select('name,fetched_at,updated_at')
+        .gte('day', ym + '-01').order('updated_at', { ascending: false }).order('id'));
       if (error) { el.textContent = /attendance_daily|PGRST205|42P01|schema cache/i.test(error.message || '') ? '서버 설정(sql/55) 적용 후 쓸 수 있어요.' : ''; return; }
       if (!(data || []).length) { el.textContent = '이번 달 올린 출결 결과가 아직 없어요.'; return; }
       const names = new Set(data.map(r => (r.name || '').replace(/\s+/g, '')));

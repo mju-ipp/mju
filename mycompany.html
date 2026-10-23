@@ -149,7 +149,8 @@
     async function loadInfo() {
       let d = null;
       try {
-        const res = await supabase.rpc('my_company_info', { p_company: profile.company });
+        // (10/23 점검, sql/77) 기업명 대신 내 코드·토큰으로 — 서버가 기업을 정함
+        const res = await supabase.rpc('my_company_info', { p_code: profile.code || null, p_token: profile.token || null });
         if (res.error || !res.data) { $('contacts').innerHTML = '<p class="note">담당자 명단 준비 중이에요.</p>'; return; }
         d = res.data;
       } catch (_) { $('contacts').innerHTML = '<p class="note">담당자 명단 준비 중이에요.</p>'; return; }

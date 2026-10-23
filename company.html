@@ -465,7 +465,8 @@
         // 훈련날엔 그 학생의 그 달 OJT 능력단위(실시신고 시간표 월 배정, 사용자 10/22)
         const us = unitsOf((monthRow(s, ds.slice(0, 7)) || {}).units);
         // (10/22 사용자) 휴가·출장은 학생 줄에서 버튼 한 번 — 오늘·앞으로의 훈련일만, 알린 건 [취소]
-        const act = ds < today ? '' : a ? (a.state === 'open' ? `<button type="button" class="ab-x" data-cancel="${esc(a.id)}">취소</button>` : '')
+        // (10/23 점검) 취소는 기업이 알린 것만 — 학생·센터가 넣은 건 서버도 막음(sql/77)
+        const act = ds < today ? '' : a ? (a.state === 'open' && a.by_role === 'company' ? `<button type="button" class="ab-x" data-cancel="${esc(a.id)}">취소</button>` : '')
           : `<span class="ab2"><button type="button" data-ab="leave" data-sid="${esc(s.id)}">휴가</button><button type="button" data-ab="trip" data-sid="${esc(s.id)}">출장</button></span>`;
         return `<div class="sr${a ? ' off' : ''}"><span class="n"><b>${esc(s.name)}</b>${mc && d.course ? `<span>${esc(d.course)}</span>` : ''}` +
           `${us.length ? `<small class="u">${esc(us.join(' · '))}</small>` : ''}</span>${!a && ds >= today ? '' : st}${act}</div>`;   // 앞으로의 날은 '예정' 대신 버튼만
@@ -473,15 +474,8 @@
       h += inf.evs.map(e => `<div class="sr tk"><span class="n"><b>${esc(e.kind)}</b><span>${esc(e.title)}${e.memo ? ' · ' + esc(e.memo) : ''}</span></span></div>`).join('');
       if (!rows.length && !inf.tasks.length && !inf.evs.length) h += `<p class="lede" style="margin:0">이 날은 OJT 훈련이 없어요.</p>`;
       $('m-day').innerHTML = h + `</div>`;
-      $('m-day').querySelectorAll('[data-ab]').forEach(b => b.addEventListener('click', async () => {
-        b.parentNode.querySelectorAll('button').forEach(x => { x.disabled = true; });
-        let by = ''; try { by = localStorage.getItem(BY_KEY) || ''; } catch (_) {}
-        try {
-          const { data, error } = await supabase.rpc('company_absence', { p_code: CODE, p_student: b.dataset.sid, p_day: ds, p_kind: b.dataset.ab, p_note: null, p_by_name: by || null });
-          if (error || !data || !data.ok) alert(error ? errText(error) : '처리하지 못했어요. 이미 알린 날이거나 훈련이 없는 날이에요.');
-        } catch (_) { alert('연결이 불안정해요. 잠시 후 다시 시도해 주세요.'); }
-        load(ym);
-      }));
+      // (10/23 점검) 바로 접수하지 않고 알리기 시트를 그 학생·날짜·종류로 채워 엶 — 알리는 분 이름·과정 전체 이동 안내를 거치게
+      $('m-day').querySelectorAll('[data-ab]').forEach(b => b.addEventListener('click', () => openSheet(ds, b.dataset.sid, b.dataset.ab)));
       $('m-day').querySelectorAll('[data-cancel]').forEach(b => b.addEventListener('click', () => cancel(b)));
     }
 
@@ -509,15 +503,15 @@
           const who = a.by_role === 'company' || a.by_role === 'teacher' ? (a.by_name || '기업 담당자') : a.by_role === 'admin' ? '센터' : '학생 본인';
           return `<div class="bi"><span class="k${a.kind === 'trip' ? ' trip' : ''}">${AK[a.kind]}</span><span class="wh"><b>${md(a.day)} ${esc(s.name)}</b>` +
             `<span>${esc(who)}${a.note ? ' · ' + esc(a.note) : ''}</span></span>` +
-            (a.state === 'applied' ? `<span class="r">다른 날로 옮김</span>` : `<button type="button" class="lnk" data-cancel="${esc(a.id)}">취소</button>`) + `</div>`;
+            (a.state === 'applied' ? `<span class="r">다른 날로 옮김</span>` : a.by_role === 'company' ? `<button type="button" class="lnk" data-cancel="${esc(a.id)}">취소</button>` : `<span class="r">센터에 문의</span>`) + `</div>`;
         }).join('') : `<p class="empty">아직 없어요. 달력에서 날짜를 누르고 학생 옆 [휴가]·[출장]을 누르면 돼요.</p>`) + `</div>`;
       $('m-abs').querySelectorAll('[data-cancel]').forEach(b => b.addEventListener('click', () => cancel(b)));
     }
 
     // ---------- 알리기 시트 — 학생(여러 명) × 앞으로의 훈련일(여러 날) × 휴가/출장 ----------
     const pick = { who: new Set(), day: new Set(), kind: 'leave' };
-    function openSheet(preDay) {   // preDay: 달력에서 고른 날(미리 눌러 둠)
-      pick.who.clear(); pick.day.clear(); pick.kind = 'leave';
+    function openSheet(preDay, preWho, preKind) {   // preDay: 달력에서 고른 날, preWho: 학생 id, preKind: leave|trip(미리 눌러 둠)
+      pick.who.clear(); pick.day.clear(); pick.kind = preKind === 'trip' ? 'trip' : 'leave';
       const days = [...new Set(studs().flatMap(s => (s.days || []).filter(d => d.day >= today).map(d => d.day)))].sort();
       $('sh-who').innerHTML = studs().map(s => `<button type="button" class="chip2" aria-pressed="false" data-v="${esc(s.id)}">${esc(s.name)}</button>`).join('');
       $('sh-day').innerHTML = days.length ? days.map(d => `<button type="button" class="chip2" aria-pressed="false" data-v="${d}">${md(d)}</button>`).join('')
@@ -528,8 +522,9 @@
       }));
       bind('sh-who', pick.who); bind('sh-day', pick.day);
       if (preDay) { const b = $('sh-day').querySelector(`[data-v="${preDay}"]`); if (b) { b.setAttribute('aria-pressed', true); pick.day.add(preDay); } }
+      if (preWho) { const b = $('sh-who').querySelector(`[data-v="${preWho}"]`); if (b) { b.setAttribute('aria-pressed', true); pick.who.add(preWho); } }
       $('sh-kind').querySelectorAll('button').forEach(b => {
-        b.setAttribute('aria-pressed', b.dataset.k === 'leave');
+        b.setAttribute('aria-pressed', b.dataset.k === pick.kind);
         b.onclick = () => { pick.kind = b.dataset.k; $('sh-kind').querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b)); sheetMsg(); };
       });
       $('sh-note').value = '';
@@ -569,7 +564,8 @@
       try {
         const { data, error } = await supabase.rpc('company_absence_cancel', { p_code: CODE, p_id: b.dataset.cancel });
         if (error) alert(errText(error));
-        else if (!data || !data.ok) alert(data && data.reason === 'applied' ? '이미 다른 날로 옮긴 날이라 취소할 수 없어요. 센터에 문의해 주세요.' : '처리하지 못했어요.');
+        else if (!data || !data.ok) alert(data && data.reason === 'applied' ? '이미 다른 날로 옮긴 날이라 취소할 수 없어요. 센터에 문의해 주세요.'
+          : data && data.reason === 'not_mine' ? '학생이나 센터가 알린 건이라 여기서 취소할 수 없어요. 센터에 문의해 주세요.' : '처리하지 못했어요.');
       } catch (_) { alert('연결이 불안정해요. 잠시 후 다시 시도해 주세요.'); }
       load(ym);
     }
