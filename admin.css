@@ -532,3 +532,34 @@ body.adm .cw-ck{font-size:13px; font-weight:600}
 body.adm .cw-ck.done{color:var(--v-ink)}
 body.adm .cw-ck.pending{color:var(--v-warn)}
 body.adm .cw-ck.unknown,body.adm .cw-ck.na{color:var(--v-mute); font-weight:400}
+/* (10/23) 기업 › 담당 선생님 묶음 · 월말 할 일 달력(기업 앱 달력처럼 칸마다 글자) */
+body.adm #cw-mgr{width:auto; margin:0; min-width:120px}
+body.adm .cw-mgr-h{margin:16px 0 4px; font-size:14px; font-weight:700}
+body.adm .cw-mgr-h:first-child{margin-top:4px}
+body.adm .cw-mgr-h .n{font-weight:400; color:var(--v-mute)}
+body.adm .cw-code .cw-who{font-size:13px; color:var(--v-mute); min-width:72px}
+body.adm .cw-cal{display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); border-top:1px solid var(--v-line); border-left:1px solid var(--v-line); margin:4px 0 8px}
+body.adm .cw-cal .wd{font-size:12px; color:var(--v-mute); text-align:center; padding:6px 0; border-right:1px solid var(--v-line); border-bottom:1px solid var(--v-line)}
+body.adm .cw-cal .wd.sun{color:var(--v-warn)}
+body.adm .cw-cal .blank{border-right:1px solid var(--v-line); border-bottom:1px solid var(--v-line); background:var(--v-bg)}
+body.adm .cw-cal button{all:unset; box-sizing:border-box; display:flex; flex-direction:column; gap:2px; min-width:0; min-height:66px; padding:4px; border-right:1px solid var(--v-line); border-bottom:1px solid var(--v-line); background:var(--v-paper); cursor:pointer}
+body.adm .cw-cal button:disabled{cursor:default}
+body.adm .cw-cal button:not(:disabled):hover{background:var(--v-bg)}
+body.adm .cw-cal button:focus-visible{outline:2px solid var(--v-cobalt); outline-offset:-2px}
+body.adm .cw-cal button[aria-pressed="true"]{box-shadow:inset 0 0 0 2px var(--v-cobalt); background:var(--v-cobalt-bg)}
+body.adm .cw-cal .dn{font-size:12px; line-height:18px}
+body.adm .cw-cal .sun .dn{color:var(--v-warn)}
+body.adm .cw-cal .past .dn{color:var(--v-mute)}
+body.adm .cw-cal .today .dn{display:inline-grid; place-items:center; width:20px; height:20px; border-radius:50%; background:var(--v-ink); color:#fff}
+body.adm .cw-cal .lb{display:block; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; border-radius:3px; padding:0 4px; font-size:12px; font-weight:600; line-height:18px}
+body.adm .cw-cal .lb.ev{background:var(--v-ink); color:#fff}
+body.adm .cw-cal .lb.iv{background:var(--v-mute); color:#fff}
+body.adm .cw-cal .lb.etc{background:var(--v-cobalt-bg); color:var(--v-cobalt)}
+body.adm .cw-cal .lb.late{background:var(--v-warn); color:#fff}
+body.adm .cw-cal .lb.done{padding:0; font-weight:500; color:var(--v-mute)}
+body.adm .cw-cal-sel{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:0 0 6px}
+body.adm .cw-cal-sel:empty{display:none}
+@media (max-width:640px){
+  body.adm .cw-cal button{min-height:58px; padding:3px 2px}
+  body.adm .cw-cal .lb{padding:0 2px; font-size:11px; letter-spacing:-.03em}
+}

@@ -6,7 +6,7 @@
   <title>관리자 · 일학습병행 앱</title>
   <meta name="theme-color" content="#121318" />
   <link rel="stylesheet" href="./styles.css" />
-  <link rel="stylesheet" href="./admin.css?v=20261022-4" /><!-- 배포 때 v 를 올려 캐시된 옛 스타일과 새 HTML 이 섞이지 않게 -->
+  <link rel="stylesheet" href="./admin.css?v=20261023-1" /><!-- 배포 때 v 를 올려 캐시된 옛 스타일과 새 HTML 이 섞이지 않게 -->
   <script src="./config.js"></script>
   <style>
     .msg{max-width:80%;padding:9px 12px;border-radius:12px;margin:5px 0;font-size:14px;white-space:pre-wrap}
@@ -200,6 +200,8 @@
           <h2 class="adm-h2" style="margin:0">기업 담당자 자료 <span class="hint">기업 담당자 앱 '우리 학생 OJT'에 그대로 보여요</span></h2>
           <input type="month" id="cw-month" class="ph-select" aria-label="달" />
           <span class="ch-seg" id="cw-scope" role="group" aria-label="보는 범위"><button type="button" class="chip" data-v="mine">내 학생</button><button type="button" class="chip" data-v="all">전체</button></span>
+          <!-- (10/23) 담당 선생님별로 보기 — 명단 students.manager -->
+          <select id="cw-mgr" class="ph-select" aria-label="담당 선생님"><option value="">선생님별 보기</option></select>
         </div>
         <div class="status" id="cw-status"></div>
         <section class="dsec" data-cw="codes">
@@ -210,7 +212,10 @@
         <section class="dsec" data-cw="tasks">
           <h3 class="dsec-h">월말 할 일 <span class="n" id="cw-task-n"></span>
             <button type="button" class="phone-btn dsec-act" id="cw-task-bulk">이 달 면담일지 모든 기업에 넣기</button></h3>
-          <p class="dsec-lede">내부평가·면담일지처럼 기업이 그 달 말까지 센터로 보내야 하는 것. 받으면 [받음]을 누르세요.</p>
+          <p class="dsec-lede">내부평가·면담일지처럼 기업이 그 달 말까지 센터로 보내야 하는 것. 받으면 [받음]을 누르세요. 달력에서 날짜를 누르면 그날 마감만 보여요.</p>
+          <!-- (10/23) 기업 앱 달력처럼 — 칸마다 그날 마감 건수(평가·면담·지남·받음) -->
+          <div class="cw-cal" id="cw-cal"></div>
+          <p class="note cw-cal-sel" id="cw-cal-sel"></p>
           <div id="cw-task-list"></div>
           <div class="cw-add">
             <select id="cw-t-co" class="ph-select" aria-label="기업"></select>
@@ -4309,9 +4314,16 @@
       ]);
       if (tk.error || al.error || ms.error) { setStatus($('cw-status'), 'sql/70 적용 전이거나 읽지 못했어요: ' + friendlyError(tk.error || al.error || ms.error), 'error'); return; }
       $('cw-status').textContent = '';
-      const studs = (st.data || []).filter(s => (s.status || '진행중') === '진행중' && s.company && (cwScope === 'all' || !cwMe || (s.manager || '').trim() === cwMe));
-      const cos = new Map();   // 기업 키 → { label, studs: [] }
-      studs.forEach(s => { const k = coKey(s.company); if (!cos.has(k)) cos.set(k, { key: k, label: s.company.trim(), studs: [] }); cos.get(k).studs.push(s); });
+      const active = (st.data || []).filter(s => (s.status || '진행중') === '진행중' && s.company);
+      // 선생님별 보기(10/23) — cwScope 'm:이름' = 그 선생님 담당 학생의 기업
+      const mgrs = [...new Set(active.map(s => (s.manager || '').trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ko'));
+      const want = cwScope.startsWith('m:') ? cwScope.slice(2) : null;
+      $('cw-mgr').innerHTML = '<option value="">선생님별 보기</option>' + mgrs.map(m => `<option value="${esc(m)}"${m === want ? ' selected' : ''}>${esc(m)}</option>`).join('');
+      const studs = active.filter(s => cwScope === 'all' || (want ? (s.manager || '').trim() === want : (!cwMe || (s.manager || '').trim() === cwMe)));
+      const cos = new Map();   // 기업 키 → { label, studs: [], mgrs: { 선생님: 학생 수 } }
+      studs.forEach(s => { const k = coKey(s.company); if (!cos.has(k)) cos.set(k, { key: k, label: s.company.trim(), studs: [], mgrs: {} }); cos.get(k).studs.push(s); });
+      // 담당은 그 기업의 '진행중' 학생 전체 기준(내 학생만 보더라도 같이 맡은 선생님이 보이게)
+      active.forEach(s => { const c = cos.get(coKey(s.company)), m = (s.manager || '').trim() || '담당 없음'; if (c) c.mgrs[m] = (c.mgrs[m] || 0) + 1; });
       const courseByName = {}, trainDays = {};
       (dy.data || []).forEach(r => { const n = normNm(r.name); if (r.course) courseByName[n] = r.course; if (Number(r.planned_hours) > 0) (trainDays[n] = trainDays[n] || new Set()).add(r.day); });
       // 수당 달 = 그 기업 학생들의 OJT 배정 달(예정>0) 중 고른 달까지
@@ -4331,6 +4343,9 @@
     }
     $('cw-month').addEventListener('change', () => cwLoad());
     document.querySelectorAll('#cw-scope .chip').forEach(b => b.addEventListener('click', () => { cwScope = b.dataset.v; try { localStorage.setItem('adm_cw_scope', cwScope); } catch (_) {} cwLoad(); }));
+    $('cw-mgr').addEventListener('change', () => { cwScope = $('cw-mgr').value ? 'm:' + $('cw-mgr').value : 'all'; try { localStorage.setItem('adm_cw_scope', cwScope); } catch (_) {} cwLoad(); });
+    // 기업의 담당 선생님 — 학생 많은 순
+    const coMgrs = c => Object.entries(c.mgrs || {}).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'ko')).map(x => x[0]);
 
     // 기업 초대코드 — 보이는 기업마다 코드·복사·안내 문구 복사, 없으면 [코드 만들기](issueCoCode)
     function cwDrawCodes() {
@@ -4339,13 +4354,19 @@
         `① 앱 열기: ${new URL('index.html?as=company', location.href).href.split('#')[0]}\n② '학습기업 담당자'로 가입 → 기업 초대코드 ${code} 입력\n③ 홈의 '우리 학생 OJT'를 누르세요.`;
       const n = cos.filter(c => codes[c.key] && codes[c.key].active).length;
       $('cw-code-n').textContent = cos.length ? `${n} / ${cos.length}곳` : '';
-      $('cw-code-list').innerHTML = cos.map(c => {
-        const k = codes[c.key];
-        return `<div class="cw-code"><span class="cw-co">${esc(c.label)}</span>` +
+      // (10/23) 담당 선생님별로 묶음 — 기업은 학생이 가장 많은 선생님 아래, 같이 맡은 선생님은 줄에 표시. 내 묶음이 맨 위
+      const groups = new Map();
+      cos.forEach(c => { const m = coMgrs(c)[0] || '담당 없음'; if (!groups.has(m)) groups.set(m, []); groups.get(m).push(c); });
+      const order = [...groups.keys()].sort((a, b) => (b === cwMe) - (a === cwMe) || (a === '담당 없음') - (b === '담당 없음') || a.localeCompare(b, 'ko'));
+      const row = c => {
+        const k = codes[c.key], ms = coMgrs(c), nst = Object.values(c.mgrs || {}).reduce((x, y) => x + y, 0);
+        return `<div class="cw-code"><span class="cw-co">${esc(c.label)}</span><span class="cw-who">학생 ${nst}명${ms.length > 1 ? ` · 같이 ${esc(ms.slice(1).join(', '))}` : ''}</span>` +
           (k && k.active ? `<code>${esc(k.code)}</code><button type="button" class="phone-btn" data-copy="${esc(k.code)}">코드 복사</button>` +
               `<button type="button" class="phone-btn" data-guide="${esc(guide(c.label, k.code))}">안내 복사</button>`
             : `<span class="note">${k ? '꺼진 코드' : '코드 없음'}</span><button type="button" class="phone-btn" data-issue="${esc(c.label)}">코드 만들기</button>`) + `</div>`;
-      }).join('') || '<p class="note">보이는 기업이 없어요.</p>';
+      };
+      $('cw-code-list').innerHTML = order.map(m => `<h4 class="cw-mgr-h">${esc(m)} <span class="n">${groups.get(m).length}곳</span></h4>` + groups.get(m).map(row).join('')).join('')
+        || '<p class="note">보이는 기업이 없어요.</p>';
       const flash = (b, t) => { const o = b.textContent; b.textContent = t; setTimeout(() => { b.textContent = o; }, 1200); };
       $('cw-code-list').querySelectorAll('[data-copy],[data-guide]').forEach(b => b.addEventListener('click', async () => {
         try { await navigator.clipboard.writeText(b.dataset.copy || b.dataset.guide); flash(b, '복사됨'); } catch (_) { flash(b, '복사 실패'); }
@@ -4365,12 +4386,19 @@
       cwCourseOpts();
       if (!$('cw-t-due').value || $('cw-t-due').value.slice(0, 7) !== ym) $('cw-t-due').value = lastWeekday(ym);
       const label = k => (cos.find(c => c.key === k) || {}).label || k;
-      const rows = tasks.filter(t => t.month.slice(0, 7) === ym || (t.month.slice(0, 7) < ym && !t.done_on));
-      $('cw-task-n').textContent = rows.length ? `${rows.filter(t => !t.done_on).length}건 남음 / ${rows.length}건` : '';
+      const mgrOf = k => coMgrs(cos.find(c => c.key === k) || {}).join(', ');
+      const all = tasks.filter(t => t.month.slice(0, 7) === ym || (t.month.slice(0, 7) < ym && !t.done_on));
+      $('cw-task-n').textContent = all.length ? `${all.filter(t => !t.done_on).length}건 남음 / ${all.length}건` : '';
+      if (cwSelDay && cwSelDay.slice(0, 7) !== ym) cwSelDay = null;
+      cwDrawCal();
+      const rows = cwSelDay ? tasks.filter(t => t.due_on === cwSelDay) : all;
+      $('cw-cal-sel').innerHTML = cwSelDay ? `<b>${esc(mdOf(cwSelDay))} 마감</b> ${rows.length}건 · 받음 ${rows.filter(t => t.done_on).length} <button type="button" class="phone-btn" id="cw-cal-all">${moOf(ym)} 전체 보기</button>` : '';
+      if (cwSelDay) $('cw-cal-all').addEventListener('click', () => { cwSelDay = null; cwDrawTasks(); });
       $('cw-task-list').innerHTML = rows.length ? rows.map(t => {
         const late = !t.done_on && t.due_on && t.due_on < ymdLocal(0);
         return `<div class="cw-row${t.done_on ? ' done' : ''}"><span class="cw-co">${esc(label(t.company_key))}</span>` +
-          `<span class="cw-k">${esc(t.kind)}</span><span class="cw-t">${esc(t.title)}${t.course ? ` <span class="note">· ${esc(t.course)}</span>` : ''}${t.month.slice(0, 7) !== ym ? ` <span class="note">· ${moOf(t.month.slice(0, 7))}분</span>` : ''}</span>` +
+          `<span class="cw-k">${esc(t.kind)}</span><span class="cw-t">${esc(t.title)}${t.course ? ` <span class="note">· ${esc(t.course)}</span>` : ''}${t.month.slice(0, 7) !== ym ? ` <span class="note">· ${moOf(t.month.slice(0, 7))}분</span>` : ''}` +
+          `${cwScope !== 'mine' && mgrOf(t.company_key) ? ` <span class="note">· ${esc(mgrOf(t.company_key))}</span>` : ''}</span>` +
           `<span class="cw-d${late ? ' late' : ''}">${t.done_on ? '받음 ' + esc(mdOf(t.done_on)) : t.due_on ? esc(mdOf(t.due_on)) + '까지' : '-'}</span>` +
           `<button type="button" class="phone-btn" data-done="${esc(t.id)}" data-v="${t.done_on ? '' : '1'}">${t.done_on ? '되돌리기' : '받음'}</button>` +
           `<button type="button" class="phone-btn" data-del="${esc(t.id)}" aria-label="지우기">지우기</button></div>`;
@@ -4389,6 +4417,33 @@
         logAction('월말 할 일 지우기', b.closest('.cw-row').innerText.replace(/\s+/g, ' ').slice(0, 60));
         cwLoad();
       }));
+    }
+    // (10/23) 월말 할 일 달력 — 기업 앱(company.html) 달력처럼 칸마다 글자. 기업이 많아 기업명 대신 종류별 건수:
+    // 평가 n(내부평가) · 면담 n(면담일지) · 기타 n / 지남 n(마감 지났는데 안 받음, 주황) / 받음 n(회색). 칸을 누르면 아래 목록이 그날 마감만
+    let cwSelDay = null;
+    function cwDrawCal() {
+      const { ym, tasks } = cwData, today = ymdLocal(0);
+      const y = Number(ym.slice(0, 4)), m = Number(ym.slice(5)) - 1, first = new Date(y, m, 1).getDay(), last = new Date(y, m + 1, 0).getDate();
+      const KL = { '내부평가': ['평가', 'ev'], '면담일지': ['면담', 'iv'] };
+      let h = ['일', '월', '화', '수', '목', '금', '토'].map((w, i) => `<span class="wd${i === 0 ? ' sun' : ''}">${w}</span>`).join('');
+      for (let i = 0; i < first; i++) h += `<span class="blank" aria-hidden="true"></span>`;
+      for (let d = 1; d <= last; d++) {
+        const ds = `${ym}-${p2(d)}`, dow = (first + d - 1) % 7, ts = tasks.filter(t => t.due_on === ds), lbs = [];
+        const open = ts.filter(t => !t.done_on), done = ts.length - open.length;
+        if (ds < today && open.length) lbs.push(['지남 ' + open.length, 'late']);
+        else {
+          const by = {};
+          open.forEach(t => { const k = KL[t.kind] ? t.kind : '기타'; by[k] = (by[k] || 0) + 1; });
+          Object.entries(by).forEach(([k, n]) => lbs.push([(KL[k] ? KL[k][0] : k) + ' ' + n, KL[k] ? KL[k][1] : 'etc']));
+        }
+        if (done) lbs.push(['받음 ' + done, 'done']);
+        const cls = [dow === 0 ? 'sun' : '', ds === today ? 'today' : '', ds < today ? 'past' : ''].filter(Boolean).join(' ');
+        const say = `${mdOf(ds)}${lbs.length ? ' ' + lbs.map(x => x[0]).join(', ') : ''}`;
+        h += `<button type="button" class="${cls}" data-d="${ds}" aria-pressed="${ds === cwSelDay}" aria-label="${esc(say)}"${ts.length ? '' : ' disabled'}>` +
+          `<span class="dn">${d}</span>${lbs.map(([t, c]) => `<span class="lb ${c}">${esc(t)}</span>`).join('')}</button>`;
+      }
+      $('cw-cal').innerHTML = h;
+      $('cw-cal').querySelectorAll('button[data-d]').forEach(b => b.addEventListener('click', () => { cwSelDay = cwSelDay === b.dataset.d ? null : b.dataset.d; cwDrawTasks(); }));
     }
     function cwCourseOpts() {
       const c = (cwData.cos.find(x => x.key === $('cw-t-co').value) || { studs: [] });
