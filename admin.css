@@ -561,10 +561,21 @@ body.adm .cw-cal .lb.ev,body.adm .cw-cal .lb.iv,body.adm .cw-cal .lb.late,body.a
 body.adm .cw-cal .lb.tr{background:var(--v-cobalt); color:#fff}
 body.adm .cw-cal .lb.pl{background:var(--v-cobalt-bg); color:var(--v-cobalt)}
 body.adm .cw-cal .lb.chk{background:var(--v-warn-bg); color:var(--v-warn)}
-body.adm .cw-cal-co{width:auto; min-width:180px; max-width:100%; margin:0 0 8px}
+body.adm .cw-cal-co{width:auto; min-width:180px; max-width:100%; margin:0}
+/* (10/23) 칸은 정사각형 + 화살표로 달 넘기기 */
+body.adm .cw-cal-nav{display:flex; align-items:center; gap:12px; flex-wrap:wrap; max-width:760px; margin:4px 0 8px}
+body.adm .cw-mnav{display:inline-flex; align-items:center; gap:4px; margin-left:auto}
+body.adm .cw-mnav b{min-width:96px; text-align:center; font-size:16px; font-weight:700}
+body.adm .cw-mnav button{all:unset; box-sizing:border-box; display:inline-grid; place-items:center; width:40px; height:40px; border:1px solid var(--v-line); border-radius:8px; background:var(--v-paper); font-size:20px; line-height:1; cursor:pointer}
+body.adm .cw-mnav button:hover{background:var(--v-bg)}
+body.adm .cw-mnav button:focus-visible{outline:2px solid var(--v-cobalt); outline-offset:2px}
+body.adm .cw-cal{max-width:760px}
+body.adm .cw-cal{container-type:inline-size}
+body.adm .cw-cal button,body.adm .cw-cal .blank{min-height:calc(100cqw / 7)}
+body.adm .cw-cal .lb{flex:none}   /* 기본은 정사각형, 글자가 많은 날만 아래로 늘어남(잘리지 않게) */
 body.adm .cw-cal-sel{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:0 0 6px}
 body.adm .cw-cal-sel:empty{display:none}
 @media (max-width:640px){
-  body.adm .cw-cal button{min-height:58px; padding:3px 2px}
+  body.adm .cw-cal button{padding:3px 2px}
   body.adm .cw-cal .lb{padding:0 2px; font-size:11px; letter-spacing:-.03em}
 }

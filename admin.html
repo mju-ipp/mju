@@ -6,7 +6,7 @@
   <title>관리자 · 일학습병행 앱</title>
   <meta name="theme-color" content="#121318" />
   <link rel="stylesheet" href="./styles.css" />
-  <link rel="stylesheet" href="./admin.css?v=20261023-3" /><!-- 배포 때 v 를 올려 캐시된 옛 스타일과 새 HTML 이 섞이지 않게 -->
+  <link rel="stylesheet" href="./admin.css?v=20261023-4" /><!-- 배포 때 v 를 올려 캐시된 옛 스타일과 새 HTML 이 섞이지 않게 -->
   <script src="./config.js"></script>
   <style>
     .msg{max-width:80%;padding:9px 12px;border-radius:12px;margin:5px 0;font-size:14px;white-space:pre-wrap}
@@ -214,7 +214,10 @@
             <button type="button" class="phone-btn dsec-act" id="cw-task-bulk">이 달 면담일지 모든 기업에 넣기</button></h3>
           <p class="dsec-lede">내부평가·면담일지처럼 기업이 그 달 말까지 센터로 보내야 하는 것. 받으면 [받음]을 누르세요. 달력에서 날짜를 누르면 그날 마감만 보이고, 아래 넣기 칸이 그 기업·날짜로 채워져요.</p>
           <!-- (10/23) 기업 앱 달력처럼 — 칸마다 학생 '이름 시간'·평가·면담. 날짜를 누르면 넣기 칸이 그 날짜·기업으로 -->
-          <select id="cw-cal-co" class="ph-select cw-cal-co" aria-label="달력에 볼 기업"><option value="">기업 전체</option></select>
+          <div class="cw-cal-nav">
+            <select id="cw-cal-co" class="ph-select cw-cal-co" aria-label="달력에 볼 기업"><option value="">기업 전체</option></select>
+            <span class="cw-mnav"><button type="button" id="cw-cal-prev" aria-label="이전 달">‹</button><b id="cw-cal-title"></b><button type="button" id="cw-cal-next" aria-label="다음 달">›</button></span>
+          </div>
           <div class="cw-cal" id="cw-cal"></div>
           <p class="note cw-cal-sel" id="cw-cal-sel"></p>
           <div class="cw-add" id="cw-add">
@@ -4429,8 +4432,11 @@
     let cwSelDay = null, cwCalCo = null;
     try { cwCalCo = localStorage.getItem('adm_cw_calco'); } catch (_) {}   // null = 처음(첫 기업), '' = 기업 전체
     $('cw-cal-co').addEventListener('change', () => { cwCalCo = $('cw-cal-co').value || ''; try { localStorage.setItem('adm_cw_calco', cwCalCo); } catch (_) {} cwSelDay = null; cwDrawTasks(); });
+    // 화살표로 달 넘기기(10/23) — 위쪽 달 칸(cw-month)과 같은 값을 바꿔 다시 읽음
+    [['cw-cal-prev', -1], ['cw-cal-next', 1]].forEach(([id, n]) => $(id).addEventListener('click', () => { $('cw-month').value = ymPlus(cwYm(), n); cwSelDay = null; cwLoad(); }));
     function cwDrawCal() {
       const { ym, tasks, cos, daily, coOfAll } = cwData, today = ymdLocal(0);
+      $('cw-cal-title').textContent = `${ym.slice(0, 4)}년 ${Number(ym.slice(5))}월`;
       // 고른 기업이 지금 보이는 기업에 없으면 첫 기업으로(''= 기업 전체는 그대로)
       if (cwCalCo === null || (cwCalCo && !cos.some(c => c.key === cwCalCo))) cwCalCo = cos.length ? cos[0].key : '';
       $('cw-cal-co').innerHTML = '<option value="">기업 전체</option>' + cos.map(c => `<option value="${esc(c.key)}"${c.key === cwCalCo ? ' selected' : ''}>${esc(c.label)}</option>`).join('');
