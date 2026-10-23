@@ -416,6 +416,13 @@ body.adm .ch-at{flex:none; font-size:12px; color:var(--v-mute)}
 body.adm .ch-rhead{display:flex; align-items:center; justify-content:space-between; gap:8px}
 body.adm .ch-off{color:var(--v-warn); font-size:12px}
 body.adm .ch-msgs{display:flex; flex-direction:column; gap:10px; max-height:60vh; overflow:auto; padding:8px 0 12px; border-top:1px solid var(--v-line); margin:8px 0 12px}
+/* (10/23) 대화 창 — 학생 상세 시트와 같은 오른쪽 창. 글은 가운데에서 스크롤, 입력칸은 아래 고정 */
+body.adm .ch-sheet{width:520px; display:flex; flex-direction:column; overflow:hidden}
+body.adm .ch-sheet .ch-bodyw{flex:1; min-height:0; overflow:auto; padding:0 24px}
+body.adm .ch-sheet .ch-msgs{max-height:none; overflow:visible; border-top:0; margin:0; padding:16px 0}
+body.adm .ch-sheet .ch-compose{flex:none; border-top:1px solid var(--v-line); padding:12px 24px calc(14px + env(safe-area-inset-bottom)); background:var(--v-paper)}
+body.adm .ch-sheet .ch-compose textarea{min-height:64px; margin:0}
+body.adm .ch-sheet .ch-actions{display:flex; justify-content:space-between; align-items:center; gap:8px; margin-top:8px}
 body.adm .ch-m{max-width:80%; display:flex; flex-direction:column; gap:3px; align-self:flex-start; align-items:flex-start}
 body.adm .ch-m .n{font-size:12px; color:var(--v-mute)}
 body.adm .ch-m .b{padding:9px 12px; border:1px solid var(--v-line); border-radius:10px; background:var(--v-paper); white-space:pre-wrap; word-break:break-word}

@@ -6,7 +6,7 @@
   <title>관리자 · 일학습병행 앱</title>
   <meta name="theme-color" content="#121318" />
   <link rel="stylesheet" href="./styles.css" />
-  <link rel="stylesheet" href="./admin.css?v=20261023-4" /><!-- 배포 때 v 를 올려 캐시된 옛 스타일과 새 HTML 이 섞이지 않게 -->
+  <link rel="stylesheet" href="./admin.css?v=20261023-5" /><!-- 배포 때 v 를 올려 캐시된 옛 스타일과 새 HTML 이 섞이지 않게 -->
   <script src="./config.js"></script>
   <style>
     .msg{max-width:80%;padding:9px 12px;border-radius:12px;margin:5px 0;font-size:14px;white-space:pre-wrap}
@@ -469,14 +469,6 @@
           </div>
           <div id="ch-list"></div>
         </div>
-        <div class="card" id="ch-room" hidden>
-          <div class="ch-rhead"><p class="ph-card-title" id="ch-title">대화방</p><button type="button" class="mju-btn mju-btn--secondary mju-btn--sm" id="ch-reload">새로 불러오기</button></div>
-          <p class="note" id="ch-members"></p>
-          <div id="ch-msgs" class="ch-msgs"></div>
-          <textarea id="ch-text" class="ph-ta" rows="2" maxlength="2000" style="min-height:64px" aria-label="보낼 글" placeholder="학생에게 보낼 글 — 보내면 푸시 알림이 가요"></textarea>
-          <button class="mju-btn mju-btn--full" id="ch-send" style="margin-top:10px">보내기</button>
-          <div class="status" id="ch-status"></div>
-        </div>
       </div>
 
       <!-- 만족도 -->
@@ -711,6 +703,16 @@
         </div>
       </div>
       </main>
+      <!-- (10/23 사용자) 대화방 — 목록 아래 카드 대신 학생 상세 달력처럼 오른쪽에서 여는 창. 위 머리·가운데 글·아래 입력칸 -->
+      <aside class="stu-sheet ch-sheet" id="ch-room" aria-label="대화방" aria-hidden="true">
+        <div class="sh"><button type="button" class="x" id="ch-close">닫기</button><h3 id="ch-title">대화방</h3><p id="ch-members"></p></div>
+        <div class="ch-bodyw"><div id="ch-msgs" class="ch-msgs"></div></div>
+        <div class="ch-compose">
+          <textarea id="ch-text" class="ph-ta" rows="2" maxlength="2000" aria-label="보낼 글" placeholder="학생에게 보낼 글 — 보내면 푸시 알림이 가요"></textarea>
+          <div class="ch-actions"><button type="button" class="mju-btn mju-btn--secondary mju-btn--sm" id="ch-reload">새로 불러오기</button><button class="mju-btn" id="ch-send">보내기</button></div>
+          <div class="status" id="ch-status"></div>
+        </div>
+      </aside>
       <!-- [개편 5단계] 학생 상세 — 이번 달 정규시간 달력(attendance_daily). 진도 표·오늘 목록에서 연다 -->
       <aside class="stu-sheet" id="stu-sheet" aria-label="학생 상세" aria-hidden="true">
         <div class="sh"><button type="button" class="x" id="stu-close">닫기</button><h3 id="stu-name"></h3><p id="stu-sub"></p></div>
@@ -1005,6 +1007,7 @@
       });
       renderSubnav(key);
       closeStuSheet();
+      if ($('ch-room').classList.contains('open')) chClose();   // 다른 화면으로 가면 대화 창도 닫음
       TAB_KEYS.concat(['cowork']).forEach(t => { const el = $('sec-' + t); if (el) el.style.display = (t === tab ? 'block' : 'none'); });
       if (tab === 'members') moShow(seg || 'roster');   // 명시적 #members = 항상 현황(배지·지표 진입점 착지 보정). #onboard 만 등록 세그먼트
       if (adminEmail && !(opts && opts.noLoad) && TAB_LOAD[tab]) TAB_LOAD[tab]();   // 로그인 전에는 조회 안 함
@@ -2090,7 +2093,8 @@
     async function chOpen(id) {
       chCur = chRooms.find(r => r.id === id); if (!chCur) return;
       chDraw();
-      $('ch-room').hidden = false;
+      closeStuSheet();
+      const sh = $('ch-room'); sh.classList.add('open'); sh.setAttribute('aria-hidden', 'false');
       $('ch-title').textContent = (chCur.kind === 'company' ? '기업방 · ' : '1:1 · ') + chCur.title;
       $('ch-members').innerHTML = chCur.kind === 'company'
         ? '학생: ' + chCur.members.map(m => `${esc(m.name)}${m.push ? '' : ' <span class="ch-off">알림 꺼짐</span>'}`).join(', ') + ' — 이 방 글은 이 학생들 모두가 봐요.'
@@ -2110,7 +2114,7 @@
         if (hide && !confirm('이 글을 학생들에게서 숨길까요? (선생님 화면에는 남아요)')) return;
         if (await updRow('chat_messages', { hidden: hide }, b.dataset.id, $('ch-status'))) chOpen(id);
       }));
-      box.scrollTop = box.scrollHeight;
+      const scr = box.parentElement; scr.scrollTop = scr.scrollHeight;   // 창 안 글 영역(.ch-bodyw)을 맨 아래로
       const opened = chCur;
       supabase.rpc('admin_chat_read', { p_room: id }).then(() => {
         if (Number(opened.unread)) { _chUnread = Math.max(0, _chUnread - Number(opened.unread)); opened.unread = 0; consultBadge(); chDraw(); }
@@ -2129,6 +2133,9 @@
       const id = chCur.id; await chLoad(); chOpen(id);
     });
     $('ch-reload').addEventListener('click', async () => { await chLoad(); if (chCur) chOpen(chCur.id); });
+    function chClose() { const sh = $('ch-room'); if (!sh) return; sh.classList.remove('open'); sh.setAttribute('aria-hidden', 'true'); chCur = null; if ($('ch-list')) chDraw(); }
+    $('ch-close').addEventListener('click', chClose);
+    document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('ch-room').classList.contains('open')) chClose(); });
     document.querySelectorAll('#ch-scope .chip').forEach(b => b.addEventListener('click', () => { chScope = b.dataset.v; chSave('scope', chScope); chDraw(); }));
     document.querySelectorAll('#ch-kind .chip').forEach(b => b.addEventListener('click', () => { chKind = b.dataset.v; chSave('kind', chKind); chDraw(); }));
 
