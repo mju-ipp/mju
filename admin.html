@@ -465,6 +465,8 @@
           <div class="ch-bar">
             <div class="ch-seg" id="ch-scope" role="group" aria-label="보는 범위"><button type="button" class="chip" data-v="mine">내 담당</button><button type="button" class="chip" data-v="all">전체</button></div>
             <div class="ch-seg" id="ch-kind" role="group" aria-label="방 종류"><button type="button" class="chip" data-v="company">기업방</button><button type="button" class="chip" data-v="direct">1:1</button></div>
+            <!-- (10/23, sql/80) 담당 선생님별 보기 — 방 담당 = 명단 담당직원. 고르면 그 선생님 방만(내 담당/전체보다 우선) -->
+            <select id="ch-mgr" class="ph-select" aria-label="담당 선생님"><option value="">선생님별 보기</option></select>
             <span class="ch-me" id="ch-me"></span>
           </div>
           <div id="ch-list"></div>
@@ -2050,7 +2052,7 @@
     let chRooms = [], chMe = {}, chCur = null;
     const chPref = (k, d) => { try { return localStorage.getItem('adm_ch_' + k) || d; } catch (_) { return d; } };
     const chSave = (k, v) => { try { localStorage.setItem('adm_ch_' + k, v); } catch (_) {} };
-    let chScope = chPref('scope', 'mine'), chKind = chPref('kind', 'company');
+    let chScope = chPref('scope', 'mine'), chKind = chPref('kind', 'company'), chMgr = chPref('mgr', '');
     const chAt = s => { const d = new Date(s), n = new Date(); return d.toDateString() === n.toDateString() ? d.toLocaleTimeString('ko-KR', { hour: 'numeric', minute: '2-digit' }) : `${d.getMonth() + 1}/${d.getDate()}`; };
     async function chLoad() {
       const el = $('ch-list');
@@ -2065,22 +2067,26 @@
       const el = $('ch-list'), myName = (chMe.name || '').trim();
       document.querySelectorAll('#ch-scope .chip').forEach(b => b.classList.toggle('on', b.dataset.v === chScope));
       document.querySelectorAll('#ch-kind .chip').forEach(b => b.classList.toggle('on', b.dataset.v === chKind));
-      $('ch-me').innerHTML = myName ? `학생에게 <b>${esc(myName)} 선생님</b>으로 보여요 · <button type="button" class="ch-link" id="ch-rename">이름 바꾸기</button>`
-        : `<b class="ch-warn">내 이름이 없어요</b> — 학생에게 '센터 선생님'으로 보여요 · <button type="button" class="ch-link" id="ch-rename">이름 넣기</button>`;
+      // (sql/80) 선생님 글은 그 방 담당 선생님 이름으로 감 — 담당이 없는 방만 내 이름
+      $('ch-me').innerHTML = `선생님 글은 <b>방 담당 선생님 이름</b>으로 보여요 · 담당 없는 방은 ${myName ? `<b>${esc(myName)} 선생님</b>` : `<b class="ch-warn">'센터 선생님'</b>`} · <button type="button" class="ch-link" id="ch-rename">${myName ? '내 이름 바꾸기' : '내 이름 넣기'}</button>`;
       $('ch-rename').addEventListener('click', chRename);
-      const mine = r => !myName || r.members.some(m => (m.manager || '').trim() === myName);
-      const all = chRooms.filter(r => r.kind === chKind), rows = all.filter(r => chScope === 'all' || mine(r));
+      const mgrOf = r => (r.manager || '').trim();
+      const mgrs = [...new Set(chRooms.map(mgrOf).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ko'));
+      if (chMgr && !mgrs.includes(chMgr)) chMgr = '';
+      $('ch-mgr').innerHTML = `<option value="">선생님별 보기</option>` + mgrs.map(m => `<option${m === chMgr ? ' selected' : ''}>${esc(m)}</option>`).join('');
+      const mine = r => !myName || mgrOf(r) === myName || (!mgrOf(r) && r.members.some(m => (m.manager || '').trim() === myName));
+      const all = chRooms.filter(r => r.kind === chKind), rows = all.filter(r => chMgr ? mgrOf(r) === chMgr : (chScope === 'all' || mine(r)));
       const hidden = all.length - rows.length;
       el.innerHTML = (rows.length ? `<div class="ch-list">` + rows.map(r => {
         const n = r.members.length, on = r.members.filter(m => m.push).length, co = r.kind === 'company';
-        const sub = co ? `학생 ${n}명 · 알림 받는 학생 ${on}/${n}` : `${esc(r.company || '')} · ${on ? '알림 받음' : '알림 안 받음'}`;
+        const sub = (r.manager ? `담당 ${esc(r.manager)} · ` : '') + (co ? `학생 ${n}명 · 알림 받는 학생 ${on}/${n}` : `${esc(r.company || '')} · ${on ? '알림 받음' : '알림 안 받음'}`);
         const last = r.last ? `${r.last.sender === 'teacher' ? esc(r.last.name) : esc(r.last.name)}: ${esc(r.last.body)}` : '아직 글이 없어요';
         return `<button type="button" class="ch-row${chCur && chCur.id === r.id ? ' on' : ''}" data-id="${r.id}">` +
           `<span class="ch-main"><span class="ch-t">${esc(r.title)}${Number(r.unread) ? `<span class="ch-new">새 글 ${r.unread}</span>` : ''}</span>` +
           `<span class="ch-sub${on < n ? ' ch-subw' : ''}">${sub}</span><span class="ch-last">${last}</span></span>` +
           `<span class="ch-at">${r.last ? chAt(r.last.at) : ''}</span></button>`;
       }).join('') + `</div>` : `<p class="note">${chScope === 'mine' && myName ? `${esc(myName)} 담당 학생이 있는 방이 없어요.` : '방이 없어요 — 명단에 기업이 들어간 학생이 있어야 기업방이 생겨요.'}</p>`) +
-        (chScope === 'mine' && hidden > 0 ? `<p class="note" style="margin-top:8px">다른 선생님 담당 ${hidden}개는 [전체]에서 보여요.</p>` : '');
+        (!chMgr && chScope === 'mine' && hidden > 0 ? `<p class="note" style="margin-top:8px">다른 선생님 담당 ${hidden}개는 [전체]나 선생님별 보기에서 보여요.</p>` : '');
       el.querySelectorAll('.ch-row').forEach(b => b.addEventListener('click', () => chOpen(b.dataset.id)));
     }
     async function chRename() {
@@ -2099,6 +2105,10 @@
       $('ch-members').innerHTML = chCur.kind === 'company'
         ? '학생: ' + chCur.members.map(m => `${esc(m.name)}${m.push ? '' : ' <span class="ch-off">알림 꺼짐</span>'}`).join(', ') + ' — 이 방 글은 이 학생들 모두가 봐요.'
         : `${esc(chCur.title)} 학생과 선생님만 보는 대화${chCur.members[0] && !chCur.members[0].push ? ' · <span class="ch-off">이 학생은 알림을 받지 않아요</span>' : ''}`;
+      // (sql/80) 이 방에서 보내는 글이 학생에게 보일 이름
+      const asName = (chCur.manager || (chMe.name || '').trim() || '센터') + ' 선생님';
+      $('ch-members').innerHTML += ` · 보내는 글은 <b>${esc(asName)}</b>으로 보여요`;
+      $('ch-text').placeholder = `${asName} 이름으로 학생에게 보내요 — 보내면 푸시 알림이 가요`;
       const box = $('ch-msgs'); box.innerHTML = '<p class="note">불러오는 중…</p>';
       const { data, error } = await supabase.from('chat_messages').select('id,sender,sender_name,body,hidden,created_at,push_state')
         .eq('room_id', id).order('created_at', { ascending: true }).limit(500);
@@ -2138,6 +2148,7 @@
     document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('ch-room').classList.contains('open')) chClose(); });
     document.querySelectorAll('#ch-scope .chip').forEach(b => b.addEventListener('click', () => { chScope = b.dataset.v; chSave('scope', chScope); chDraw(); }));
     document.querySelectorAll('#ch-kind .chip').forEach(b => b.addEventListener('click', () => { chKind = b.dataset.v; chSave('kind', chKind); chDraw(); }));
+    $('ch-mgr').addEventListener('change', e => { chMgr = e.target.value; chSave('mgr', chMgr); chDraw(); });
 
     // '상담' 묶음 배지 = 미답변 상담 + 대화방 안 읽은 학생 글
     let _clOpen = 0, _chUnread = 0;
