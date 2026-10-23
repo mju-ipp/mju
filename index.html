@@ -537,7 +537,7 @@
         // 기업 담당자 복원 경로
         if (!rCompGrp.hidden) {
           const c = rComp.value; if (!c) { setStatus(rStatus, '소속 학습기업을 선택해주세요.', 'error'); return; }
-          return saveAndHome({ name: nm, target_type: 'company', job_key: null, company: c, type1: null, manager: null, token: null });
+          return saveAndHome({ name: nm, target_type: 'company', job_key: null, company: c, type1: null, manager: null, token: null, code: rCodeVal });   // 코드도 저장(우리 학생 OJT·알림 등록에 씀)
         }
         // 매칭학생 2단계(본인 직무 선택)
         if (rPending) {

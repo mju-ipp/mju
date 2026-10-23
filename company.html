@@ -498,7 +498,10 @@
         `<span>${sh.slice(0, 4).map(({ s, d }) => `${md(d.day)} ${esc(s.name)} ${d.status === 'none' ? '기록 없음' : (Number(d.recognized) || 0) + 'h/' + Number(d.hours) + 'h'}`).join(' · ')}${sh.length > 4 ? ` 외 ${sh.length - 4}건` : ''} — 휴가·출장이었다면 알려 주세요</span></span></div>`;
       // (10/23) 눌러서 바로 '전담인력수당'(상태·신청 방법)을 펼침
       if (unpaid.length) h += `<a class="bi" href="#allow-sec" data-open="allow-sec"><span class="k ev" style="background:var(--v-warn)">수당</span><span class="wh"><b>${unpaid.map(a => moName(a.period) + '분').join(', ')} 전담인력수당 미신청</b><span>눌러서 신청 방법 보기</span></span><span class="go-r" aria-hidden="true">›</span></a>`;
-      $('m-todo').innerHTML = `<div class="box">${h || '<p class="empty">지금은 할 일이 없어요.</p>'}</div>`;
+      // (10/23) 마감 알림 — 이 기기에서 알림을 안 켰으면 켜기 안내(켜면 기업 코드로 등록돼 내부평가·면담일지 D-3 알림을 받음, sql/78)
+      let noti = '';
+      try { if ('Notification' in window && Notification.permission !== 'granted') noti = `<div class="bi"><span class="k">알림</span><span class="wh"><b>마감 알림 받기</b><span>내부평가·면담일지 마감 3일 전부터 평일 아침에 알려 드려요</span></span><a class="lnk" href="./install.html">켜기</a></div>`; } catch (_) {}
+      $('m-todo').innerHTML = `<div class="box">${h || '<p class="empty">지금은 할 일이 없어요.</p>'}${noti}</div>`;
       $('m-todo').querySelectorAll('[data-open]').forEach(a => a.addEventListener('click', e => {
         e.preventDefault();
         const d = $(a.dataset.open); if (!d) return;
