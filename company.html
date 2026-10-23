@@ -198,7 +198,7 @@
     .more{margin:0; border-top:0; padding:0 16px}
     .more > details:last-child{border-bottom:0}
     .more > details > summary{min-height:56px; font-size:16px; font-weight:700}
-    /* 더보기 안 — 능력단위(달 묶음 띠) · 월별 출결 마감/전담인력수당(한 줄씩 + 상태 알약) */
+    /* 더보기 안 — 능력단위(달 묶음 띠) · 월별 출결 마감(한 줄씩 + 상태 알약) */
     .more .lede{margin:0 0 12px; font-size:13px}
     .more .chips{margin-bottom:12px}
     .more .grp{margin:4px 0 10px; font-size:13px}
@@ -278,7 +278,6 @@
         <details id="stage-sec" hidden><summary>우리 회사 진행 현황 <span id="stage-now"></span></summary><div id="stage-view"></div></details>
         <details><summary>능력단위 <span>달마다 배우는 내용</span></summary><p class="lede">실시신고 시간표의 달별 배정이에요. 단위를 누르면 능력단위요소·수행과업이 나와요.</p><div id="u-list"></div></details>
         <details><summary>월별 출결 마감 <span>학습일지·출석확인</span></summary><div id="a-view"></div></details>
-        <details id="allow-sec"><summary>전담인력수당 <span>신청 상태·방법</span></summary><div id="w-view"></div></details>
       </div>
     </section>
     <p class="msg" id="msg" hidden></p>
@@ -308,7 +307,7 @@
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script><!-- 아래 탭 아이콘(다른 화면과 같은 주소) -->
   <script type="module">
     // [sql/70] 우리 학생 OJT — 기업 담당자(앱에 기업 초대코드로 가입한 기기)용. 본인 확인 = 프로필 code(학생과 같은 방식, 사용자 10/22).
-    //   현장교사·HRD담당자로 나누지 않고 회사 하나: 이번 달(휴가·출장) · 월별 출결 · 전담인력수당 · 능력단위 · 월말 할 일.
+    //   현장교사·HRD담당자로 나누지 않고 회사 하나: 이번 달(휴가·출장) · 월별 출결 · 능력단위 · 평가·면담 마감.
     //   첫 화면 위에 '이번 달 예정 시수·능력단위·월말 할 일' 요약(사용자 10/22). 비콘은 인정 시간·상태만(입실·퇴실 시각은 서버도 안 줌).
     import { supabase, configReady, friendlyError, esc, getProfile, requireCenterId } from './app.js';
 
@@ -381,23 +380,21 @@
       const sh = ym === thisYm ? shorts() : [];
       const fut = studs().flatMap(s => (s.days || []).map(d => d.day)).filter(d => d >= today && d.slice(0, 7) === thisYm);
       const leftDays = new Set(fut).size;
-      const unpaid = (D.allowance || []).filter(a => a.state === '미신청');
-      // 머리 — (10/23) 독촉 한 줄 대신 중립 요약: '확인할 일 N건' + 아래 한 줄(가장 가까운 마감 · 모자란 날 · 수당 미신청 달)
-      //   건수 = '할 일' 목록과 같은 기준(내부평가·면담일지 마감 + 모자란 날 묶음 1 + 수당 묶음 1)
+      // 머리 — (10/23) 독촉 한 줄 대신 중립 요약: '확인할 일 N건' + 아래 한 줄(가장 가까운 마감 · 모자란 날)
+      //   건수 = '할 일' 목록과 같은 기준(내부평가·면담일지 마감 + 모자란 날 묶음 1). (10/23 사용자) 전담인력수당은 기업 앱에서 뺌
       const openT = (D.tasks || []).filter(t => !t.done_on && t.month <= thisYm).sort((a, b) => ((a.due_on || a.month) < (b.due_on || b.month) ? -1 : 1));
-      const nTodo = openT.length + (sh.length ? 1 : 0) + (unpaid.length ? 1 : 0);
+      const nTodo = openT.length + (sh.length ? 1 : 0);
       const title = nTodo ? `확인할 일이 ${nTodo}건 있어요` : `${moName(thisYm)} 남은 훈련일 ${leftDays}일`;
       const subs = [];
       const nd = openT.find(t => t.due_on);
       if (nd) subs.push(`가장 가까운 마감 <b>${esc(md(nd.due_on))}</b> ${esc([...new Set(openT.filter(t => t.due_on === nd.due_on).map(t => t.kind))].join('·'))}`);
       if (sh.length) subs.push(`인정 시간 모자란 날 <b>${sh.length}건</b>`);
-      if (unpaid.length) subs.push(`수당 미신청 <b>${esc(unpaid.map(a => a.period).sort().map(moName).join('·'))}분</b>`);
       if (!nTodo && leftDays) subs.push('지금은 처리할 일이 없어요');
       $('head').innerHTML = `<p class="co">${esc(D.company)} · 학생 ${studs().length}명</p><h1 class="ph-title">${esc(title)}</h1>` +
         (subs.length ? `<p class="hd-sub">${subs.join(' · ')}</p>` : '');
       $('t-month').hidden = false; $('links').hidden = false;
       $('foot').textContent = `인정 시간은 센터가 매일 아침 행정지원시스템에서 조회한 값이에요(어제까지). 문의는 센터 담당 선생님께.`;
-      drawMonth(); drawTodo(sh, unpaid); drawAbs(); drawUnits(); drawAttn(); drawAllow(); drawStage();
+      drawMonth(); drawTodo(sh); drawAbs(); drawUnits(); drawAttn(); drawStage();
     }
 
     function taskRow(t) {
@@ -489,15 +486,13 @@
       $('m-day').querySelectorAll('[data-cancel]').forEach(b => b.addEventListener('click', () => cancel(b)));
     }
 
-    // ---------- 이번 달 할 일 — 내부평가·면담일지 마감 · 인정 모자란 날 · 수당 미신청 ----------
-    function drawTodo(sh, unpaid) {
+    // ---------- 이번 달 할 일 — 내부평가·면담일지 마감 · 인정 모자란 날 ----------
+    function drawTodo(sh) {
       const tasks = (D.tasks || []).filter(t => !t.done_on && t.month <= thisYm).sort((a, b) => ((a.due_on || a.month) < (b.due_on || b.month) ? -1 : 1));
       let h = '';
       h += tasks.map(taskRow).join('');
       if (sh.length) h += `<div class="bi"><span class="k ev" style="background:var(--v-warn)">확인</span><span class="wh"><b>인정 시간이 모자란 날 ${sh.length}건</b>` +
         `<span>${sh.slice(0, 4).map(({ s, d }) => `${md(d.day)} ${esc(s.name)} ${d.status === 'none' ? '기록 없음' : (Number(d.recognized) || 0) + 'h/' + Number(d.hours) + 'h'}`).join(' · ')}${sh.length > 4 ? ` 외 ${sh.length - 4}건` : ''} — 휴가·출장이었다면 알려 주세요</span></span></div>`;
-      // (10/23) 눌러서 바로 '전담인력수당'(상태·신청 방법)을 펼침
-      if (unpaid.length) h += `<a class="bi" href="#allow-sec" data-open="allow-sec"><span class="k ev" style="background:var(--v-warn)">수당</span><span class="wh"><b>${unpaid.map(a => moName(a.period) + '분').join(', ')} 전담인력수당 미신청</b><span>눌러서 신청 방법 보기</span></span><span class="go-r" aria-hidden="true">›</span></a>`;
       // (10/23) 마감 알림 — 이 기기에서 알림을 안 켰으면 켜기 안내(켜면 기업 코드로 등록돼 내부평가·면담일지 D-3 알림을 받음, sql/78)
       let noti = '';
       try { if ('Notification' in window && Notification.permission !== 'granted') noti = `<div class="bi"><span class="k">알림</span><span class="wh"><b>마감 알림 받기</b><span>내부평가·면담일지 마감 3일 전부터 평일 아침에 알려 드려요</span></span><a class="lnk" href="./install.html">켜기</a></div>`; } catch (_) {}
@@ -649,7 +644,6 @@
       $('a-next')?.addEventListener('click', () => { attnYm = ms[i + 1]; drawAttn(); });
     }
 
-    // ---------- 전담인력수당 — OJT 배정 달마다 한 줄(센터가 아직 확인 안 한 달은 '확인 전') ----------
     // ---------- 우리 회사 진행 현황 — 옛 첫 화면 카드(index renderCompanyStage)와 같은 내용. RPC·데이터 없으면 안 보임 ----------
     let stageDone = false;
     async function drawStage() {
@@ -670,26 +664,6 @@
       }).join('') + `</div>`;
       $('stage-sec').hidden = false;
       window.lucide?.createIcons();
-    }
-
-    function drawAllow() {
-      const al = D.allowance || [], by = {}; al.forEach(a => { by[a.period] = a; });
-      const months = [...new Set(ojtMonths().concat(al.map(a => a.period)))].sort().reverse();
-      const un = al.filter(a => a.state === '미신청');
-      const lastCheck = al.reduce((x, a) => (a.checked_at && a.checked_at > x ? a.checked_at : x), '');
-      // 제목은 더보기 줄에 있으니 안내만, 달마다 한 줄 + 상태 알약(미신청 주황 · 신청~확정 파랑 · 지급완료 진함 · 확인 전 회색)
-      let h = `<p class="lede">OJT 출결이 있는 달마다 신청할 수 있어요. 상태는 센터가 행정지원시스템에서 확인한 값이에요${lastCheck ? `(${md(lastCheck)} 확인)` : ''}. 순서: 신청 → 승인 → 확정 → 지급완료</p>`;
-      if (un.length) h += `<div class="alert" style="margin:0 0 12px"><p><b>${un.map(a => moName(a.period) + '분').join(', ')} 아직 신청 안 됨</b></p><p>그 달 OJT 출결이 있어 신청 대상이에요.</p></div>`;
-      // (10/23) 신청 방법 — '선생님께 문의'만 있던 것을 경로까지(관리자 수당 화면과 같은 메뉴 이름)
-      h += `<div class="howto"><b>신청 방법</b><br>일학습병행 행정지원시스템(기업 로그인) › <b>비용관리(전담자)</b> › <b>전담인력활동수당 신청</b>에서 훈련한 달마다 신청해요. 막히면 센터 담당 선생님께 문의해 주세요.</div>`;
-      const PILL = { '미신청': 'w', '신청': 'ok', '승인': 'ok', '확정': 'ok', '지급완료': 'dn' };
-      h += months.length ? `<div class="rows">` + months.map(m => {
-            const a = by[m]; const st = a ? a.state : m === thisYm ? '출결 진행 중' : '확인 전';
-            return `<div class="row"><div class="l"><b>${m.slice(0, 4) !== thisYm.slice(0, 4) ? m.slice(0, 4) + '년 ' : ''}${moName(m)}분</b>` +
-              `<span>${a && a.applied_on ? '신청일 ' + md(a.applied_on) : '신청일 —'}</span></div>` +
-              `<div class="rr"><span class="pill ${PILL[st] || 'mu'}">${esc(st)}</span></div></div>`; }).join('') + `</div>`
-        : `<p class="msg" style="margin:8px 0">아직 OJT 배정 달이 없어요.</p>`;
-      $('w-view').innerHTML = h;
     }
 
     // 다시 가입 — 이 기기의 가입 정보를 지우고 가입 화면으로(index 의 '다른 정보로 다시 가입'과 같음, '전체 메뉴' 대신 10/22)

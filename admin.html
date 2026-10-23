@@ -212,7 +212,7 @@
           <div id="cw-code-list"></div>
         </section>
         <section class="dsec" data-cw="tasks">
-          <h3 class="dsec-h">월말 할 일 <span class="n" id="cw-task-n"></span>
+          <h3 class="dsec-h">평가·면담 달력 <span class="n" id="cw-task-n"></span>
             <button type="button" class="phone-btn dsec-act" id="cw-task-bulk">이 달 면담일지 모든 기업에 넣기</button></h3>
           <p class="dsec-lede">내부평가·면담일지처럼 기업이 그 달 말까지 센터로 보내야 하는 것. 받으면 [받음]을 누르세요. 달력에서 날짜를 누르면 그날 마감만 보이고, 아래 넣기 칸이 그 기업·날짜로 채워져요.</p>
           <!-- (10/23) 기업 앱 달력처럼 — 칸마다 학생 '이름 시간'·평가·면담. 날짜를 누르면 넣기 칸이 그 날짜·기업으로 -->
@@ -943,7 +943,7 @@
 
     // 탭 전환 — location.hash 기록·복원(새로고침·뒤로가기·링크 공유에도 탭 유지) + 활성화 시 해당 탭 재조회
     // ⚠️ 'onboard'는 단독 탭이 아니지만 제거 금지 — #onboard 해시 호환(showTab 재매핑)과 sec-onboard 끄기(display 루프)가 이 항목에 의존
-    const TAB_KEYS = ['dash', 'notice', 'conotice', 'cocodes', 'cotasks', 'coallow', 'coclose', 'library', 'calendar', 'consult', 'chat', 'survey', 'members', 'attn', 'cowork', 'onboard', 'recruit']; // (파일럿) 'stages','centers','vote' 탭 제거 — 섹션·로직은 보존, 키만 빼서 진입 차단
+    const TAB_KEYS = ['dash', 'notice', 'conotice', 'cocodes', 'cotasks', 'library', 'calendar', 'consult', 'chat', 'survey', 'members', 'attn', 'cowork', 'onboard', 'recruit']; // (파일럿) 'stages','centers','vote' 탭 제거 — 섹션·로직은 보존, 키만 빼서 진입 차단
     // 탭별 로더 — 아침에 켜둔 콘솔이 로그인 시점 스냅샷에 고정되지 않게, 탭을 열 때마다 새로 조회
     const TAB_LOAD = {
       dash: () => dashLoad(),
@@ -968,11 +968,11 @@
       consult: 'consult', chat: 'consult', library: 'settings', recruit: 'settings', survey: 'settings' };
     const GROUP_SUBS = {
       students: [['members', '명단'], ['onboard', '명단 등록·추가'], ['attn', '출석 진도'], ['notice', '공지'], ['calendar', '일정·할 일']],
-      company: [['cocodes', '기업·초대코드'], ['cotasks', '월말 할 일'], ['coallow', '전담인력수당'], ['coclose', '월 마감'], ['conotice', '공지']],
+      company: [['cocodes', '기업·초대코드'], ['cotasks', '평가·면담 달력'], ['conotice', '공지']],   // (10/23 사용자) 전담인력수당·월 마감 탭 뺌(섹션·로직은 보존)
       consult: [['chat', '대화방 (기업방·1:1)'], ['consult', '1:1 상담']],
       settings: [['library', '자료'], ['recruit', 'FAQ'], ['survey', '만족도·설문']],
     };
-    const TAB_ALIAS = { today: 'dash', students: 'members', company: 'cocodes', cowork: 'cocodes', send: 'notice', settings: 'library' };
+    const TAB_ALIAS = { coallow: 'cotasks', coclose: 'cotasks', today: 'dash', students: 'members', company: 'cocodes', cowork: 'cocodes', send: 'notice', settings: 'library' };
     function resolveTab(t) { return TAB_ALIAS[t] || t; }
     function renderSubnav(key) {
       const box = $('subnav'); const subs = GROUP_SUBS[TAB_GROUP[key]];
@@ -4523,7 +4523,7 @@
           `<span class="cw-d${late ? ' late' : ''}">${t.done_on ? '받음 ' + esc(mdOf(t.done_on)) : t.due_on ? esc(mdOf(t.due_on)) + '까지' : '-'}</span>` +
           `<button type="button" class="phone-btn" data-done="${esc(t.id)}" data-v="${t.done_on ? '' : '1'}">${t.done_on ? '되돌리기' : '받음'}</button>` +
           `<button type="button" class="phone-btn" data-del="${esc(t.id)}" aria-label="지우기">지우기</button></div>`;
-      }).join('') : `<p class="note">${coName ? esc(coName) + '의 ' : ''}${cwSelDay ? esc(mdOf(cwSelDay)) + ' 마감' : moOf(ym)} 월말 할 일이 없어요.</p>`;
+      }).join('') : `<p class="note">${coName ? esc(coName) + '의 ' : ''}${cwSelDay ? esc(mdOf(cwSelDay)) + ' 마감' : moOf(ym)} 평가·면담 마감이 없어요.</p>`;
       $('cw-task-list').querySelectorAll('[data-done]').forEach(b => b.addEventListener('click', async () => {
         b.disabled = true;
         const { error } = await supabase.from('field_tasks').update({ done_on: b.dataset.v ? ymdLocal(0) : null, updated_at: new Date().toISOString() }).eq('id', b.dataset.done);
