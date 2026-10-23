@@ -143,7 +143,7 @@
 
       <div class="card" id="signupCard">
         <p class="ph-card-title">간편 가입</p>
-        <p class="ph-note" style="margin-bottom:6px">합격 안내에 동봉된 초대코드만 입력하면 가입됩니다.</p>
+        <p class="ph-note" id="signup-note" style="margin-bottom:6px">합격 안내에 동봉된 초대코드만 입력하면 가입됩니다.</p>
 
         <form id="form">
           <label id="targets-label">대상 구분 <span class="req">*</span></label>
@@ -1033,6 +1033,17 @@
     const btn = document.getElementById('submit');
     let pendingStudent = null; // 직무가 여러 개인 매칭학생의 2단계(본인 직무 선택)용
     let pendingCompany = null; // 명단에 담당자 연락처가 없는 기업의 2단계(직접 입력)용
+    let pendingCoConfirm = null; // (10/23) 기업 코드 확인 후 '○○ 담당자로 가입' 한 번 더 확인 — 코드를 잘못 넣어도 바로 가입되지 않게
+    const SIGNUP_NOTE = {
+      student: '합격 안내에 동봉된 초대코드만 입력하면 가입됩니다.',
+      company: '센터에서 받은 기업 초대코드만 입력하면 가입됩니다.',
+      applicant: '이름·휴대폰과 관심 직무만 적으면 모집 알림을 받아요.',
+    };
+    function resetCoConfirm() {
+      if (!pendingCoConfirm) return;
+      pendingCoConfirm = null; btn.textContent = '가입하기';
+      setStatus(document.getElementById('status'), '', 'info');
+    }
 
     // 대상별 필드: 학생=초대코드만, 기업=기업 초대코드만, 지원자=이름·휴대폰+관심직무·학과
     const VISIBLE = {
@@ -1045,8 +1056,9 @@
         document.getElementById(id).hidden = !(VISIBLE[val] || []).includes(id);
       });
       document.getElementById('grp-job').hidden = true;   // 학생 직무 picker는 명단 확인 후에만
-      pendingStudent = null; pendingCompany = null;
+      pendingStudent = null; pendingCompany = null; pendingCoConfirm = null;
       btn.textContent = val === 'applicant' ? '알림 받기 등록' : '가입하기';
+      const sn = document.getElementById('signup-note'); if (sn && SIGNUP_NOTE[val]) sn.textContent = SIGNUP_NOTE[val];
       phoneEl.readOnly = false; nameEl.readOnly = false;   // 2단계 잠금 해제
       // 동의 문구 — 지원자는 수집항목·목적·보유기간이 다름
       const items = document.getElementById('c-items'), purpose = document.getElementById('c-purpose'), ret = document.getElementById('c-retention');
@@ -1054,6 +1066,11 @@
         items.textContent = '수집 항목: 이름, 휴대폰 번호, 관심 직무, 학과(선택)';
         purpose.textContent = '이용 목적: 채용공고·일학습병행 모집 안내 알림 발송';
         ret.textContent = cfg.PRIVACY_RETENTION_APPLICANT || '해당 학년도 모집 종료 후 6개월';
+      } else if (val === 'company') {
+        // (10/23) 기업은 사람이 아니라 기업으로만 가입(이름 = 기업명, 휴대폰 없음) — 실제 받는 것만 적음
+        items.textContent = '수집 항목: 소속 기업명 (기업 초대코드로 명단에서 자동 확인)';
+        purpose.textContent = '이용 목적: 학습근로자 OJT 일정·출결·마감 안내';
+        ret.textContent = cfg.PRIVACY_RETENTION || '훈련 종료 후 3년';
       } else {
         items.textContent = '수집 항목: 이름, 휴대폰 번호, 직무·소속기업 (초대코드로 명단에서 자동 확인)';
         purpose.textContent = '이용 목적: 일학습병행 공지·자료·상담 등 운영 안내';
@@ -1061,6 +1078,7 @@
       }
     }
     targets.addEventListener('change', (e) => { if (e.target.name === 'target') applyTarget(e.target.value); });
+    document.getElementById('co-code')?.addEventListener('input', resetCoConfirm);   // 코드를 고치면 확인 단계 처음부터
     // (학생 전용 전환) 대상이 1종이면 자동 선택하고 선택 UI 자체를 숨김 — config.js TARGET_TYPES 가 원장
     if ((window.TARGET_TYPES || []).length === 1) {
       const onlyKey = window.TARGET_TYPES[0].key;
@@ -1227,6 +1245,11 @@
           return doRegister({ name, phone, target_type: 'company', job_key: null, company: pendingCompany.co, type1: null, manager: null, token: null, code: coCode });
         }
         pendingCompany = null;
+        // (10/23) 두 번째 누름 = 확인된 기업으로 가입(코드 재검증·rate-limit 안 태움)
+        if (pendingCoConfirm && pendingCoConfirm.code === coCode) {
+          const co = pendingCoConfirm.co; pendingCoConfirm = null;
+          return doRegister({ name: co, phone: '', target_type: 'company', job_key: null, company: co, type1: null, manager: null, token: null, code: coCode });
+        }
         btn.disabled = true; setStatus(statusEl, '코드 확인 중...', 'info');
         let r; try { r = await supabase.rpc('verify_company_code_solo', { p_code: coCode }); } catch (err) { r = { error: err }; }
         btn.disabled = false;
@@ -1238,7 +1261,11 @@
         if (!r.data || !r.data.ok) { setStatus(statusEl, '기업 코드가 올바르지 않아요. 지정완료 안내 메일을 확인하거나 담당자에게 문의해주세요.', 'error'); return; }
         // (10/22 사용자) 기업은 사람이 아니라 기업으로만 가입 — 이름 = 기업명, 휴대폰 없음. HRD·현장교사 누가 가입해도 같은 기업 하나.
         const co = r.data.company;
-        return doRegister({ name: co, phone: '', target_type: 'company', job_key: null, company: co, type1: null, manager: null, token: null, code: coCode });
+        // (10/23) 바로 가입하지 않고 기업명을 보여 준 뒤 한 번 더 누르면 가입
+        pendingCoConfirm = { code: coCode, co };
+        btn.textContent = `${co} 담당자로 가입하기`;
+        setStatus(statusEl, `코드 확인: ${co}. 맞으면 위 버튼을 한 번 더 눌러 주세요. 다른 회사라면 코드를 다시 확인해 주세요.`, 'info');
+        return;
       }
 
       // ── 매칭학생: 직무가 여러 개면 2단계(본인 직무 선택 후 완료) ──

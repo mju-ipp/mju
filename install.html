@@ -71,12 +71,13 @@
       <!-- 알림 자가진단 — 배너가 안 뜰 때 원인을 기기에서 직접 확인하는 패널.
            '테스트 알림'은 FCM 을 거치지 않고 서비스워커가 직접 띄우므로,
            여기서 뜨면 기기·권한은 정상이고 문제는 전달 구간에 있다는 뜻이다. -->
-      <div class="card">
-        <p class="ph-card-title"><i data-lucide="stethoscope"></i> 알림 상태 점검</p>
-        <div id="diag" class="ph-note" style="line-height:1.9"></div>
+      <!-- (10/23) 점검 정보(서비스워커·서버 코드 등)는 처음 가입한 분께 어렵다 — 접어 두고 알림이 안 올 때만 펼침 -->
+      <details class="card diag-card">
+        <summary class="ph-card-title"><i data-lucide="stethoscope"></i> 알림이 안 올 때: 상태 점검</summary>
+        <div id="diag" class="ph-note" style="line-height:1.9; margin-top:8px"></div>
         <button class="mju-btn mju-btn--secondary mju-btn--full" id="diag-test" style="margin-top:10px">테스트 알림 띄우기</button>
         <div class="status" id="diag-status"></div>
-      </div>
+      </details>
 
       <a href="./index.html" class="mju-btn mju-btn--secondary mju-btn--full" style="margin-top:auto">홈으로</a>
     </main>
