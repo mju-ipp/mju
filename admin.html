@@ -212,13 +212,12 @@
         <section class="dsec" data-cw="tasks">
           <h3 class="dsec-h">월말 할 일 <span class="n" id="cw-task-n"></span>
             <button type="button" class="phone-btn dsec-act" id="cw-task-bulk">이 달 면담일지 모든 기업에 넣기</button></h3>
-          <p class="dsec-lede">내부평가·면담일지처럼 기업이 그 달 말까지 센터로 보내야 하는 것. 받으면 [받음]을 누르세요. 달력에서 날짜를 누르면 그날 마감만 보여요.</p>
-          <!-- (10/23) 기업 앱 달력처럼 — 칸마다 그날 마감 건수(평가·면담·지남·받음) -->
+          <p class="dsec-lede">내부평가·면담일지처럼 기업이 그 달 말까지 센터로 보내야 하는 것. 받으면 [받음]을 누르세요. 달력에서 날짜를 누르면 그날 마감만 보이고, 아래 넣기 칸이 그 기업·날짜로 채워져요.</p>
+          <!-- (10/23) 기업 앱 달력처럼 — 칸마다 학생 '이름 시간'·평가·면담. 날짜를 누르면 넣기 칸이 그 날짜·기업으로 -->
           <select id="cw-cal-co" class="ph-select cw-cal-co" aria-label="달력에 볼 기업"><option value="">기업 전체</option></select>
           <div class="cw-cal" id="cw-cal"></div>
           <p class="note cw-cal-sel" id="cw-cal-sel"></p>
-          <div id="cw-task-list"></div>
-          <div class="cw-add">
+          <div class="cw-add" id="cw-add">
             <select id="cw-t-co" class="ph-select" aria-label="기업"></select>
             <select id="cw-t-course" class="ph-select" aria-label="과정"><option value="">기업 전체</option></select>
             <select id="cw-t-kind" class="ph-select" aria-label="종류"><option>내부평가</option><option>면담일지</option><option>기타</option></select>
@@ -227,6 +226,7 @@
             <input type="text" id="cw-t-note" maxlength="120" placeholder="메모 (선택)" aria-label="메모" />
             <button type="button" class="mju-btn mju-btn--sm" id="cw-t-go">넣기</button>
           </div>
+          <div id="cw-task-list"></div>
         </section>
         <section class="dsec" data-cw="al">
           <h3 class="dsec-h">전담인력활동수당 <span class="n" id="cw-al-n"></span></h3>
@@ -4383,10 +4383,12 @@
     // 월말 할 일 — 그 달 목록(기업별) + 넣기 + 받음/되돌리기/지우기
     function cwDrawTasks() {
       const { ym, cos, tasks } = cwData;
-      const sel = $('cw-t-co'), keep = sel.value;
+      // 넣기 칸 — 달력에서 기업을 골랐으면 그 기업, 날짜를 골랐으면 그 날짜(10/23 "기업 달력에 할 일 등록")
+      const sel = $('cw-t-co'), keep = cwCalCo || sel.value;
       sel.innerHTML = cos.map(c => `<option value="${esc(c.key)}"${c.key === keep ? ' selected' : ''}>${esc(c.label)}</option>`).join('');
       cwCourseOpts();
-      if (!$('cw-t-due').value || $('cw-t-due').value.slice(0, 7) !== ym) $('cw-t-due').value = lastWeekday(ym);
+      if (cwSelDay) $('cw-t-due').value = cwSelDay;
+      else if (!$('cw-t-due').value || $('cw-t-due').value.slice(0, 7) !== ym) $('cw-t-due').value = lastWeekday(ym);
       const label = k => (cos.find(c => c.key === k) || {}).label || k;
       const mgrOf = k => coMgrs(cos.find(c => c.key === k) || {}).join(', ');
       const all = tasks.filter(t => t.month.slice(0, 7) === ym || (t.month.slice(0, 7) < ym && !t.done_on));
@@ -4394,7 +4396,7 @@
       if (cwSelDay && cwSelDay.slice(0, 7) !== ym) cwSelDay = null;
       cwDrawCal();
       const rows = (cwSelDay ? tasks.filter(t => t.due_on === cwSelDay) : all).filter(t => !cwCalCo || t.company_key === cwCalCo);
-      $('cw-cal-sel').innerHTML = cwSelDay ? `<b>${esc(mdOf(cwSelDay))} 마감</b> ${rows.length}건 · 받음 ${rows.filter(t => t.done_on).length} <button type="button" class="phone-btn" id="cw-cal-all">${moOf(ym)} 전체 보기</button>` : '';
+      $('cw-cal-sel').innerHTML = cwSelDay ? `<b>${esc(mdOf(cwSelDay))} 마감</b> ${rows.length}건 · 받음 ${rows.filter(t => t.done_on).length} · 아래 칸에 제목을 쓰고 [넣기]하면 이 날 마감으로 들어가요 <button type="button" class="phone-btn" id="cw-cal-all">${moOf(ym)} 전체 보기</button>` : '';
       if (cwSelDay) $('cw-cal-all').addEventListener('click', () => { cwSelDay = null; cwDrawTasks(); });
       $('cw-task-list').innerHTML = rows.length ? rows.map(t => {
         const late = !t.done_on && t.due_on && t.due_on < ymdLocal(0);
@@ -4465,7 +4467,7 @@
         }
         const cls = [dow === 0 ? 'sun' : '', ds === today ? 'today' : '', ds < today ? 'past' : ''].filter(Boolean).join(' ');
         const say = `${mdOf(ds)}${lbs.length ? ' ' + lbs.map(x => x[0]).join(', ') : ''}`;
-        h += `<button type="button" class="${cls}" data-d="${ds}" aria-pressed="${ds === cwSelDay}" aria-label="${esc(say)}"${ts.length ? '' : ' disabled'}>` +
+        h += `<button type="button" class="${cls}" data-d="${ds}" aria-pressed="${ds === cwSelDay}" aria-label="${esc(say)}">` +
           `<span class="dn">${d}</span>${lbs.map(([t, c]) => `<span class="lb ${c}" title="${esc(t)}">${esc(t)}</span>`).join('')}</button>`;
       }
       $('cw-cal').innerHTML = h;
@@ -4483,7 +4485,7 @@
       $('cw-t-go').disabled = true;
       const { data: m } = await supabase.from('admin_users').select('center_id').eq('user_id', (await supabase.auth.getSession()).data.session.user.id).maybeSingle();
       const { error } = await supabase.from('field_tasks').insert({ center_id: m && m.center_id, company_key: key, course: $('cw-t-course').value || null, kind: $('cw-t-kind').value,
-        month: cwYm() + '-01', due_on: $('cw-t-due').value || null, title, note: $('cw-t-note').value.trim() || null });
+        month: ($('cw-t-due').value || cwYm()).slice(0, 7) + '-01', due_on: $('cw-t-due').value || null, title, note: $('cw-t-note').value.trim() || null });
       $('cw-t-go').disabled = false;
       if (error) { setStatus($('cw-status'), friendlyError(error), 'error'); return; }
       logAction('월말 할 일 넣기', `${$('cw-t-co').selectedOptions[0].textContent} · ${title}`);
