@@ -430,6 +430,8 @@ function showPushToast(title, body, link) {
       // (10/16) '일정' 탭 폐지 — 홈 달력으로 합침(calendar.html 은 홈으로 넘김)
       // (10/22 사용자) '상담' 탭 뺌 — 학생·기업 모두. 1:1 상담은 학생 홈 메뉴 타일로
     ];
+    // (10/23 사용자) 대화방 탭 — 홈 타일(#m-chat)과 같은 조건: 학생으로 가입한 기기만(기업 담당자 제외)
+    if (prof.target_type === 'student' && (prof.code || prof.token)) items.push(['chat.html', 'messages-square', '대화방']);
     const nav = document.createElement('nav');
     nav.className = 'tabbar';
     nav.setAttribute('aria-label', '주요 메뉴');
