@@ -6,7 +6,7 @@
   <title>관리자 · 일학습병행 앱</title>
   <meta name="theme-color" content="#121318" />
   <link rel="stylesheet" href="./styles.css" />
-  <link rel="stylesheet" href="./admin.css?v=20261023-5" /><!-- 배포 때 v 를 올려 캐시된 옛 스타일과 새 HTML 이 섞이지 않게 -->
+  <link rel="stylesheet" href="./admin.css?v=20261023-6" /><!-- 배포 때 v 를 올려 캐시된 옛 스타일과 새 HTML 이 섞이지 않게 -->
   <script src="./config.js"></script>
   <style>
     .msg{max-width:80%;padding:9px 12px;border-radius:12px;margin:5px 0;font-size:14px;white-space:pre-wrap}
@@ -202,6 +202,21 @@
           <select id="cw-mgr" class="ph-select" aria-label="담당 선생님"><option value="">선생님별 보기</option></select>
         </div>
         <div class="status" id="cw-status"></div>
+        <!-- (10/23, sql/83) 기업에 알림 보내기 — 학습일지·출석 확인 요청 / 전담인력수당 신청. 기업 코드로 알림을 켠 기기에만 감 -->
+        <section class="dsec" data-cw="codes" id="cn-sec">
+          <h3 class="dsec-h">기업에 알림 보내기 <span class="n" id="cn-n"></span></h3>
+          <p class="dsec-lede">기업 담당자가 앱에서 기업 코드로 가입하고 알림을 켠 기기에만 가요. 문구는 고쳐서 보낼 수 있어요.</p>
+          <div class="cn-bar">
+            <span class="ch-seg" id="cn-kind" role="group" aria-label="알림 종류"><button type="button" class="chip" data-v="diary">학습일지·출석 확인</button><button type="button" class="chip" data-v="allowance">전담인력수당 신청</button></span>
+            <input type="month" id="cn-month" class="ph-select" aria-label="대상 달" />
+            <button type="button" class="ch-link" id="cn-all">모두 고르기</button><button type="button" class="ch-link" id="cn-none">모두 빼기</button>
+          </div>
+          <div id="cn-list" class="cn-list"></div>
+          <input type="text" id="cn-title" class="ph-select cn-title" maxlength="80" aria-label="알림 제목" />
+          <textarea id="cn-body" class="ph-ta" rows="3" maxlength="1000" aria-label="알림 내용"></textarea>
+          <div class="cn-actions"><span class="note" id="cn-sum"></span><button type="button" class="mju-btn" id="cn-send">보내기</button></div>
+          <div class="status" id="cn-status"></div>
+        </section>
         <section class="dsec" data-cw="codes">
           <h3 class="dsec-h">기업 초대코드 <span class="n" id="cw-code-n"></span></h3>
           <p class="dsec-lede">기업 담당자가 앱에서 '기업 담당자'로 가입할 때 넣는 코드예요. 가입하면 홈에 '우리 학생 OJT'가 생겨요.</p>
@@ -4446,10 +4461,69 @@
       if (tok !== cwTok) return;
       cwData = { ym, cos: [...cos.values()].sort((a, b) => a.label.localeCompare(b.label, 'ko')), tasks: (tk.data || []).filter(t => cos.has(t.company_key)),
         allow: al.data || [], ms: ms.data || [], daily: dy.data || [], courseNames, coOfAll: Object.fromEntries(active.map(s => [normNm(s.name), coKey(s.company)])), courseByName, trainDays, ojtMonths, prog, diaryTask: dt.data || null, codes };
-      cwDrawCodes(); cwDrawTasks(); cwDrawAllow(); cwDrawMs();
+      cwDrawCodes(); cwDrawTasks(); cwDrawAllow(); cwDrawMs(); cnLoad();
     }
     $('cw-month').addEventListener('change', () => cwLoad());
     $('cw-mgr').addEventListener('change', () => { cwScope = $('cw-mgr').value ? 'm:' + $('cw-mgr').value : 'all'; try { localStorage.setItem('adm_cw_scope', cwScope); } catch (_) {} cwLoad(); });
+    // ===== (10/23, sql/83) 기업에 알림 보내기 — 학습일지·출석 확인 요청 / 전담인력수당 신청 =====
+    //   기업 목록 = 지금 보이는 기업(선생님별 보기 따름). 기본 선택: 학습일지 = 전부, 수당 = 그 달 '미신청'.
+    let cnKind = 'diary', cnDev = null, cnSel = null;
+    const cnText = (kind, ym) => kind === 'diary'
+      ? [`${moOf(ym)} 학습일지·출석 확인 요청`, `${moOf(ym)}분 학습근로자 학습일지(학습활동서)와 출석 확인을 눌러 주세요. 문의는 센터 담당 선생님께 해 주세요.`]
+      : [`${moOf(ym)}분 전담인력활동수당 신청 안내`, `${moOf(ym)}분 전담인력활동수당을 신청해 주세요. 일학습병행 행정지원시스템(기업 로그인) › 비용관리(전담자) › 전담인력활동수당 신청`];
+    async function cnLoad() {
+      if (!$('cn-month').value) $('cn-month').value = ymPlus(ymdLocal(0).slice(0, 7), -1);   // 보통 월초에 지난달분
+      if (!cnDev) {
+        const { data, error } = await supabase.rpc('admin_company_push_status');
+        cnDev = {};
+        if (!error && data && data.ok) (data.rows || []).forEach(r => { cnDev[r.key] = r.devices; });
+        else $('cn-status').textContent = 'sql/83 적용 전이라 알림 켠 기기 수를 못 읽었어요.';
+      }
+      cnSel = null; cnDraw(true);
+    }
+    function cnDraw(resetText) {
+      if (!cwData) return;
+      const ym = $('cn-month').value, { cos, allow } = cwData;
+      const st = {}; (allow || []).forEach(a => { if (String(a.period).slice(0, 7) === ym) st[a.company_key] = a.state; });
+      document.querySelectorAll('#cn-kind .chip').forEach(b => b.classList.toggle('on', b.dataset.v === cnKind));
+      if (!cnSel) cnSel = new Set(cos.filter(c => cnKind === 'diary' || st[c.key] === '미신청').map(c => c.key));
+      $('cn-list').innerHTML = cos.length ? cos.map(c => {
+        const d = (cnDev || {})[c.key], code = cwData.codes[c.key];
+        const dev = !code || !code.active ? '<span class="cn-off">코드 없음</span>' : d ? `알림 켬 ${d}대` : '<span class="cn-off">알림 안 켬</span>';
+        const al = cnKind === 'allowance' ? ` · ${esc(st[c.key] || '확인 전')}` : '';
+        return `<label class="cn-row"><input type="checkbox" value="${esc(c.key)}"${cnSel.has(c.key) ? ' checked' : ''} /><span class="cw-co">${esc(c.label)}</span><span class="note">${dev}${al}</span></label>`;
+      }).join('') : '<p class="note">보이는 기업이 없어요.</p>';
+      $('cn-list').querySelectorAll('input').forEach(i => i.addEventListener('change', () => { if (i.checked) cnSel.add(i.value); else cnSel.delete(i.value); cnSum(); }));
+      if (resetText) { const [t, b] = cnText(cnKind, ym); $('cn-title').value = t; $('cn-body').value = b; }
+      cnSum();
+    }
+    function cnSum() {
+      const keys = [...cnSel], on = keys.filter(k => (cnDev || {})[k] > 0).length;
+      $('cn-n').textContent = cwData ? `알림 켠 기업 ${cwData.cos.filter(c => (cnDev || {})[c.key] > 0).length} / ${cwData.cos.length}곳` : '';
+      $('cn-sum').textContent = keys.length ? `고른 기업 ${keys.length}곳 중 알림 받는 곳 ${on}곳` : '고른 기업이 없어요';
+      $('cn-send').disabled = !on;
+    }
+    document.querySelectorAll('#cn-kind .chip').forEach(b => b.addEventListener('click', () => { cnKind = b.dataset.v; cnSel = null; cnDraw(true); }));
+    $('cn-month').addEventListener('change', () => { cnSel = null; cnDraw(true); });
+    $('cn-all').addEventListener('click', () => { if (!cwData) return; cnSel = new Set(cwData.cos.map(c => c.key)); cnDraw(false); });
+    $('cn-none').addEventListener('click', () => { cnSel = new Set(); cnDraw(false); });
+    $('cn-send').addEventListener('click', async () => {
+      const keys = [...cnSel], on = keys.filter(k => (cnDev || {})[k] > 0).length;
+      const title = $('cn-title').value.trim(), body = $('cn-body').value.trim();
+      if (!on || !title || !body) return;
+      if (!confirm(`기업 ${on}곳에 이 알림을 보낼까요?\n\n${title}\n${body}`)) return;
+      $('cn-send').disabled = true; setStatus($('cn-status'), '보내는 중…', 'info');
+      const { data, error } = await supabase.rpc('admin_company_nudge', { p_kind: cnKind, p_keys: keys, p_title: title, p_body: body });
+      $('cn-send').disabled = false;
+      if (error || !data || !data.ok) {
+        const why = data && data.reason === 'recent' ? '같은 알림을 10분 안에 이미 보냈어요.' : data && data.reason === 'length' ? '제목은 80자, 내용은 1000자까지예요.' : '보내지 못했어요.' + (error ? ' (' + error.message + ')' : '');
+        setStatus($('cn-status'), why, 'error'); return;
+      }
+      setStatus($('cn-status'), `보냈어요 — 기업 ${data.sent}곳.` + ((data.no_device || []).length ? ` 알림 안 켠 곳: ${data.no_device.join(', ')}` : '') + ` 알림은 ${PUSH_ETA} 가요.`, 'success');
+      kickPush();
+      logAction(cnKind === 'diary' ? '기업 학습일지·출석 알림' : '기업 전담인력수당 알림', `${on}곳 · ${title}`);
+    });
+
     // 기업의 담당 선생님 — 학생 많은 순
     const coMgrs = c => Object.entries(c.mgrs || {}).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'ko')).map(x => x[0]);
 

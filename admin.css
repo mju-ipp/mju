@@ -534,6 +534,16 @@ body.adm .cw-ms input.saved{border-color:var(--v-cobalt)}
 body.adm .cw-code{display:flex; align-items:center; gap:10px; flex-wrap:wrap; min-height:44px; padding:4px 0; border-top:1px solid var(--v-line)}
 body.adm .cw-code:last-child{border-bottom:1px solid var(--v-line)}
 body.adm .cw-code .cw-co{min-width:140px; font-weight:500}
+/* (10/23) 기업에 알림 보내기 */
+body.adm .cn-bar{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:0 0 10px}
+body.adm .cn-list{max-height:280px; overflow:auto; border-top:1px solid var(--v-line); border-bottom:1px solid var(--v-line); margin:0 0 12px}
+body.adm .cn-row{display:flex; align-items:center; gap:10px; min-height:40px; padding:2px 0; border-bottom:1px solid var(--v-line); cursor:pointer}
+body.adm .cn-row:last-child{border-bottom:0}
+body.adm .cn-row .cw-co{min-width:140px; font-weight:500}
+body.adm .cn-row .note{margin:0}
+body.adm .cn-off{color:var(--v-mute)}
+body.adm .cn-title{width:100%; margin:0 0 8px; box-sizing:border-box}
+body.adm .cn-actions{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:8px}
 body.adm .cw-code code{font-family:ui-monospace,Consolas,monospace; font-size:14px; letter-spacing:.04em; padding:2px 8px; border:1px solid var(--v-line); border-radius:4px; background:var(--v-sunken)}
 body.adm .cw-ck{font-size:13px; font-weight:600}
 body.adm .cw-ck.done{color:var(--v-ink)}
