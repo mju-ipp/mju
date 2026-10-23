@@ -556,7 +556,11 @@ body.adm .cw-cal .lb.ev{background:var(--v-ink); color:#fff}
 body.adm .cw-cal .lb.iv{background:var(--v-mute); color:#fff}
 body.adm .cw-cal .lb.etc{background:var(--v-cobalt-bg); color:var(--v-cobalt)}
 body.adm .cw-cal .lb.late{background:var(--v-warn); color:#fff}
-body.adm .cw-cal .lb.done{padding:0; font-weight:500; color:var(--v-mute)}
+body.adm .cw-cal .lb.done{padding:0; font-weight:500; color:var(--v-mute); text-decoration:line-through}
+body.adm .cw-cal .lb.tr{background:var(--v-cobalt); color:#fff}
+body.adm .cw-cal .lb.pl{background:var(--v-cobalt-bg); color:var(--v-cobalt)}
+body.adm .cw-cal .lb.chk{background:var(--v-warn-bg); color:var(--v-warn)}
+body.adm .cw-cal-co{width:auto; min-width:180px; max-width:100%; margin:0 0 8px}
 body.adm .cw-cal-sel{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:0 0 6px}
 body.adm .cw-cal-sel:empty{display:none}
 @media (max-width:640px){
