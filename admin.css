@@ -579,3 +579,12 @@ body.adm .cw-cal-sel:empty{display:none}
   body.adm .cw-cal button{padding:3px 2px}
   body.adm .cw-cal .lb{padding:0 2px; font-size:11px; letter-spacing:-.03em}
 }
+
+/* (10/23) 오늘 탭 정리 — 모자란 학생 줄 폭('인정 12h / 30h'), 담당 표시, 알림 못 받는 학생 묶음 */
+body.adm .short-row{grid-template-columns:120px 130px 120px minmax(0,1fr) auto}
+body.adm .short-row .nm .mg{display:block; font-size:12px; font-weight:400; color:var(--v-mute)}
+body.adm #d-push-names .pm-line{margin:4px 0; font-size:14px; line-height:1.6; word-break:keep-all}
+body.adm #d-push-names .pm-grp{margin:2px 0 2px 12px; font-size:13px; line-height:1.6; color:var(--v-mute); word-break:keep-all}
+body.adm #d-push-names .pm-grp span{display:inline-block; min-width:72px; margin-right:6px; font-weight:500; color:var(--v-ink)}
+body.adm .le-del{white-space:nowrap}
+@media (max-width: 760px){ body.adm .short-row{grid-template-columns:1fr auto} }

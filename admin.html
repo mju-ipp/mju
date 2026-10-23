@@ -102,7 +102,8 @@
         </div>
         <!-- [개편 5단계] 정규시간 대비 인정시간이 모자란 학생 — attendance_daily(sql/55) -->
         <section class="dsec" id="d-short-card">
-          <h3 class="dsec-h">정규시간보다 인정시간이 모자라요 <span class="n" id="d-short-n"></span></h3>
+          <h3 class="dsec-h">정규시간보다 인정시간이 모자라요 <span class="n" id="d-short-n"></span>
+            <span class="ch-seg dsec-act d-scope" role="group" aria-label="보는 범위"><button type="button" class="chip" data-v="mine">내 학생</button><button type="button" class="chip" data-v="all">전체</button></span></h3>
           <p class="dsec-lede" id="d-short-hint"></p>
           <div id="d-short-list"><p class="note">불러오는 중…</p></div>
         </section>
@@ -120,9 +121,10 @@
           <div class="drow"><span class="dl">학생이 남긴 상담에 아직 답하지 않았어요.</span><button type="button" class="phone-btn" id="d-consult-go">상담으로</button></div>
         </section>
         <section class="dsec" id="d-push-sec" hidden>
-          <h3 class="dsec-h">알림을 못 받는 학생 <span class="n" id="d-push-n"></span></h3>
-          <p class="dsec-lede">푸시가 가지 않아요 — 문자로 따로 알려주세요</p>
-          <div class="drow"><span class="dl" id="d-push-names"></span><button type="button" class="phone-btn" id="d-push-copy">이름 복사</button></div>
+          <h3 class="dsec-h">알림을 못 받는 학생 <span class="n" id="d-push-n"></span>
+            <span class="ch-seg dsec-act d-scope" role="group" aria-label="보는 범위"><button type="button" class="chip" data-v="mine">내 학생</button><button type="button" class="chip" data-v="all">전체</button></span></h3>
+          <p class="dsec-lede">오늘 처리할 일 숫자에는 안 넣어요(앱 세팅 과제) · 푸시가 가지 않으니 문자로 따로 알려주세요</p>
+          <div class="drow"><div class="dl" id="d-push-names"></div><button type="button" class="phone-btn" id="d-push-copy">이름 복사</button></div>
         </section>
         <section class="dsec" id="d-due-sec" hidden>
           <h3 class="dsec-h">3일 안에 끝나는 마감 <span class="n" id="d-due-n"></span></h3>
@@ -1902,7 +1904,21 @@
       logAction(file ? '자료등록(파일)' : '자료등록', title + ' · ' + lPicker.label() + ($('l-push').checked ? ' (+공지)' : '')); $('l-title').value = ''; $('l-url').value = ''; $('l-file').value = ''; $('l-shared').parentElement.style.display = ''; $('l-push').checked = false; if ($('l-q')) $('l-q').value = ''; lPicker.reset(); lLoad();
     });
     let _lGen = 0;
-    async function lLoad() {
+    // (10/23) 자료·일정 대상 표시 — job_key('custom:'+JSON / 'tokv:' / 직무명 / 없음)를 사람이 읽는 말로
+    function audText(jk) {
+      const s = jk || '';
+      if (!s) return '전체';
+      if (s.indexOf('tokv:') === 0) return '명단 지정';
+      if (s.indexOf('custom:') !== 0) return s;
+      let o = {}; try { o = JSON.parse(s.slice(7)) || {}; } catch (_) { return '상세 지정'; }
+      const TG = { student: '학생', company: '기업 담당자', applicant: '지원자' };
+      const parts = [];
+      if (o.aud) parts.push(TG[o.aud] || o.aud);
+      (o.targets || []).forEach(t => { const v = TG[t] || t; if (!parts.includes(v)) parts.push(v); });
+      const cnt = (arr, unit, label) => { if (!(arr || []).length) return; parts.push(arr.length <= 2 ? arr.join('·') : `${label} ${arr.length}${unit}`); };
+      cnt(o.jobs, '개', '직무'); cnt(o.companies, '곳', '기업'); cnt(o.types, '개', '유형'); cnt(o.managers, '명', '담당');
+      return parts.length ? parts.join(' · ') : '전체';
+    }    async function lLoad() {
       const gen = ++_lGen;
       const lq = (($('l-q') && $('l-q').value) || '').trim();
       let q = supabase.from('library').select('id,title,kind,job_key,url,created_at').order('created_at', { ascending: false });
@@ -1920,7 +1936,7 @@
         const e = document.createElement('div'); e.textContent = r.title;
         const row = document.createElement('div'); row.style.cssText = 'padding:9px 0;border-bottom:1px solid var(--gray-100);display:flex;justify-content:space-between;gap:8px;align-items:center';
         const isFile = !!(r.url || '') && (!/^https?:\/\//i.test(r.url || '') || /\/storage\/v1\/object\/(?:public\/|sign\/)?library\//.test(r.url || ''));
-        const tgt = (r.job_key || '').indexOf('tokv:') === 0 ? '명단 지정' : (r.job_key || '전체');
+        const tgt = audText(r.job_key);   // (10/23) 'custom:{json}' 원문 대신 읽을 수 있는 대상
         row.innerHTML = `<div style="min-width:0"><b>${e.innerHTML}</b><br/><span class="note">${r.kind}${isFile ? ' · 파일' : ''} · ${esc(tgt)} · ${new Date(r.created_at).toLocaleDateString('ko-KR')}</span></div>`;
         row.appendChild(mkDelBtn('삭제', async () => {
           const { data, error } = await supabase.from('library').delete().eq('id', r.id).select('id');
@@ -1988,7 +2004,7 @@
       (data || []).forEach(r => {
         const e = document.createElement('div'); e.textContent = r.title;
         const row = document.createElement('div'); row.style.cssText = 'padding:9px 0;border-bottom:1px solid var(--gray-100);display:flex;justify-content:space-between;gap:8px;align-items:center';
-        const tgt = (r.job_key || '').indexOf('tokv:') === 0 ? '명단 지정' : (r.job_key || '전체');
+        const tgt = audText(r.job_key);   // (10/23) 'custom:{json}' 원문 대신 읽을 수 있는 대상
         const past = r.event_date < todayStr ? ' <span class="mju-badge mju-badge--neutral">지남</span>' : '';
         row.innerHTML = `<div style="min-width:0"><b>${e.innerHTML}</b>${past}<br/><span class="note">${r.event_date} · ${r.kind} · ${esc(tgt)}</span></div>`;
         row.appendChild(mkDelBtn('삭제', async () => {
@@ -2561,7 +2577,7 @@
           tdd.appendChild(db); tr.appendChild(tdd);
         }
         if (!isStu) { tb.appendChild(tr); return; }
-        // 관리 셀 — 코드 발급/회수 제거(명단등록·기업 탭에서 발급). 편집·삭제만.
+        // 관리 셀 — 코드 발급/회수 제거(명단등록·기업 탭에서 발급). 편집만(삭제는 편집 창 안).
         const tdc = document.createElement('td');
         // [정합성] 가입자 생애주기 편집 — 기수/상태/담당/유형. update_student_lifecycle RPC(센터 스코프·스키마 안전).
         const editBtn = document.createElement('button'); editBtn.type = 'button'; editBtn.className = 'phone-btn';
@@ -2586,8 +2602,12 @@
             (('phase' in r) ? `<label class="note">단계 <select class="le-phase"><option value="">자동(기수·유형)</option>` +
               ['offjt', 'ojt'].map(v => `<option value="${v}"${r.phaseOv === v ? ' selected' : ''}>${PHASE_LABEL[v]}</option>`).join('') + '</select></label>' : '') +
             '<button type="button" class="mju-btn mju-btn--sm le-save">저장</button>' +
-            '<span class="le-msg note"></span></div>';
+            '<span class="le-msg note"></span>' +
+            // (10/23) 영구 삭제는 줄마다 두지 않고 수정 창 안 오른쪽 끝에만(실수 방지)
+            (r.dbId ? '<button type="button" class="phone-btn phone-btn--danger le-del" style="margin-left:auto">명단에서 영구 삭제</button>' : '') +
+            '</div>';
           editorTr.appendChild(td); tr.after(editorTr);
+          td.querySelector('.le-del')?.addEventListener('click', e => stuDelete(r, e.currentTarget));
           const elC = td.querySelector('.le-cohort'), elS = td.querySelector('.le-status'), elM = td.querySelector('.le-manager'), elT = td.querySelector('.le-type1'), elP = td.querySelector('.le-phase');
           const init = { cohort: elC.value.trim(), status: elS.value, manager: elM.value, type1: elT.value, phase_override: elP ? elP.value : '' };   // 더티 트래킹 기준
           td.querySelector('.le-save').addEventListener('click', async () => {
@@ -2612,19 +2632,7 @@
           });
         });
         tdc.appendChild(editBtn);
-        if (r.dbId) {
-          const sdel = document.createElement('button'); sdel.type = 'button'; sdel.className = 'phone-btn phone-btn--danger';
-          sdel.style.marginLeft = '4px'; sdel.title = '명단에서 학생 영구 삭제'; sdel.setAttribute('aria-label', '학생 명단 영구 삭제'); sdel.innerHTML = '<i data-lucide="trash-2"></i>';
-          sdel.addEventListener('click', async () => {
-            if (!confirm(`'${r.name || '(이름 없음)'}' 학생을 명단에서 영구 삭제할까요?\n되돌릴 수 없어요. (초대코드·앱 가입과 별개로 명단 행이 삭제됩니다)`)) return;
-            sdel.disabled = true;
-            const { data: del, error } = await supabase.from('students').delete().eq('id', r.dbId).select('id');
-            if (error) { setStatus($('rg-status'), delErr(error), 'error'); sdel.disabled = false; return; }
-            if (!del || !del.length) { setStatus($('rg-status'), '삭제된 행이 없어요 — 권한을 확인하세요. 새로고침합니다.', 'error'); regLoad(); return; }
-            logAction('학생삭제', r.name || ''); setStatus($('rg-status'), '삭제했습니다.', 'ok'); regLoad();
-          });
-          tdc.appendChild(sdel);
-        }
+        // (10/23) 줄마다 있던 빨간 휴지통 버튼 없앰 — 삭제는 연필(수정) → [명단에서 영구 삭제], 이름을 직접 입력해야 삭제(stuDelete)
         tr.appendChild(tdc);
         tb.appendChild(tr);
       });
@@ -3150,7 +3158,7 @@
       // 최근 활동 로그
       try {
         const { data: lg } = await supabase.from('admin_logs').select('actor,action,detail,created_at').order('created_at', { ascending: false }).limit(8);
-        $('d-logs').innerHTML = (lg && lg.length) ? lg.map(l => `<div style="padding:6px 0;border-bottom:1px solid var(--gray-100);font-size:13px"><b>${esc(l.action)}</b> ${esc(l.detail || '')} <span class="note">· ${new Date(l.created_at).toLocaleString('ko-KR')}</span></div>`).join('') : '<p class="note">기록 없음</p>';
+        $('d-logs').innerHTML = (lg && lg.length) ? lg.map(l => `<div style="padding:6px 0;border-bottom:1px solid var(--gray-100);font-size:13px"><b>${esc(logLabel(l.action))}</b> ${esc(l.detail || '')} <span class="note">· ${new Date(l.created_at).toLocaleString('ko-KR')}</span></div>`).join('') : '<p class="note">기록 없음</p>';
       } catch (_) { $('d-logs').innerHTML = ''; }
       dashTasksLoad();   // [medium-1] 이달의 확인 업무 — 지표와 분리해 비동기 로드(진행률 RPC가 느려도 요약 지표는 먼저 뜸)
       dailyLastLoad();   // [개편 4단계] 이번 달 출결 결과 반영 상태
@@ -3159,6 +3167,18 @@
       dashAbsLoad().catch(() => {});    // [sql/69] 휴가·출장 체크
     }
 
+    // (10/23) 최근 활동 이름 띄어쓰기 — 기록(admin_logs.action)은 그대로 두고 화면에서만
+    const LOG_LABEL = {
+      '가입기록삭제': '가입 기록 삭제', '가입자수정': '가입자 수정', '개인공지': '개인 공지', '공고발행': '공고 발행', '공지발행': '공지 발행', '공지발행(명단)': '공지 발행(명단)',
+      '공지삭제': '공지 삭제', '기수이동': '기수 이동', '기업공지': '기업 공지', '기업설문응답삭제': '기업 설문 응답 삭제', '기업정보저장': '기업 정보 저장', '기업코드발급': '기업 코드 발급',
+      '단계변경': '단계 변경', '담당자삭제': '담당자 삭제', '발송기록비움': '발송 기록 비움', '발송기록삭제': '발송 기록 삭제', '사례등록': '사례 등록', '상담답변': '상담 답변',
+      '상담삭제': '상담 삭제', '상담종료': '상담 종료', '설문발행': '설문 발행', '설문삭제': '설문 삭제', '설문응답삭제': '설문 응답 삭제', '일괄기수변경': '일괄 기수 변경',
+      '일괄삭제': '일괄 삭제', '일괄상태변경': '일괄 상태 변경', '일정등록': '일정 등록', '일정등록(명단)': '일정 등록(명단)', '일정삭제': '일정 삭제', '자료등록(명단)': '자료 등록(명단)',
+      '자료삭제': '자료 삭제', '지난일정정리': '지난 일정 정리', '지원자삭제': '지원자 삭제', '코드발급': '코드 발급', '코드일괄발급': '코드 일괄 발급', '투표발행': '투표 발행',
+      '투표삭제': '투표 삭제', '학생삭제': '학생 삭제', '할일등록': '할 일 등록', '할일복사': '할 일 복사', '할일삭제': '할 일 삭제', 'chat_post': '대화방 글',
+      'CSV내보내기': 'CSV 내보내기', 'FAQ공개': 'FAQ 공개', 'FAQ삭제': 'FAQ 삭제', 'FAQ수정': 'FAQ 수정',
+    };
+    const logLabel = a => LOG_LABEL[a] || a || '';
     // ===== [medium-1] 이달의 확인 업무 — tasks 완료체크(sql/40 admin_task_progress) 진행률·미완료자 독촉 =====
     // 동선: 진행률 바 → [미완료 N명 — 독촉 공지] → 가입자 regSel 프리필 → 기존 개인 공지 모달(pv) 재사용 → 사람이 확인 후 발송.
     // 동명이인은 이름 매칭이 모호하므로 자동 선택에서 제외하고 안내만(오발송 방지 — 완전 자동화 금지 원칙).
@@ -3206,10 +3226,13 @@
           const doneNames = Array.isArray(p.done_names) ? p.done_names : [];
           const pending = Array.isArray(p.pending_names) ? p.pending_names : [];
           const unknown = Array.isArray(p.unknown_names) ? p.unknown_names : [];
-          const pct = total ? Math.round(done / total * 100) : 0;
+          // (10/23) 진행률 분모 = 앱에 가입한 학생(완료+미완료). 미가입은 체크할 수 없어 따로 — '1/92'처럼 막대가 0%에 가깝게 보이던 것
+          //   (기업 단위 집계는 미가입 개념이 없어 그대로 total)
+          const base = p.company ? total : (done + pending.length) || total;
+          const pct = base ? Math.round(done / base * 100) : 0;
           const bar = document.createElement('div');
           bar.style.cssText = 'display:flex;align-items:center;gap:10px;margin-top:8px';
-          bar.innerHTML = `<div style="flex:1;height:4px;border-radius:2px;background:var(--gray-200);overflow:hidden"><div style="width:${pct}%;height:100%;background:var(--accent)"></div></div><b style="font-size:13px;font-weight:500;white-space:nowrap">${done}/${total} 완료</b>`;
+          bar.innerHTML = `<div style="flex:1;height:4px;border-radius:2px;background:var(--gray-200);overflow:hidden"><div style="width:${pct}%;height:100%;background:var(--accent)"></div></div><b style="font-size:13px;font-weight:500;white-space:nowrap">${done}/${base} 완료${!p.company && unknown.length ? `<span style="font-weight:400;color:var(--text-muted)"> · 앱 미가입 ${unknown.length}명 별도</span>` : ''}</b>`;
           box.appendChild(bar);
           // [명단 표시] 숫자만으론 누가 처리했는지 알 수 없어 이름을 그대로 편다(운영자 요청 2026-08-28).
           //   완료·미완료·미가입 세 줄. 비어 있는 줄은 만들지 않는다. 이름은 PII라 화면 표시까지만(내보내기는 기존 복사 버튼).
@@ -3788,20 +3811,31 @@
       stLoad();   // 기업 관리 탭에 바로 반영
     });
 
-    // ===== [디자인 재정리] 오늘 머리 — '오늘 처리할 일 N건' = 모자란 학생 + 미답변 상담 + 알림 못 받는 학생 + 3일 안 마감 =====
+    // ===== [디자인 재정리] 오늘 머리 — '오늘 처리할 일 N건' = 모자란 학생(내 학생) + 휴가·출장(내 학생) + 미답변 상담 + 3일 안 마감 =====
+    //   (10/23) '알림 못 받는 학생'은 오늘 할 일이 아니라 앱 세팅 과제라 큰 숫자에서 뺌(84명이 더해져 매일 90건대로 보이던 것)
     const dashCnt = { short: null, absence: null, consult: null, push: null, due: null };
+    const HERO_KEYS = ['short', 'absence', 'consult', 'due'];
+    // (10/23) 오늘 탭 '내 학생/전체' — 모자란 학생·알림 못 받는 학생이 같이 씀(휴가·출장은 원래 따로). 기본 = 내 학생
+    let dashScope = 'mine';
+    try { dashScope = localStorage.getItem('adm_dash_scope') || 'mine'; } catch (_) {}
+    function paintDashScope() { document.querySelectorAll('.d-scope .chip').forEach(b => b.classList.toggle('on', b.dataset.v === dashScope)); }
+    document.querySelectorAll('.d-scope .chip').forEach(b => b.addEventListener('click', () => {
+      dashScope = b.dataset.v; try { localStorage.setItem('adm_dash_scope', dashScope); } catch (_) {}
+      paintDashScope(); dashShortLoad(); dashPushLoad();
+    }));
+    paintDashScope();
     function renderHero() {
       const d = new Date();
       $('d-when').textContent = `${d.getMonth() + 1}월 ${d.getDate()}일 ${'일월화수목금토'[d.getDay()]}요일`;
-      const vals = Object.values(dashCnt);
+      const vals = HERO_KEYS.map(k => dashCnt[k]);
       $('d-todo').textContent = vals.every(v => v === null) ? '–' : vals.reduce((s, v) => s + (v || 0), 0);
       const sec = (id, n, nid, unit) => { const el = $(id); if (!el) return; el.hidden = !n; if (nid) $(nid).textContent = n ? n + unit : ''; };
       sec('d-consult-sec', dashCnt.consult, 'd-consult-n', '건');
-      sec('d-push-sec', dashCnt.push, 'd-push-n', '명');
+      sec('d-push-sec', dashCnt.push, null, '명');   // 명 수는 dashPushLoad 가 범위(내 학생/전체)에 맞춰 씀
       sec('d-due-sec', dashCnt.due, 'd-due-n', '건');
       const quiet = [];
-      if (dashCnt.short === 0) quiet.push('모자란 학생 없음');
-      if (dashCnt.absence === 0) quiet.push('휴가·출장 체크 없음');
+      if (dashCnt.short === 0) quiet.push('모자란 학생 없음(내 학생)');
+      if (dashCnt.absence === 0) quiet.push('휴가·출장 체크 없음(내 학생)');
       if (dashCnt.consult === 0) quiet.push('답하지 않은 상담 없음');
       if (dashCnt.due === 0) quiet.push('3일 안 마감 없음');
       if (dashCnt.push === 0) quiet.push('명단 학생 모두 알림 켬');
@@ -3816,8 +3850,47 @@
       return [...new Set((st.data || []).map(s => (s.name || '').trim()).filter(n => n && !on.has(n.replace(/\s+/g, ''))))];
     }
     let _pushMiss = [];
+    // (10/23) 알림 못 받는 학생을 '가입했지만 알림 꺼짐 / 앱 미가입'으로 나눠 보여 줌(겹치던 두 목록 정리) + 담당별 묶음
+    async function pushMissInfo() {
+      const nk = s => (s || '').replace(/\s+/g, '');
+      const [st, ps, rg] = await Promise.all([
+        supabase.from('students').select('name,manager'),
+        supabase.rpc('admin_push_status'),
+        supabase.from('registrations').select('name').eq('target_type', 'student'),
+      ]);
+      if (st.error || ps.error) return null;
+      const on = new Set((ps.data || []).filter(r => Number(r.devices) > 0).map(r => nk(r.name)));
+      const joined = new Set((rg.data || []).map(r => nk(r.name)));
+      const seen = new Set(), out = [];
+      (st.data || []).forEach(s => {
+        const n = (s.name || '').trim(), k = nk(n);
+        if (!n || on.has(k) || seen.has(k)) return;
+        seen.add(k); out.push({ name: n, mgr: (s.manager || '').trim(), joined: rg.error ? null : joined.has(k) });
+      });
+      return out;
+    }
     async function dashPushLoad() {
-      try { const m = await pushMissNames(); if (!m) return; _pushMiss = m; $('d-push-names').textContent = m.join(', '); setDashCnt('push', m.length); } catch (_) {}
+      try {
+        const [all, me] = await Promise.all([pushMissInfo(), myAdminName()]);
+        if (!all) return;
+        const list = dashScope === 'all' || !me ? all : all.filter(x => x.mgr === me);
+        _pushMiss = list.map(x => x.name);
+        const byKo = (a, b) => a.name.localeCompare(b.name, 'ko');
+        const line = (label, arr) => {
+          if (!arr.length) return '';
+          if (dashScope !== 'all') return `<p class="pm-line"><b>${label} ${arr.length}명</b> · ${arr.sort(byKo).map(x => esc(x.name)).join(', ')}</p>`;
+          const g = {}; arr.forEach(x => { (g[x.mgr || '담당 미지정'] = g[x.mgr || '담당 미지정'] || []).push(x); });
+          return `<p class="pm-line"><b>${label} ${arr.length}명</b></p>` + Object.keys(g).sort((a, b) => a.localeCompare(b, 'ko')).map(m =>
+            `<p class="pm-grp"><span>${esc(m)} ${g[m].length}</span>${g[m].sort(byKo).map(x => esc(x.name)).join(', ')}</p>`).join('');
+        };
+        const off = list.filter(x => x.joined === true), nj = list.filter(x => x.joined !== true);
+        const others = all.length - list.length;
+        $('d-push-names').innerHTML = (list.length ? line('가입했지만 알림 꺼짐', off) + line(off.length || nj.some(x => x.joined === false) ? '앱 미가입' : '알림 안 켬', nj) : `<p class="pm-line">${me ? esc(me) + ' 담당 학생은' : '내 학생은'} 모두 알림을 받아요.</p>`) +
+          (dashScope !== 'all' && others > 0 ? `<p class="pm-grp">다른 선생님 담당 ${others}명은 [전체]에서 보여요.</p>` : '');
+        $('d-push-copy').hidden = !list.length;
+        setDashCnt('push', all.length);   // 섹션 표시용(큰 숫자에는 안 더함)
+        $('d-push-n').textContent = list.length + '명';
+      } catch (_) {}
     }
     $('d-push-copy').addEventListener('click', async () => { const b = $('d-push-copy'); try { await navigator.clipboard.writeText(_pushMiss.join('\n')); b.textContent = '복사됨'; setTimeout(() => { b.textContent = '이름 복사'; }, 1200); } catch (_) {} });
     $('d-consult-go').addEventListener('click', () => { location.hash = 'consult'; });
@@ -4079,32 +4152,57 @@
     $('stu-close').addEventListener('click', closeStuSheet);
     document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('stu-sheet').classList.contains('open')) closeStuSheet(); });
 
+    // (10/23) 학생 명단 영구 삭제 — 수정 창 안 버튼에서만. 이름을 그대로 입력해야 지움(확인창 한 번으로 지워지던 것 보강)
+    async function stuDelete(r, btnEl) {
+      const nm = (r.name || '').trim();
+      const typed = prompt(`'${nm || '(이름 없음)'}' 학생을 명단에서 영구 삭제해요. 되돌릴 수 없어요.\n(초대코드·앱 가입과 별개로 명단 행이 삭제됩니다)\n\n지우려면 학생 이름을 그대로 입력하세요.`);
+      if (typed === null) return;
+      if (typed.replace(/\s+/g, '') !== nm.replace(/\s+/g, '')) { alert('이름이 달라서 지우지 않았어요.'); return; }
+      if (btnEl) btnEl.disabled = true;
+      const { data: del, error } = await supabase.from('students').delete().eq('id', r.dbId).select('id');
+      if (error) { setStatus($('rg-status'), delErr(error), 'error'); if (btnEl) btnEl.disabled = false; return; }
+      if (!del || !del.length) { setStatus($('rg-status'), '삭제된 행이 없어요 — 권한을 확인하세요. 새로고침합니다.', 'error'); regLoad(); return; }
+      logAction('학생삭제', nm); setStatus($('rg-status'), '삭제했습니다.', 'ok'); regLoad();
+    }
+
     // 오늘 › 정규시간보다 인정시간이 모자란 학생
     async function dashShortLoad() {
       const list = $('d-short-list'); if (!list) return;
       try { await fetchAttn(); } catch (_) {}
       const dc = await loadDaily(true);
       if (!dc.ok) { $('d-short-card').style.display = 'none'; return; }
-      let fetched = null; const items = [];
+      // (10/23) 내 학생 = 명단 담당(students.manager)이 내 이름인 학생(휴가·출장 체크와 같은 기준). 내 이름이 없으면 전부 내 학생
+      const [me, { data: mgrRows }] = await Promise.all([myAdminName(), supabase.from('students').select('name,manager')]);
+      const mgrOfNm = {}; (mgrRows || []).forEach(s => { mgrOfNm[normNm(s.name)] = (s.manager || '').trim(); });
+      const isMineNm = n => !me || mgrOfNm[normNm(n)] === me;
+      let fetched = null; const itemsAll = [];
       dc.byName.forEach(rows => {
         const st = curStat(rows[0].name, rows, dc.ym);
         if (st.fetched && (!fetched || st.fetched > fetched)) fetched = st.fetched;
-        if (st.act < st.reg) items.push({ name: rows[0].name, st });
+        if (st.act < st.reg) itemsAll.push({ name: rows[0].name, st });
       });
+      const mineItems = itemsAll.filter(it => isMineNm(it.name));
+      const items = dashScope === 'all' ? itemsAll : mineItems;
       const synced = monthSyncedAt(dc.ym);
       $('d-short-n').textContent = items.length ? items.length + '명' : '';
-      $('d-short-hint').textContent = dc.byName.size ? `월 실적 대비 오늘까지 등록된 정규시간 · 실적 반영 ${fmtFetched(synced)}` : '';
-      $('d-meta-fetch').textContent = dc.byName.size ? `출결 조회 ${fmtFetched(fetched)}` : '';
-      $('d-short-card').hidden = !!dc.byName.size && !items.length;
-      setDashCnt('short', dc.byName.size ? items.length : null);
+      // (10/23) 숫자 두 개가 무엇인지 바로 보이게 — '인정 / 오늘까지 정규'
+      $('d-short-hint').textContent = dc.byName.size ? '숫자 = 인정시간 / 오늘까지 등록된 정규시간' : '';
+      // (10/23) 시각은 하나만 — 실적이 반영된 시각(없으면 출결 조회 시각)
+      $('d-meta-fetch').textContent = dc.byName.size ? `출결 반영 ${fmtFetched(synced || fetched)}` : '';
+      $('d-short-card').hidden = !!dc.byName.size && !itemsAll.length;
+      setDashCnt('short', dc.byName.size ? mineItems.length : null);   // 큰 숫자·탭 배지 = 내 학생 기준(휴가·출장과 같음)
       if (!dc.byName.size) { list.innerHTML = '<p class="note">이번 달 출결 결과를 아직 올리지 않았어요 — 아래 [출결 결과 올리기]로 올리면 여기에 표시돼요.</p>'; return; }
-      if (!items.length) { list.innerHTML = '<p class="note">모자란 학생이 없어요.</p>'; return; }
+      if (!items.length) {
+        const others = itemsAll.length - items.length;
+        list.innerHTML = `<p class="note">${others > 0 ? `${me ? esc(me) + ' 담당 학생 중' : '내 학생 중'} 모자란 학생은 없어요. 다른 선생님 담당 ${others}명은 [전체]에서 보여요.` : '모자란 학생이 없어요.'}</p>`;
+        return;
+      }
       items.sort((a, b) => (a.st.act / a.st.reg) - (b.st.act / b.st.reg));
       list.innerHTML = '';
       items.forEach(it => {
         const row = document.createElement('div'); row.className = 'short-row';
-        row.innerHTML = `<span class="nm">${esc(it.name)}</span><span class="co">${esc(attnComp[normNm(it.name)] || '')}</span>`
-          + `<span class="hh">${it.st.act}h / ${it.st.reg}h${it.st.src === 'daily' ? ' (일별)' : ''}</span>`
+        row.innerHTML = `<span class="nm">${esc(it.name)}${dashScope === 'all' && mgrOfNm[normNm(it.name)] ? `<small class="mg">${esc(mgrOfNm[normNm(it.name)])}</small>` : ''}</span><span class="co">${esc(attnComp[normNm(it.name)] || '')}</span>`
+          + `<span class="hh" title="인정시간 / 오늘까지 정규시간">인정 ${it.st.act}h / ${it.st.reg}h${it.st.src === 'daily' ? ' (일별)' : ''}</span>`
           + `<span class="why">${it.st.bad.map(r => `<span class="st-dot ${r.status === 'none' ? 'st-none' : 'st-short'}">${esc(mdOf(r.day) + ' ' + badWhy(r))}</span>`).join('')}</span>`;
         const b = document.createElement('button'); b.type = 'button'; b.className = 'phone-btn'; b.textContent = '달력 보기';
         b.addEventListener('click', () => openStuSheet(it.name));
@@ -4591,7 +4689,9 @@
     $('cw-ms-nudge').addEventListener('click', async () => {
       const names = JSON.parse($('cw-ms-nudge').dataset.names || '[]'), ym = cwYm();
       if (!names.length) return;
-      if (!confirm(`${names.join(', ')} — ${names.length}명에게 '${moOf(ym)} 학습활동서·출석 확인' 알림을 보낼까요?`)) return;
+      // (10/23) 확인창에 받는 사람 수·이름과 실제 가는 문구(sql/71 admin_diary_nudge 와 같은 내용)를 함께 보여 줌
+      const mN = Number(ym.slice(5));
+      if (!confirm(`받는 학생 ${names.length}명: ${names.join(', ')}\n\n제목: ${mN}월 학습활동서·출석 확인\n내용: ${mN}월 학습활동서를 마무리하고 고용24에서 [출석결과확인 등록]까지 눌러주세요(저장만 하지 말고 꼭 등록까지). 다 하면 앱 홈에서 완료 체크를 눌러주세요.\n\n이대로 앱 알림(푸시)을 보낼까요?`)) return;
       $('cw-ms-nudge').disabled = true;
       const { data, error } = await supabase.rpc('admin_diary_nudge', { p_month: ym, p_names: names });
       if (error) { setStatus($('cw-status'), friendlyError(error), 'error'); $('cw-ms-nudge').disabled = false; return; }
