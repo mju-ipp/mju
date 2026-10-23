@@ -102,15 +102,13 @@
         </div>
         <!-- [개편 5단계] 정규시간 대비 인정시간이 모자란 학생 — attendance_daily(sql/55) -->
         <section class="dsec" id="d-short-card">
-          <h3 class="dsec-h">정규시간보다 인정시간이 모자라요 <span class="n" id="d-short-n"></span>
-            <span class="ch-seg dsec-act d-scope" role="group" aria-label="보는 범위"><button type="button" class="chip" data-v="mine">내 학생</button><button type="button" class="chip" data-v="all">전체</button></span></h3>
+          <h3 class="dsec-h">정규시간보다 인정시간이 모자라요 <span class="n" id="d-short-n"></span></h3>
           <p class="dsec-lede" id="d-short-hint"></p>
           <div id="d-short-list"><p class="note">불러오는 중…</p></div>
         </section>
         <!-- [sql/69·70] 휴가·출장 체크 — 학생·기업 담당자가 체크한 날 → 과정 단위로 옮길 날 제안 → move.py 계획 받기 (docs/LEAVE.md 4단계) -->
         <section class="dsec" id="d-abs-sec">
           <h3 class="dsec-h">휴가·출장 체크 <span class="n" id="d-abs-n"></span>
-            <span class="ch-seg dsec-act" id="d-abs-scope" role="group" aria-label="보는 범위"><button type="button" class="chip" data-v="mine">내 학생</button><button type="button" class="chip" data-v="all">전체</button></span>
             <button type="button" class="phone-btn" id="d-abs-plan" disabled>이동 계획 받기</button></h3>
           <p class="dsec-lede" id="d-abs-hint">과정 단위 — 한 명이라도 빠지는 날은 그 날 전체를 옮겨요. 옮길 날 = 오늘 이후 빈 평일(주말·공휴일 제외), 하루 6시간까지.</p>
           <div class="status" id="d-abs-status"></div>
@@ -121,8 +119,7 @@
           <div class="drow"><span class="dl">학생이 남긴 상담에 아직 답하지 않았어요.</span><button type="button" class="phone-btn" id="d-consult-go">상담으로</button></div>
         </section>
         <section class="dsec" id="d-push-sec" hidden>
-          <h3 class="dsec-h">알림을 못 받는 학생 <span class="n" id="d-push-n"></span>
-            <span class="ch-seg dsec-act d-scope" role="group" aria-label="보는 범위"><button type="button" class="chip" data-v="mine">내 학생</button><button type="button" class="chip" data-v="all">전체</button></span></h3>
+          <h3 class="dsec-h">알림을 못 받는 학생 <span class="n" id="d-push-n"></span></h3>
           <p class="dsec-lede">오늘 처리할 일 숫자에는 안 넣어요(앱 세팅 과제) · 푸시가 가지 않으니 문자로 따로 알려주세요</p>
           <div class="drow"><div class="dl" id="d-push-names"></div><button type="button" class="phone-btn" id="d-push-copy">이름 복사</button></div>
         </section>
@@ -201,7 +198,6 @@
         <div class="hq-head">
           <h2 class="adm-h2" style="margin:0">기업 담당자 자료 <span class="hint">기업 담당자 앱 '우리 학생 OJT'에 그대로 보여요</span></h2>
           <input type="month" id="cw-month" class="ph-select" aria-label="달" />
-          <span class="ch-seg" id="cw-scope" role="group" aria-label="보는 범위"><button type="button" class="chip" data-v="mine">내 학생</button><button type="button" class="chip" data-v="all">전체</button></span>
           <!-- (10/23) 담당 선생님별로 보기 — 명단 students.manager -->
           <select id="cw-mgr" class="ph-select" aria-label="담당 선생님"><option value="">선생님별 보기</option></select>
         </div>
@@ -463,9 +459,8 @@
         <h2 class="adm-h2">대화방</h2>
         <div class="card">
           <div class="ch-bar">
-            <div class="ch-seg" id="ch-scope" role="group" aria-label="보는 범위"><button type="button" class="chip" data-v="mine">내 담당</button><button type="button" class="chip" data-v="all">전체</button></div>
             <div class="ch-seg" id="ch-kind" role="group" aria-label="방 종류"><button type="button" class="chip" data-v="company">기업방</button><button type="button" class="chip" data-v="direct">1:1</button></div>
-            <!-- (10/23, sql/80) 담당 선생님별 보기 — 방 담당 = 명단 담당직원. 고르면 그 선생님 방만(내 담당/전체보다 우선) -->
+            <!-- (10/23, sql/80) 담당 선생님별 보기 — 방 담당 = 명단 담당직원. 고르면 그 선생님 방만, 안 고르면 전체 -->
             <select id="ch-mgr" class="ph-select" aria-label="담당 선생님"><option value="">선생님별 보기</option></select>
           </div>
           <div id="ch-list"></div>
@@ -2047,11 +2042,11 @@
     // ===== 상담 (관리자) =====
     let curConsult = null, curLabel = '';
     // ===== 대화방(sql/65·66) — 기업방·1:1 목록 → 대화. 목록·명단·알림 여부는 admin_chat_rooms 한 번, 글은 표 직접(센터 RLS) =====
-    // 보는 범위: 내 담당(명단 담당직원 = 내 이름) 기본, [전체]. 선택은 이 기기에 기억.
+    // 보는 범위: (10/23 사용자 '나만 쓰는 게 아니니') 내 담당/전체 칩 없앰 — 항상 전체, 선생님별 보기로 좁힘. 선택은 이 기기에 기억.
     let chRooms = [], chMe = {}, chCur = null;
     const chPref = (k, d) => { try { return localStorage.getItem('adm_ch_' + k) || d; } catch (_) { return d; } };
     const chSave = (k, v) => { try { localStorage.setItem('adm_ch_' + k, v); } catch (_) {} };
-    let chScope = chPref('scope', 'mine'), chKind = chPref('kind', 'company'), chMgr = chPref('mgr', '');
+    const chScope = 'all'; let chKind = chPref('kind', 'company'), chMgr = chPref('mgr', '');
     const chAt = s => { const d = new Date(s), n = new Date(); return d.toDateString() === n.toDateString() ? d.toLocaleTimeString('ko-KR', { hour: 'numeric', minute: '2-digit' }) : `${d.getMonth() + 1}/${d.getDate()}`; };
     async function chLoad() {
       const el = $('ch-list');
@@ -2064,8 +2059,7 @@
     }
     function chDraw() {
       const el = $('ch-list'), myName = (chMe.name || '').trim();
-      document.querySelectorAll('#ch-scope .chip').forEach(b => b.classList.toggle('on', b.dataset.v === chScope));
-      document.querySelectorAll('#ch-kind .chip').forEach(b => b.classList.toggle('on', b.dataset.v === chKind));
+        document.querySelectorAll('#ch-kind .chip').forEach(b => b.classList.toggle('on', b.dataset.v === chKind));
       // (sql/80) 선생님 글은 그 방 담당 선생님 이름으로 감. (10/23 사용자) 목록 위 안내 줄·이름 바꾸기 링크는 뺌 — 보낼 이름은 대화 창 위에
       const mgrOf = r => (r.manager || '').trim();
       const mgrs = [...new Set(chRooms.map(mgrOf).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ko'));
@@ -2136,7 +2130,6 @@
     function chClose() { const sh = $('ch-room'); if (!sh) return; sh.classList.remove('open'); sh.setAttribute('aria-hidden', 'true'); chCur = null; if ($('ch-list')) chDraw(); }
     $('ch-close').addEventListener('click', chClose);
     document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('ch-room').classList.contains('open')) chClose(); });
-    document.querySelectorAll('#ch-scope .chip').forEach(b => b.addEventListener('click', () => { chScope = b.dataset.v; chSave('scope', chScope); chDraw(); }));
     document.querySelectorAll('#ch-kind .chip').forEach(b => b.addEventListener('click', () => { chKind = b.dataset.v; chSave('kind', chKind); chDraw(); }));
     $('ch-mgr').addEventListener('change', e => { chMgr = e.target.value; chSave('mgr', chMgr); chDraw(); });
 
@@ -3829,19 +3822,12 @@
       stLoad();   // 기업 관리 탭에 바로 반영
     });
 
-    // ===== [디자인 재정리] 오늘 머리 — '오늘 처리할 일 N건' = 모자란 학생(내 학생) + 휴가·출장(내 학생) + 미답변 상담 + 3일 안 마감 =====
+    // ===== [디자인 재정리] 오늘 머리 — '오늘 처리할 일 N건' = 모자란 학생 + 휴가·출장 + 미답변 상담 + 3일 안 마감 =====
     //   (10/23) '알림 못 받는 학생'은 오늘 할 일이 아니라 앱 세팅 과제라 큰 숫자에서 뺌(84명이 더해져 매일 90건대로 보이던 것)
     const dashCnt = { short: null, absence: null, consult: null, push: null, due: null };
     const HERO_KEYS = ['short', 'absence', 'consult', 'due'];
-    // (10/23) 오늘 탭 '내 학생/전체' — 모자란 학생·알림 못 받는 학생이 같이 씀(휴가·출장은 원래 따로). 기본 = 내 학생
-    let dashScope = 'mine';
-    try { dashScope = localStorage.getItem('adm_dash_scope') || 'mine'; } catch (_) {}
-    function paintDashScope() { document.querySelectorAll('.d-scope .chip').forEach(b => b.classList.toggle('on', b.dataset.v === dashScope)); }
-    document.querySelectorAll('.d-scope .chip').forEach(b => b.addEventListener('click', () => {
-      dashScope = b.dataset.v; try { localStorage.setItem('adm_dash_scope', dashScope); } catch (_) {}
-      paintDashScope(); dashShortLoad(); dashPushLoad();
-    }));
-    paintDashScope();
+    // (10/23 사용자 '나만 쓰는 게 아니니') 오늘 탭 '내 학생/전체' 칩 없앰 — 모자란 학생·알림 못 받는 학생·휴가·출장 모두 전체
+    const dashScope = 'all';
     function renderHero() {
       const d = new Date();
       $('d-when').textContent = `${d.getMonth() + 1}월 ${d.getDate()}일 ${'일월화수목금토'[d.getDay()]}요일`;
@@ -3849,11 +3835,11 @@
       $('d-todo').textContent = vals.every(v => v === null) ? '–' : vals.reduce((s, v) => s + (v || 0), 0);
       const sec = (id, n, nid, unit) => { const el = $(id); if (!el) return; el.hidden = !n; if (nid) $(nid).textContent = n ? n + unit : ''; };
       sec('d-consult-sec', dashCnt.consult, 'd-consult-n', '건');
-      sec('d-push-sec', dashCnt.push, null, '명');   // 명 수는 dashPushLoad 가 범위(내 학생/전체)에 맞춰 씀
+      sec('d-push-sec', dashCnt.push, null, '명');   // 명 수는 dashPushLoad 가 범위에 맞춰 씀
       sec('d-due-sec', dashCnt.due, 'd-due-n', '건');
       const quiet = [];
-      if (dashCnt.short === 0) quiet.push('모자란 학생 없음(내 학생)');
-      if (dashCnt.absence === 0) quiet.push('휴가·출장 체크 없음(내 학생)');
+      if (dashCnt.short === 0) quiet.push('모자란 학생 없음');
+      if (dashCnt.absence === 0) quiet.push('휴가·출장 체크 없음');
       if (dashCnt.consult === 0) quiet.push('답하지 않은 상담 없음');
       if (dashCnt.due === 0) quiet.push('3일 안 마감 없음');
       if (dashCnt.push === 0) quiet.push('명단 학생 모두 알림 켬');
@@ -4208,7 +4194,7 @@
       // (10/23) 시각은 하나만 — 실적이 반영된 시각(없으면 출결 조회 시각)
       $('d-meta-fetch').textContent = dc.byName.size ? `출결 반영 ${fmtFetched(synced || fetched)}` : '';
       $('d-short-card').hidden = !!dc.byName.size && !itemsAll.length;
-      setDashCnt('short', dc.byName.size ? mineItems.length : null);   // 큰 숫자·탭 배지 = 내 학생 기준(휴가·출장과 같음)
+      setDashCnt('short', dc.byName.size ? items.length : null);   // 큰 숫자·탭 배지 = 목록과 같은 기준(전체)
       if (!dc.byName.size) { list.innerHTML = '<p class="note">이번 달 출결 결과를 아직 올리지 않았어요 — 아래 [출결 결과 올리기]로 올리면 여기에 표시돼요.</p>'; return; }
       if (!items.length) {
         const others = itemsAll.length - items.length;
@@ -4287,8 +4273,7 @@
         return `학생 ${data.sent}명에게 결과 알림을 보냈어요.`;
       } catch (_) { return ''; }
     }
-    let absScope = 'mine', absAt = 0;
-    try { absScope = localStorage.getItem('adm_abs_scope') || 'mine'; } catch (_) {}
+    const absScope = 'all'; let absAt = 0;   // (10/23) 내 학생/전체 칩 없앰 — 항상 전체
     async function dashAbsLoad() {
       const list = $('d-abs-list'); if (!list) return;
       absAt = Date.now();
@@ -4301,7 +4286,6 @@
       ]);
       if (error) { $('d-abs-sec').hidden = true; setDashCnt('absence', null); return; }   // sql/69 적용 전
       $('d-abs-sec').hidden = false;
-      document.querySelectorAll('#d-abs-scope .chip').forEach(b => b.classList.toggle('on', b.dataset.v === absScope));
       const mgrOf = {}; (mgr || []).forEach(s => { mgrOf[s.id] = (s.manager || '').trim(); });
       const isMine = a => !me || mgrOf[a.student_id] === me;   // 내 이름이 없으면 전부 내 학생으로
       // 그 달 과정 정규시간 — 과정 단위 제안과 '반영' 판정에 씀
@@ -4326,11 +4310,10 @@
       }
       const sent = await absNotify();   // 방금 반영된 건 + 지난번에 못 보낸 건
       const openAll = (abs || []).filter(a => has(a));
-      const mineN = openAll.filter(isMine).length;
       const open = absScope === 'all' ? openAll : openAll.filter(isMine);
       $('d-abs-n').textContent = open.length ? open.length + '건' : '';
-      setDashCnt('absence', mineN);   // 오늘 처리할 일·탭 배지 = 내 학생 기준
-      setTabCnt('dash', mineN);
+      setDashCnt('absence', open.length);   // 오늘 처리할 일·탭 배지 = 목록과 같은 기준(전체)
+      setTabCnt('dash', open.length);
       $('d-abs-status').textContent = [gone.length ? `정규시간이 없어진 ${gone.length}건은 '반영'으로 표시했어요.` : '', sent].filter(Boolean).join(' ');
       absPlans = [];
       if (!open.length) {
@@ -4373,10 +4356,6 @@
         dashAbsLoad();   // 다시 불러오면서 반려 알림도 보냄(absNotify)
       }));
     }
-    document.querySelectorAll('#d-abs-scope .chip').forEach(b => b.addEventListener('click', () => {
-      absScope = b.dataset.v; try { localStorage.setItem('adm_abs_scope', absScope); } catch (_) {}
-      dashAbsLoad().catch(() => {});
-    }));
     // 콘솔로 돌아오면 새 체크를 다시 셈(1분에 한 번까지) — 새로고침 안 해도 배지가 맞게
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible' && absAt && !$('d-abs-sec').hidden && Date.now() - absAt > 60000) dashAbsLoad().catch(() => {});
@@ -4397,8 +4376,9 @@
     // 기업 = 명단 students.company(진행중), 기업 키는 서버 _co_key 와 같은 규칙. '내 학생' = 명단 담당이 내 이름(admin_users.display_name)인 기업·학생.
     const coKey = c => (c || '').toLowerCase().replace(/㈜/g, '').replace(/\(주\)/g, '').replace(/주식회사/g, '').replace(/\s+/g, '') || null;
     const AL_STATES = ['미신청', '신청', '승인', '확정', '지급완료'];
-    let cwMe, cwScope = 'mine', cwData = null;
-    try { cwScope = localStorage.getItem('adm_cw_scope') || 'mine'; } catch (_) {}
+    // (10/23) 내 학생/전체 칩 없앰 — 기본 전체, 선생님별 보기('m:이름')만 기억
+    let cwMe, cwScope = 'all', cwData = null;
+    try { const v = localStorage.getItem('adm_cw_scope') || ''; if (v.startsWith('m:')) cwScope = v; } catch (_) {}
     const cwYm = () => $('cw-month').value || ymdLocal(0).slice(0, 7);
     const ymPlus = (ym, n) => { const d = new Date(Number(ym.slice(0, 4)), Number(ym.slice(5)) - 1 + n, 1); return `${d.getFullYear()}-${p2(d.getMonth() + 1)}`; };
     const lastDay = ym => `${ym}-${p2(new Date(Number(ym.slice(0, 4)), Number(ym.slice(5)), 0).getDate())}`;
@@ -4421,7 +4401,6 @@
       const tok = ++cwTok;
       if (!$('cw-month').value) $('cw-month').value = ymdLocal(0).slice(0, 7);
       await myAdminName();
-      document.querySelectorAll('#cw-scope .chip').forEach(b => b.classList.toggle('on', b.dataset.v === cwScope));
       const ym = cwYm(), from = ym + '-01', to = ymPlus(ym, 1) + '-01';
       const alFrom = '2026-01-01';   // 수당은 그 기업 OJT 배정 달 전부(아래 ojtMonths)
       const [st, tk, al, ms, dy, cc, om, dt] = await Promise.all([
@@ -4470,7 +4449,6 @@
       cwDrawCodes(); cwDrawTasks(); cwDrawAllow(); cwDrawMs();
     }
     $('cw-month').addEventListener('change', () => cwLoad());
-    document.querySelectorAll('#cw-scope .chip').forEach(b => b.addEventListener('click', () => { cwScope = b.dataset.v; try { localStorage.setItem('adm_cw_scope', cwScope); } catch (_) {} cwLoad(); }));
     $('cw-mgr').addEventListener('change', () => { cwScope = $('cw-mgr').value ? 'm:' + $('cw-mgr').value : 'all'; try { localStorage.setItem('adm_cw_scope', cwScope); } catch (_) {} cwLoad(); });
     // 기업의 담당 선생님 — 학생 많은 순
     const coMgrs = c => Object.entries(c.mgrs || {}).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'ko')).map(x => x[0]);
