@@ -467,7 +467,6 @@
             <div class="ch-seg" id="ch-kind" role="group" aria-label="방 종류"><button type="button" class="chip" data-v="company">기업방</button><button type="button" class="chip" data-v="direct">1:1</button></div>
             <!-- (10/23, sql/80) 담당 선생님별 보기 — 방 담당 = 명단 담당직원. 고르면 그 선생님 방만(내 담당/전체보다 우선) -->
             <select id="ch-mgr" class="ph-select" aria-label="담당 선생님"><option value="">선생님별 보기</option></select>
-            <span class="ch-me" id="ch-me"></span>
           </div>
           <div id="ch-list"></div>
         </div>
@@ -2067,9 +2066,7 @@
       const el = $('ch-list'), myName = (chMe.name || '').trim();
       document.querySelectorAll('#ch-scope .chip').forEach(b => b.classList.toggle('on', b.dataset.v === chScope));
       document.querySelectorAll('#ch-kind .chip').forEach(b => b.classList.toggle('on', b.dataset.v === chKind));
-      // (sql/80) 선생님 글은 그 방 담당 선생님 이름으로 감 — 담당이 없는 방만 내 이름
-      $('ch-me').innerHTML = `선생님 글은 <b>방 담당 선생님 이름</b>으로 보여요 · 담당 없는 방은 ${myName ? `<b>${esc(myName)} 선생님</b>` : `<b class="ch-warn">'센터 선생님'</b>`} · <button type="button" class="ch-link" id="ch-rename">${myName ? '내 이름 바꾸기' : '내 이름 넣기'}</button>`;
-      $('ch-rename').addEventListener('click', chRename);
+      // (sql/80) 선생님 글은 그 방 담당 선생님 이름으로 감. (10/23 사용자) 목록 위 안내 줄·이름 바꾸기 링크는 뺌 — 보낼 이름은 대화 창 위에
       const mgrOf = r => (r.manager || '').trim();
       const mgrs = [...new Set(chRooms.map(mgrOf).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ko'));
       if (chMgr && !mgrs.includes(chMgr)) chMgr = '';
@@ -2088,13 +2085,6 @@
       }).join('') + `</div>` : `<p class="note">${chScope === 'mine' && myName ? `${esc(myName)} 담당 학생이 있는 방이 없어요.` : '방이 없어요 — 명단에 기업이 들어간 학생이 있어야 기업방이 생겨요.'}</p>`) +
         (!chMgr && chScope === 'mine' && hidden > 0 ? `<p class="note" style="margin-top:8px">다른 선생님 담당 ${hidden}개는 [전체]나 선생님별 보기에서 보여요.</p>` : '');
       el.querySelectorAll('.ch-row').forEach(b => b.addEventListener('click', () => chOpen(b.dataset.id)));
-    }
-    async function chRename() {
-      const v = prompt("학생에게 보일 이름 (뒤에 '선생님'이 붙어요)", chMe.name || '');
-      if (v === null) return;
-      const { data, error } = await supabase.rpc('set_my_display_name', { p_name: v });
-      if (error || !data || !data.ok) { alert('이름을 저장하지 못했어요.' + (data && data.reason === 'length' ? ' (20자까지)' : '')); return; }
-      chMe.name = data.name; chDraw();
     }
     async function chOpen(id) {
       chCur = chRooms.find(r => r.id === id); if (!chCur) return;
