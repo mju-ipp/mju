@@ -4528,7 +4528,7 @@
       const sel = c => supabase.from('attendance_monthly').select(c).order('month');
       let [a, s] = await Promise.all([
         sel('name,month,track,planned_hours,actual_hours,auto_actual,source,note,units,updated_at,edited_by,edited_at'),
-        supabase.from('students').select('name,company,manager,job_keys,type1'),
+        supabase.from('students').select('name,company,manager,job_keys,type1,status'),
       ]);
       if (a.error) a = await sel('name,month,planned_hours,actual_hours,units,updated_at');   // sql/61 적용 전
       if (a.error) return false;
@@ -4536,7 +4536,7 @@
       attnComp = {}; attnStu = {};
       (s.data || []).forEach(x => {
         attnComp[normNm(x.name)] = x.company || '';
-        attnStu[normNm(x.name)] = { manager: x.manager || '', jobs: x.job_keys || [], type: x.type1 || '' };
+        attnStu[normNm(x.name)] = { name: (x.name || '').trim(), manager: x.manager || '', jobs: x.job_keys || [], type: x.type1 || '', status: x.status || '' };
       });
       // 거르기 칸 — 담당·직무·유형(명단 화면과 같은 방식, 고른 값 유지)
       const sv = (f) => [...new Set((s.data || []).flatMap(f).filter(Boolean))].sort((x, y) => x.localeCompare(y, 'ko'));
@@ -4551,7 +4551,7 @@
       }
       return true;
     }
-    const ATTN_STATE = { short: ['모자람', 'var(--danger-500)'], todo: ['진행 중', 'var(--accent)'], ok: ['채움', 'var(--text-primary)'], wait: ['집계 전', 'var(--text-muted)'] };
+    const ATTN_STATE = { short: ['모자람', 'var(--danger-500)'], todo: ['진행 중', 'var(--accent)'], ok: ['채움', 'var(--text-primary)'], noreg: ['미등록', 'var(--text-muted)'], wait: ['집계 전', 'var(--text-muted)'] };
     async function attnLoad(force) {
       const list = $('at-list'); if (!list) return;
       if (!attnCache || force) list.innerHTML = '<p class="note">불러오는 중…</p>';
@@ -4588,8 +4588,18 @@
       attnCache.filter(r => String(r.month).slice(0, 7) === attnMonth && trk(r) === attnTrack && Number(r.planned_hours) > 0 && pass(r.name)).forEach(r => {
         const k = normNm(r.name); if (!byName.has(k)) byName.set(k, []); byName.get(k).push(r);
       });
+      // (10/23 사용자 요청) OJT 는 그 달 행이 없는 학생도 0 / 0h 로 — 정규시간을 아직 등록하지 않은 과정(예: 10월 길은경 선생님 반)
+      //  · 진행중이고 OJT 예정 행이 한 번이라도 있는 학생만(OJT 시작 전 학생은 빼고)
+      if (attnTrack === 'ojt') {
+        const started = new Set(attnCache.filter(r => trk(r) === 'ojt' && Number(r.planned_hours) > 0).map(r => normNm(r.name)));
+        Object.entries(attnStu).forEach(([k, s]) => {
+          if (byName.has(k) || s.status !== '진행중' || !started.has(k) || !pass(s.name)) return;
+          byName.set(k, [{ name: s.name, month: attnMonth + '-01', track: 'ojt', planned_hours: 0, actual_hours: 0, noreg: true }]);
+        });
+      }
       const mrows = [...byName.values()].map(parts => {
         const name = parts[0].name;
+        if (parts[0].noreg) return { name, company: attnComp[normNm(name)] || '-', units: '', planned: 0, actual: 0, d: null, state: 'noreg', done: 0, parts, cum: cumOf(name) };
         const planned = parts.reduce((s, r) => s + Number(r.planned_hours), 0);
         const withA = parts.filter(r => r.actual_hours != null);
         const actual = withA.length ? withA.reduce((s, r) => s + Number(r.actual_hours), 0) : null;
@@ -4610,21 +4620,23 @@
         `<span class="note"><b style="font-size:16px;color:var(--danger-500)">${n('short')}</b>명 모자람</span>` +
         `<span class="note"><b style="font-size:16px;color:var(--accent)">${n('todo')}</b>명 진행 중</span>` +
         `<span class="note"><b style="font-size:16px;color:var(--text-primary)">${n('ok')}</b>명 채움</span>` +
+        (n('noreg') ? `<span class="note"><b style="font-size:16px;color:var(--text-muted)">${n('noreg')}</b>명 정규시간 미등록</span>` : '') +
         (n('wait') ? `<span class="note">${n('wait')}명 집계 전</span>` : '') +
         (risk ? `<span class="note"><b style="font-size:16px;color:var(--danger-500)">${risk}</b>명 전체 80% 위험</span>` : '') +
         `<span class="note">실적 반영 ${fmtFetched(synced)}</span>`;
       // 목록 — 모자람 먼저, 그다음 달성률 낮은 순, 집계 전은 맨 아래
-      const ORD = { short: 0, todo: 1, ok: 2, wait: 3 };
+      const ORD = { short: 0, todo: 1, ok: 2, noreg: 3, wait: 4 };
       mrows.sort((x, y) => (ORD[x.state] - ORD[y.state]) || ((x.done / x.planned) - (y.done / y.planned)) || x.name.localeCompare(y.name, 'ko'));
       list.innerHTML = '';
       mrows.forEach(r => {
         const [label, col] = ATTN_STATE[r.state];
-        const pct = Math.min(100, Math.round(r.done / r.planned * 100));
+        const pct = r.planned ? Math.min(100, Math.round(r.done / r.planned * 100)) : 0;
         const row = document.createElement('div');
         row.className = 'attn-row';
         const val = r.d ? `${r.d.act} / ${r.d.reg}h` : (r.actual == null ? '-' : `${r.actual} / ${r.planned}h`);
         const trTxt = r.parts.map(p => TRACK_LABEL[trk(p)] + (p.source === 'manual' ? ' 수정' : p.source === 'backfill' ? ' 이수 간주' : '')).join(' · ');
         const sub = [trTxt,
+          r.state === 'noreg' ? `${Number(attnMonth.slice(5))}월 정규시간 미등록` : '',
           r.d ? `오늘까지 정규 · 월 ${r.planned}h` + (r.d.total < r.planned ? ` · 미등록 ${r.planned - r.d.total}h` : '') + (r.d.src === 'daily' ? ' · 월 실적 없음' : '') : ''].filter(Boolean).join(' · ');
         // (10/16 사용자 요청) 학생 줄의 누적 줄('OJT 188/188h (전체 618h) · 지난달까지 전체 100%')은 뺌 — 80% 위험 인원은 위 요약에 남음
         const si = attnStu[normNm(r.name)] || {};
