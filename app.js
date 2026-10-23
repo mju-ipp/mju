@@ -278,27 +278,32 @@ function setIconBadge(n) {
     open.onsuccess = () => { try { open.result.transaction('kv', 'readwrite').objectStore('kv').put(n, 'n'); } catch (_) {} };
   } catch (_) {}
 }
-// 탭바 '공지' 탭과 홈 '공지사항' 타일에 미확인 배지 표시
+// [sql/79] 대화방 안 읽은 글 수(선생님 글 + 같은 기업방 다른 학생 글). 학생 가입 기기만, 실패·RPC 부재면 0
+export async function unreadChatCount() {
+  if (!supabase) return 0;
+  const p = getProfile();
+  if (!p.name || p.target_type !== 'student' || (!p.code && !p.token)) return 0;
+  try {
+    const { data, error } = await supabase.rpc('my_chat_unread', { p_code: p.code || null, p_token: p.token || null });
+    return !error && data && data.ok ? (Number(data.total) || 0) : 0;
+  } catch (_) { return 0; }
+}
+// 탭바 '공지'·'대화방' 탭과 홈 타일에 미확인 배지 표시. 앱 아이콘 숫자 = 공지 + 대화
 export async function updateUnreadBadges() {
-  const cnt = await unreadNoticeCount();
-  setIconBadge(cnt);
+  const [cnt, chat] = await Promise.all([unreadNoticeCount(), unreadChatCount()]);
+  setIconBadge(cnt + chat);
   document.querySelectorAll('[data-unread-badge]').forEach(el => { el.remove(); });
-  if (!cnt) return;
-  const label = cnt > 99 ? '99+' : String(cnt);
-  const tab = document.querySelector('.tabbar a[href="./notice.html"]');
-  if (tab) {
+  const put = (el, n, cls, what) => {
+    if (!el || !n) return;
     const b = document.createElement('span');
-    b.className = 'count-badge'; b.dataset.unreadBadge = '1'; b.textContent = label;
-    b.setAttribute('aria-label', `안 읽은 공지 ${cnt}건`);
-    tab.appendChild(b);
-  }
-  const tile = document.querySelector('.menu-tile[href="./notice.html"]');
-  if (tile) {
-    const b = document.createElement('span');
-    b.className = 'count-badge mbadge'; b.dataset.unreadBadge = '1'; b.textContent = label;
-    b.setAttribute('aria-label', `안 읽은 공지 ${cnt}건`);
-    tile.appendChild(b);
-  }
+    b.className = cls; b.dataset.unreadBadge = '1'; b.textContent = n > 99 ? '99+' : String(n);
+    b.setAttribute('aria-label', `안 읽은 ${what} ${n}건`);
+    el.appendChild(b);
+  };
+  put(document.querySelector('.tabbar a[href="./notice.html"]'), cnt, 'count-badge', '공지');
+  put(document.querySelector('.menu-tile[href="./notice.html"]'), cnt, 'count-badge mbadge', '공지');
+  put(document.querySelector('.tabbar a[href="./chat.html"]'), chat, 'count-badge', '대화');
+  put(document.querySelector('.menu-tile[href="./chat.html"]'), chat, 'count-badge mbadge', '대화');
 }
 
 // Supabase/네트워크 오류를 사용자 언어로 변환 (영문 원문은 콘솔로만)
@@ -430,8 +435,8 @@ function showPushToast(title, body, link) {
       // (10/16) '일정' 탭 폐지 — 홈 달력으로 합침(calendar.html 은 홈으로 넘김)
       // (10/22 사용자) '상담' 탭 뺌 — 학생·기업 모두. 1:1 상담은 학생 홈 메뉴 타일로
     ];
-    // (10/23 사용자) 대화방 탭 — 홈 타일(#m-chat)과 같은 조건: 학생으로 가입한 기기만(기업 담당자 제외)
-    if (prof.target_type === 'student' && (prof.code || prof.token)) items.push(['chat.html', 'messages-square', '대화방']);
+    // (10/23 사용자) 대화방 탭 — 학생은 항상 표시(기업 담당자 제외). 안 읽은 글 수는 updateUnreadBadges 가 붙임
+    if (prof.target_type !== 'company') items.push(['chat.html', 'messages-square', '대화방']);
     const nav = document.createElement('nav');
     nav.className = 'tabbar';
     nav.setAttribute('aria-label', '주요 메뉴');
@@ -440,8 +445,8 @@ function showPushToast(title, body, link) {
     document.body.appendChild(nav);
     document.body.classList.add('has-tabbar');
     if (window.lucide && window.lucide.createIcons) window.lucide.createIcons();
-    // 가입된 기기면 '공지' 탭에 미확인 배지 (공지 페이지 자신은 읽음 처리 후 직접 갱신)
-    if (page !== 'notice.html') updateUnreadBadges();
+    // 가입된 기기면 '공지'·'대화방' 탭에 미확인 배지 (공지·대화방 페이지 자신은 읽음 처리 후 직접 갱신)
+    if (page !== 'notice.html' && page !== 'chat.html') updateUnreadBadges();
   } catch (_) {}
 })();
 

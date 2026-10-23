@@ -23,6 +23,7 @@
     .cr-k{font-size:12px; font-weight:500; color:var(--v-mute)}
     .cr-last{margin-top:2px; font-size:13px; color:var(--v-mute); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
     .cr-at{flex:none; font-size:12px; color:var(--v-mute)}
+    .cr-side{flex:none; display:flex; flex-direction:column; align-items:flex-end; gap:4px}
     .cr-row::after{content:"›"; font-size:20px; line-height:1; color:var(--v-mute)}
     /* 대화 화면 */
     .cv-head{display:flex; align-items:center; gap:8px; margin-bottom:4px}
@@ -73,7 +74,7 @@
     // [sql/65] 대화방 — 기업방(같은 회사 학생 + 센터 선생님, 서로 글 다 보임) · 1:1(나 + 선생님).
     // 자동 새로고침 없음(학생 함수 호출 제한·회사 와이파이 공용 IP) — 열 때·보낼 때·'새로 불러오기'·앱으로 돌아올 때만.
     // 푸시(4단계)는 chat.html?room=<id> 로 들어옴.
-    import { supabase, configReady, setStatus, friendlyError, getProfile, esc } from './app.js';
+    import { supabase, configReady, setStatus, friendlyError, getProfile, esc, updateUnreadBadges } from './app.js';
 
     const $ = id => document.getElementById(id);
     const prof = getProfile();
@@ -96,6 +97,7 @@
       if (error) { fail(esc(errText(error))); return false; }
       if (!data || !data.ok) { fail('학생 정보를 확인하지 못했어요. 홈에서 가입 정보를 확인해주세요.'); return false; }
       rooms = data.rooms || []; me = data.me || {};
+      updateUnreadBadges();   // [sql/79] 탭 숫자도 같이 맞춤
       return true;
     }
 
@@ -110,7 +112,8 @@
           `<span class="cr-ic"><i data-lucide="${co ? 'users' : 'user'}"></i></span>` +
           `<span class="cr-main"><span class="cr-t">${esc(r.title)}<span class="cr-k">${co ? '기업방' : '1:1'}</span></span>` +
           `<span class="cr-last" style="display:block">${last}</span></span>` +
-          (r.last ? `<span class="cr-at">${fmtAt(r.last.at)}</span>` : '') + `</button>`;
+          `<span class="cr-side">${r.last ? `<span class="cr-at">${fmtAt(r.last.at)}</span>` : ''}` +
+          (r.unread ? `<span class="count-badge" aria-label="안 읽은 글 ${r.unread}건">${r.unread > 99 ? '99+' : r.unread}</span>` : '') + `</span></button>`;
       }).join('') + `</div>`;
       $('list').querySelectorAll('.cr-row').forEach(b => b.addEventListener('click', () => openRoom(b.dataset.id)));
       window.lucide?.createIcons();
@@ -152,6 +155,7 @@
           (m.mine ? t + `<span class="b">${esc(m.body)}</span>` : `<span class="b">${esc(m.body)}</span>` + t) + `</div>`;
       }).join('') : `<p class="cv-empty">${co ? '아직 글이 없어요. 같은 회사 학생들과 선생님이 함께 보는 방이에요.' : '아직 글이 없어요. 선생님께 편하게 물어보세요.'}</p>`;
       $('cv-at').textContent = `${new Date().toLocaleTimeString('ko-KR', { hour: 'numeric', minute: '2-digit' })} 기준`;
+      cur.unread = 0; updateUnreadBadges();   // [sql/79] 글을 받아 가면 서버가 이 방을 읽음 처리 → 탭 숫자 다시
       if (!keepScroll) requestAnimationFrame(() => window.scrollTo(0, document.body.scrollHeight));
     }
 
