@@ -72,10 +72,14 @@
     function showThread() { $('newForm').style.display = 'none'; $('thread').style.display = 'block'; }
 
     async function loadThread() {
-      const id = localStorage.getItem(KEY);
+      let id = null; try { id = localStorage.getItem(KEY); } catch (_) {}
       if (!id) { showNew(); return; }
-      const { data, error } = await supabase.rpc('get_consultation', { p_id: id });
-      if (error || !data) { localStorage.removeItem(KEY); showNew(); return; }
+      if (!configReady()) { showThread(); $('sub').textContent = '연결 설정이 필요해요.'; return; }
+      let data = null, error = null;
+      try { ({ data, error } = await supabase.rpc('get_consultation', { p_id: id })); } catch (e) { error = e; }
+      // (10/23 점검) 연결 오류면 상담 번호를 지우지 않음(지우면 그 대화로 다시 못 돌아옴) — 서버가 '없음'이라고 할 때만 새로
+      if (error) { showThread(); $('sub').textContent = '불러오지 못했어요 — 연결을 확인하고 다시 열어 주세요.'; return; }
+      if (!data) { try { localStorage.removeItem(KEY); } catch (_) {} showNew(); return; }
       showThread();
       $('sub').textContent = '상태: ' + (data.status || '열림');
       const box = $('msgs'); box.innerHTML = '';

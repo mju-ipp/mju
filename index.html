@@ -251,7 +251,7 @@
 
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
   <script type="module">
-    import { supabase, configReady, getQueryParam, isInAppBrowser, isStandalone, setStatus, friendlyError, attachPhoneFormat, getCenter, requireCenterId, matchSel } from './app.js';
+    import { supabase, configReady, getQueryParam, isInAppBrowser, isStandalone, setStatus, friendlyError, attachPhoneFormat, getCenter, requireCenterId, centerLookupNetFailed, matchSel } from './app.js';
 
     if (window.lucide) window.lucide.createIcons();
 
@@ -273,6 +273,14 @@
       try {
         await requireCenterId();
       } catch (_) {
+        if (centerLookupNetFailed()) {
+          // (10/23 점검) 연결 문제면 홈을 막지 않고 '다시 시도'만 — 지하철 등에서 '센터 링크가 잘못'으로 보이던 문제
+          const el = document.getElementById('center-invalid');
+          el.querySelector('.mju-alert__title').textContent = '연결이 불안정해요';
+          el.querySelector('.mju-alert__text').innerHTML = '인터넷 연결을 확인한 뒤 <button type="button" class="mju-btn mju-btn--secondary mju-btn--sm" id="center-retry">다시 시도</button>';
+          el.style.display = 'flex';
+          document.getElementById('center-retry').addEventListener('click', () => location.reload());
+        } else {
         _centerBlocked = true;
         document.getElementById('center-invalid').style.display = 'flex';
         ['signupCard', 'restoreCard', 'home', 'home-applicant'].forEach(id => {
@@ -280,6 +288,7 @@
           if (el) el.style.display = 'none';
         });
         document.getElementById('home-cal').innerHTML = '';
+        }
         window.lucide?.createIcons();
       }
     }

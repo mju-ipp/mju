@@ -4418,7 +4418,9 @@
       const alFrom = '2026-01-01';   // 수당은 그 기업 OJT 배정 달 전부(아래 ojtMonths)
       const [st, tk, al, ms, dy, cc, om, dt] = await Promise.all([
         supabase.from('students').select('id,name,company,manager,status'),
-        supabase.from('field_tasks').select('id,company_key,course,kind,month,due_on,title,note,done_on').gte('month', ymPlus(ym, -2) + '-01').lt('month', ymPlus(ym, 2) + '-01').order('month').order('due_on'),
+        // (10/23 점검) 앞뒤 두 달 + 그보다 오래됐어도 아직 안 받은 것(밀린 할 일이 두 달 지나면 사라지던 문제)
+        selAll(() => supabase.from('field_tasks').select('id,company_key,course,kind,month,due_on,title,note,done_on')
+          .or(`month.gte.${ymPlus(ym, -2)}-01,done_on.is.null`).lt('month', ymPlus(ym, 2) + '-01').order('month').order('due_on').order('id')),
         supabase.from('allowance_status').select('id,company_key,company_label,period,state,applied_on,checked_at').gte('period', alFrom).lt('period', to),
         supabase.from('attendance_month_status').select('id,name,month,course,train_days,diary_days,student_confirmed_on,center_confirmed_on').eq('month', from),
         selAll(() => supabase.from('attendance_daily').select('name,day,course,planned_hours,recognized_hours,status').eq('track', 'ojt').gte('day', from).lt('day', to).order('id')),

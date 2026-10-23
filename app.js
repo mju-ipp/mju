@@ -42,15 +42,19 @@ export function centerUrl(path) {
 // [P3] 활성 센터의 uuid — `center_id_for_slug` RPC(sql/19)로 1회 해석 후 캐시.
 // 공개 읽기는 requireCenterId()를 써서 fail-closed로 처리한다. getCenterId()는 복구/폴백 UI용.
 let _centerIdCache;   // undefined=미해석(재시도 가능), string=해석 성공(영구 캐시)
+let _centerNetFail = false;   // (10/23 점검) 마지막 해석 실패가 연결 문제였는지 — '센터 링크가 잘못'과 구분
+export function centerLookupNetFailed() { return _centerNetFail; }
 export async function getCenterId() {
   if (_centerIdCache !== undefined) return _centerIdCache;
   // 성공했을 때만 캐시한다. 일시 오류·미초기화로 null 을 캐시하면(_centerIdCache 가 undefined 가 아니게 되면)
   // 페이지 생애 내내 스코프가 꺼져버리므로(공개읽기 미필터·push_tokens.center_id=null) 실패 시엔 캐시하지 않는다.
+  _centerNetFail = false;
   if (supabase) {
     try {
       const { data, error } = await supabase.rpc('center_id_for_slug', { p_slug: getCenter() });
       if (!error && data) { _centerIdCache = data; return _centerIdCache; }
-    } catch (_) {}
+      if (error) _centerNetFail = true;   // 응답이 오류 = 서버까지 못 감(정상 응답에 data 가 없으면 = 없는 센터)
+    } catch (_) { _centerNetFail = true; }
   }
   return null;   // 미해석 → 캐시 안 함(_centerIdCache 는 undefined 유지) → 다음 호출에서 재시도
 }
@@ -330,7 +334,17 @@ if ('serviceWorker' in navigator) {
       if (Date.now() - last < 30000) return;
       sessionStorage.setItem('sw-reloaded-at', String(Date.now()));
     } catch (_) { return; }
-    location.reload();
+    // (10/23 점검) 쓰던 글·고른 답이 있으면 바로 새로고침하지 않고 '누르면 적용' 알림만 — 대화·설문 작성 중 내용이 날아가던 문제
+    const dirty = [...document.querySelectorAll('textarea, input:not([type]), input[type=text], input[type=tel], input[type=email]')]
+      .some(el => !el.readOnly && !el.disabled && el.offsetParent !== null && el.value.trim() !== '' && el.value !== el.defaultValue)
+      || document.querySelector('form input[type=radio]:checked, form input[type=checkbox]:checked, .survey input:checked');
+    if (!dirty) { location.reload(); return; }
+    if (document.getElementById('sw-update-toast')) return;
+    const b = document.createElement('button');
+    b.type = 'button'; b.id = 'sw-update-toast'; b.textContent = '새 버전이 있어요 · 다 쓴 뒤 눌러서 적용';
+    b.style.cssText = 'position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:9999;max-width:calc(100% - 32px);padding:10px 16px;border:0;border-radius:999px;background:#121318;color:#fff;font:inherit;font-size:14px;box-shadow:0 4px 16px rgba(0,0,0,.2);cursor:pointer';
+    b.addEventListener('click', () => location.reload());
+    document.body.appendChild(b);
   });
 }
 

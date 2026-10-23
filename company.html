@@ -349,8 +349,15 @@
     async function load(month) {
       if (!configReady()) { fail('연결 설정이 필요합니다.'); return; }
       if (!CODE) { fail('기업 담당자로 가입한 기기에서 열 수 있어요. 홈에서 기업 초대코드로 가입해 주세요.'); return; }
-      const { data, error } = await supabase.rpc('company_home', { p_code: CODE, p_month: month || null });
-      if (error) { fail(errText(error)); return; }
+      let data = null, error = null;
+      try { ({ data, error } = await supabase.rpc('company_home', { p_code: CODE, p_month: month || null })); } catch (e) { error = e; }
+      // (10/23 점검) 연결 오류는 '다시 가입' 화면으로 바꾸지 않음 — 보던 화면은 두고 [다시 시도]만
+      if (error) {
+        $('msg').hidden = false;
+        $('msg').innerHTML = `불러오지 못했어요(연결 확인). <button type="button" class="lnk" id="msg-retry">다시 시도</button>`;
+        $('msg-retry').addEventListener('click', () => load(month));
+        return;
+      }
       if (!data || !data.ok) { fail('기업 코드를 확인하지 못했어요. 센터 담당 선생님께 문의해 주세요.'); return; }
       D = data; ym = data.month; today = data.today; thisYm = thisYm || today.slice(0, 7);
       await loadEvents(ym);
@@ -440,11 +447,14 @@
           const hrs = past ? (Number(d.recognized) || 0) : (Number(d.hours) || 0);
           lbs.push(`<span class="lb ${d.status === 'short' || d.status === 'none' ? 'chk' : past ? 'tr' : 'pl'}" title="${esc(s.name)} ${hrs}시간">${esc(nick(s.name))} ${hrs}</span>`);
         });
-        inf.evs.forEach(e => lbs.push(`<span class="lb ex">${esc(String(e.kind).slice(0, 2))}</span>`));
-        inf.tasks.forEach(t => lbs.push(`<span class="lb ${t.done_on ? 'done' : t.kind === '내부평가' ? 'ev' : 'iv'}">${esc(KL[t.kind] || t.kind)}</span>`));
+        // (10/23 점검) 마감(평가·면담)·행사를 먼저, 학생은 남는 칸만큼 + '+n명' — 학생 많은 기업(멜콘 8명)에서 마감 글자가 잘리던 문제
+        const top = inf.tasks.map(t => `<span class="lb ${t.done_on ? 'done' : t.kind === '내부평가' ? 'ev' : 'iv'}">${esc(KL[t.kind] || t.kind)}</span>`)
+          .concat(inf.evs.map(e => `<span class="lb ex">${esc(String(e.kind).slice(0, 2))}</span>`));
+        const room = Math.max(5 - top.length, 1), more = lbs.length - room;
+        const shown = top.concat(more > 0 ? lbs.slice(0, room - 1).concat(`<span class="lb pl">+${more + 1}명</span>`) : lbs);
         const cls = [dow === 0 ? 'sun' : '', ds < today ? 'past' : '', ds === today ? 'today' : ''].filter(Boolean).join(' ');
-        const say = `${md(ds)}${lbs.length ? ' ' + lbs.map(x => x.replace(/<[^>]+>/g, '')).join(', ') : ''}`;
-        h += `<button type="button" class="${cls}" data-d="${ds}" aria-pressed="${ds === selDay}" aria-label="${esc(say)}"><span class="dn">${i + 1}</span>${lbs.slice(0, 5).join('')}</button>`;
+        const say = `${md(ds)}${top.length + lbs.length ? ' ' + top.concat(lbs).map(x => x.replace(/<[^>]+>/g, '')).join(', ') : ''}`;
+        h += `<button type="button" class="${cls}" data-d="${ds}" aria-pressed="${ds === selDay}" aria-label="${esc(say)}"><span class="dn">${i + 1}</span>${shown.join('')}</button>`;
       });
       $('m-cal').innerHTML = h;
       $('m-cal').querySelectorAll('button[data-d]').forEach(b => b.addEventListener('click', () => { selDay = b.dataset.d; drawMonth(); }));

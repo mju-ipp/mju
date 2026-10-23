@@ -93,11 +93,19 @@
         const a = card.querySelector('a');
         a.addEventListener('click', async (e) => {
           e.preventDefault();
+          // (10/23 점검) 아이폰·설치 앱은 클릭과 떨어진(주소를 받은 뒤) 새 창을 막음 → 누르는 순간 빈 창을 먼저 열고 주소를 넣음.
+          // 새 창이 막히면 이 화면에서 바로 엶
+          let w = null; try { w = window.open('', '_blank'); } catch (_) {}
           a.setAttribute('aria-busy', 'true');
           const url = await signedHref(r);
           a.removeAttribute('aria-busy');
-          if (url) window.open(url, '_blank', 'noopener');
-          else alert('자료를 여는 권한을 확인하지 못했어요. 잠시 후 다시 시도하거나 담당자에게 문의해주세요.');
+          if (url) {
+            if (w && !w.closed) { try { w.opener = null; } catch (_) {} w.location.href = url; }
+            else location.href = url;
+          } else {
+            if (w && !w.closed) w.close();
+            alert('자료를 여는 권한을 확인하지 못했어요. 잠시 후 다시 시도하거나 담당자에게 문의해주세요.');
+          }
         });
       }
       return card;
