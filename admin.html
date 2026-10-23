@@ -6,7 +6,7 @@
   <title>관리자 · 일학습병행 앱</title>
   <meta name="theme-color" content="#121318" />
   <link rel="stylesheet" href="./styles.css" />
-  <link rel="stylesheet" href="./admin.css?v=20261023-2" /><!-- 배포 때 v 를 올려 캐시된 옛 스타일과 새 HTML 이 섞이지 않게 -->
+  <link rel="stylesheet" href="./admin.css?v=20261023-3" /><!-- 배포 때 v 를 올려 캐시된 옛 스타일과 새 HTML 이 섞이지 않게 -->
   <script src="./config.js"></script>
   <style>
     .msg{max-width:80%;padding:9px 12px;border-radius:12px;margin:5px 0;font-size:14px;white-space:pre-wrap}
@@ -4338,8 +4338,11 @@
         if (!pe && p && p.ok) prog = p;
       }
       const codes = {}; (cc.data || []).forEach(c => { codes[coKey(c.company)] = c; });
+      // 과정 → 학생 이름(월 마감 행의 과정명, 모든 달) — 달력 평가 칸에 누구 평가인지(앞으로의 달은 출결 행이 없어서)
+      const courseNames = {};
+      ((await supabase.from('attendance_month_status').select('name,course')).data || []).forEach(r => { if (r.course) (courseNames[r.course] = courseNames[r.course] || new Set()).add(r.name); });
       cwData = { ym, cos: [...cos.values()].sort((a, b) => a.label.localeCompare(b.label, 'ko')), tasks: (tk.data || []).filter(t => cos.has(t.company_key)),
-        allow: al.data || [], ms: ms.data || [], daily: dy.data || [], coOfAll: Object.fromEntries(active.map(s => [normNm(s.name), coKey(s.company)])), courseByName, trainDays, ojtMonths, prog, diaryTask: dt.data || null, codes };
+        allow: al.data || [], ms: ms.data || [], daily: dy.data || [], courseNames, coOfAll: Object.fromEntries(active.map(s => [normNm(s.name), coKey(s.company)])), courseByName, trainDays, ojtMonths, prog, diaryTask: dt.data || null, codes };
       cwDrawCodes(); cwDrawTasks(); cwDrawAllow(); cwDrawMs();
     }
     $('cw-month').addEventListener('change', () => cwLoad());
@@ -4446,7 +4449,14 @@
             const hrs = past ? (Number(r.recognized_hours) || 0) : (Number(r.planned_hours) || 0);
             lbs.push([`${r.name} ${hrs}`, r.status === 'short' || r.status === 'none' ? 'chk' : past ? 'tr' : 'pl']);
           });
-          ts.forEach(t => lbs.push([KL[t.kind] || t.kind, t.done_on ? 'done' : ds < today ? 'late' : t.kind === '내부평가' ? 'ev' : t.kind === '면담일지' ? 'iv' : 'etc']));
+          // 평가는 그 과정 학생 이름도(10/23 — 나노엑스처럼 한 기업에 과정이 둘이면 누구 평가인지 헷갈림). 지금 진행중인 학생만
+          // 과정명이 딱 맞지 않으면 '과정명(…)' 으로 시작하는 과정까지(인지컨트롤스 = 과정연계·일반이 시간표 하나)
+          const who = t => {
+            if (!t.course) return [];
+            const cn = cwData.courseNames, ks = cn[t.course] ? [t.course] : Object.keys(cn).filter(k => k.startsWith(t.course + '('));
+            return [...new Set(ks.flatMap(k => [...cn[k]]))].filter(n => coOfAll[normNm(n)] === cwCalCo).sort((a, b) => a.localeCompare(b, 'ko'));
+          };
+          ts.forEach(t => lbs.push([(KL[t.kind] || t.kind) + (who(t).length ? ' ' + who(t).join('·') : ''), t.done_on ? 'done' : ds < today ? 'late' : t.kind === '내부평가' ? 'ev' : t.kind === '면담일지' ? 'iv' : 'etc']));
         } else {
           const open = [...new Set(ts.filter(t => !t.done_on).map(t => t.company_key))], done = ts.filter(t => t.done_on).length;
           open.slice(0, 4).forEach(k => lbs.push([label(k), ds < today ? 'late' : 'ev']));

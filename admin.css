@@ -557,6 +557,7 @@ body.adm .cw-cal .lb.iv{background:var(--v-mute); color:#fff}
 body.adm .cw-cal .lb.etc{background:var(--v-cobalt-bg); color:var(--v-cobalt)}
 body.adm .cw-cal .lb.late{background:var(--v-warn); color:#fff}
 body.adm .cw-cal .lb.done{padding:0; font-weight:500; color:var(--v-mute); text-decoration:line-through}
+body.adm .cw-cal .lb.ev,body.adm .cw-cal .lb.iv,body.adm .cw-cal .lb.late,body.adm .cw-cal .lb.done{white-space:normal; overflow-wrap:anywhere}   /* 평가 칸의 학생 이름은 줄바꿈 */
 body.adm .cw-cal .lb.tr{background:var(--v-cobalt); color:#fff}
 body.adm .cw-cal .lb.pl{background:var(--v-cobalt-bg); color:var(--v-cobalt)}
 body.adm .cw-cal .lb.chk{background:var(--v-warn-bg); color:var(--v-warn)}
