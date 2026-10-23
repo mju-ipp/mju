@@ -563,8 +563,18 @@ body.has-tabbar .ph-body{padding-bottom:84px}
 .faq-item summary .fq-arrow{margin-left:auto; color:var(--text-muted); transition:transform 160ms ease}
 .faq-item[open] summary .fq-arrow{transform:rotate(180deg)}
 .faq-item summary:focus-visible{outline:2px solid var(--focus-ring); outline-offset:-2px}
-.faq-item .fq-a{padding:0 16px 15px 42px; font-size:13.5px; line-height:1.7; color:var(--text-secondary)}
+.faq-item .fq-a{padding:2px 16px 16px; font-size:14.5px; line-height:1.75; color:var(--text-primary); word-break:keep-all; overflow-wrap:anywhere}
 .faq-item .fq-a b{color:var(--text-primary)}
+/* (10/23) 답 가독성 — 문단 간격, 점 목록, ①② 단계는 줄마다(번호는 글자 그대로라 목록 기호는 숨김) */
+.faq-item[open] summary{border-bottom:1px solid var(--border-subtle); margin-bottom:12px}
+.faq-item .fq-a p{margin:0 0 10px}
+.faq-item .fq-a > :last-child{margin-bottom:0}
+.faq-item .fq-a .fq-ul{margin:0 0 10px; padding-left:1.2em}
+.faq-item .fq-a .fq-ul li{margin:4px 0; padding-left:2px}
+.faq-item .fq-a .fq-ul li::marker{color:var(--text-muted)}
+.faq-item .fq-a .fq-steps{list-style:none; margin:0 0 10px; padding:0}
+.faq-item .fq-a .fq-steps li{margin:6px 0; padding-left:1.5em; text-indent:-1.5em}
+.faq-item .fq-a a{color:var(--tint-fg); text-decoration:underline; text-underline-offset:2px}
 
 /* ── 메뉴 타일 포커스 ── */
 .menu-tile:focus-visible{outline:2px solid var(--focus-ring); outline-offset:2px}

@@ -84,6 +84,27 @@
     ];
     const audOk = a => a === 'all' || (myRole === 'student' && a === 'student') || (myRole === 'company' && a === 'company');
 
+    // (10/23 사용자 "FAQ 가독성") 답을 문단·목록으로 — 줄마다 문단, '·'·'-' 줄은 점 목록,
+    // 한 줄에 ①②③… 이 이어지면 단계마다 줄을 나눔(앞 설명은 문단으로). 입력은 이미 이스케이프된 HTML(또는 정적 HTML)
+    function fmtAns(html) {
+      const lines = String(html || '').split(/<br\s*\/?>|\n/).map(s => s.trim()).filter(Boolean);
+      let out = '', ul = [];
+      const flush = () => { if (ul.length) { out += `<ul class="fq-ul">${ul.map(x => `<li>${x}</li>`).join('')}</ul>`; ul = []; } };
+      lines.forEach(ln => {
+        if (/^[·•\-]\s*/.test(ln)) { ul.push(ln.replace(/^[·•\-]\s*/, '')); return; }
+        flush();
+        if (/[①-⑨]/.test(ln) && (ln.match(/[①-⑨]/g) || []).length > 1) {
+          const parts = ln.split(/\s*(?=[①-⑨])/).filter(Boolean);
+          if (!/^[①-⑨]/.test(parts[0])) out += `<p>${parts.shift()}</p>`;
+          out += `<ol class="fq-steps">${parts.map(x => `<li>${x.replace(/\s*→\s*$/, '')}</li>`).join('')}</ol>`;   // 단계 끝의 '→'는 줄을 나눴으니 뺌
+          return;
+        }
+        out += `<p>${ln}</p>`;
+      });
+      flush();
+      return out;
+    }
+
     let all = [], catSel = '';
 
     function render() {
@@ -143,14 +164,14 @@
           if (!res.error) {
             dbItems = (res.data || [])
               .filter(p => p.audience === 'all' || p.audience === myRole)
-              .map(p => ({ category: p.category || '기타', question: p.question, plain: p.answer, answerHtml: esc(p.answer).replace(/\n/g, '<br/>') }));
+              .map(p => ({ category: p.category || '기타', question: p.question, plain: p.answer, answerHtml: fmtAns(esc(p.answer)) }));
           }
         } catch (_) {}
         clearSkeleton(listEl);
       }
       // 2) 앱 사용법 (정적, 내 대상에 맞는 것만)
       const staticItems = STATIC_FAQ.filter(s => audOk(s.aud))
-        .map(s => ({ category: '앱 사용법', icon: s.icon, question: s.q, plain: s.a.replace(/<[^>]+>/g, ' '), answerHtml: s.a }));
+        .map(s => ({ category: '앱 사용법', icon: s.icon, question: s.q, plain: s.a.replace(/<[^>]+>/g, ' '), answerHtml: fmtAns(s.a) }));
       all = [...dbItems, ...staticItems];
       if (all.length > 5) $('sb').style.display = 'block';
       buildChips();
