@@ -6,7 +6,7 @@
   <title>관리자 · 일학습병행 앱</title>
   <meta name="theme-color" content="#121318" />
   <link rel="stylesheet" href="./styles.css" />
-  <link rel="stylesheet" href="./admin.css?v=20261026-2" /><!-- 배포 때 v 를 올려 캐시된 옛 스타일과 새 HTML 이 섞이지 않게 -->
+  <link rel="stylesheet" href="./admin.css?v=20261026-3" /><!-- 배포 때 v 를 올려 캐시된 옛 스타일과 새 HTML 이 섞이지 않게 -->
   <script src="./config.js"></script>
   <style>
     .msg{max-width:80%;padding:9px 12px;border-radius:12px;margin:5px 0;font-size:14px;white-space:pre-wrap}
@@ -2119,6 +2119,10 @@
       //   sql/85 적용 전이면 rd 실패 → 표시 안 함
       const rdOk = !rd.error && rd.data && rd.data.ok;
       const readers = rdOk ? rd.data.reads.filter(x => (x.status || '진행중') === '진행중') : [];
+      // (10/26, sql/87) 학생마다 마지막 앱 사용(알림 켠 기기 기준) — 방 위 학생 줄 아래 한 줄
+      if (readers.some(x => 'last_seen' in x)) {
+        $('ch-members').innerHTML += '<br/>마지막 앱 사용: ' + readers.map(x => `${esc(x.name)} ${x.last_seen ? seenAgo(x.last_seen).replace('마지막 사용 ', '') : '<span class="ch-off">기록 없음</span>'}`).join(' · ');
+      }
       const readMark = m => {
         if (!rdOk || m.sender !== 'teacher' || m.hidden || !readers.length) return '';
         const t = new Date(m.created_at).getTime();
@@ -4485,7 +4489,14 @@
     $('cw-mgr').addEventListener('change', () => { cwScope = $('cw-mgr').value ? 'm:' + $('cw-mgr').value : 'all'; try { localStorage.setItem('adm_cw_scope', cwScope); } catch (_) {} cwLoad(); });
     // ===== (10/23, sql/83) 기업에 알림 보내기 — 학습일지·출석 확인 요청 / 전담인력수당 신청 =====
     //   기업 목록 = 지금 보이는 기업(선생님별 보기 따름). 기본 선택: 학습일지 = 전부, 수당 = 그 달 '미신청'.
-    let cnKind = 'diary', cnDev = null, cnSign = null, cnSel = null;   // cnSign: (sql/84) 기업 키 → { n: 가입 건수, last: 마지막 가입 }
+    let cnKind = 'diary', cnDev = null, cnSign = null, cnSeen = null, cnSel = null;   // cnSign: (sql/84) 기업 키 → { n: 가입 건수, last: 마지막 가입 } / cnSeen: (sql/87) 기업 키 → 마지막 앱 사용
+    // (10/26, sql/87) 마지막 앱 사용 — 알림 켠 기기가 앱을 열 때 하루 1회 등록을 새로 고친 시각. 7일 넘으면 경고색(안 열었거나 지웠을 수 있음)
+    const seenAgo = ts => {
+      if (!ts) return '';
+      const d = Math.floor((new Date(ymdLocal(0)) - new Date(new Date(ts).toLocaleDateString('sv-SE'))) / 86400000);
+      const t = d <= 0 ? '오늘' : d === 1 ? '어제' : `${d}일 전`;
+      return `<span class="${d >= 7 ? 'cn-old' : ''}" title="${esc(new Date(ts).toLocaleString('ko-KR'))}">마지막 사용 ${t}</span>`;
+    };
     const cnText = (kind, ym) => kind === 'diary'
       ? [`${moOf(ym)} 학습일지·출석 확인 요청`, `${moOf(ym)}분 학습근로자 학습일지(학습활동서)와 출석 확인을 눌러 주세요. 문의는 센터 담당 선생님께 해 주세요.`]
       : [`${moOf(ym)}분 전담인력활동수당 신청 안내`, `${moOf(ym)}분 전담인력활동수당을 신청해 주세요. 일학습병행 행정지원시스템(기업 로그인) › 비용관리(전담자) › 전담인력활동수당 신청`];
@@ -4498,6 +4509,7 @@
           (data.rows || []).forEach(r => { cnDev[r.key] = r.devices; });
           // sql/84 적용 전이면 signups 가 없음 → 가입 표시는 안 함
           if ((data.rows || []).some(r => 'signups' in r)) { cnSign = {}; data.rows.forEach(r => { cnSign[r.key] = { n: r.signups || 0, last: r.last_signup }; }); }
+          if ((data.rows || []).some(r => 'last_seen' in r)) { cnSeen = {}; data.rows.forEach(r => { cnSeen[r.key] = r.last_seen; }); }   // sql/87 적용 전이면 없음
         }
         else $('cn-status').textContent = 'sql/83 적용 전이라 알림 켠 기기 수를 못 읽었어요.';
         cwDrawCodes();   // 기업·초대코드 줄에 가입·알림 붙이기(cwLoad 첫 그림은 상태 읽기 전)
@@ -4565,6 +4577,7 @@
         const a = [];
         if (cnSign) { const s = sg(c.key); a.push(s.n ? `<span title="마지막 가입 ${esc(String(s.last || '').slice(0, 10))} · 다시 가입도 한 건으로 셈">가입 ${s.n}명</span>` : '<span class="cn-off">미가입</span>'); }
         if (cnDev) a.push(dv(c.key) ? `알림 ${dv(c.key)}대` : '<span class="cn-off">알림 안 켬</span>');
+        if (cnSeen && dv(c.key) && cnSeen[c.key]) a.push(seenAgo(cnSeen[c.key]));
         return a.length ? `<span class="cw-st">${a.join(' · ')}</span>` : '';
       };
       // (10/23) 담당 선생님별로 묶음 — 기업은 학생이 가장 많은 선생님 아래, 같이 맡은 선생님은 줄에 표시. 내 묶음이 맨 위

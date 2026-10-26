@@ -546,6 +546,7 @@ body.adm .cn-row:last-child{border-bottom:0}
 body.adm .cn-row .cw-co{min-width:140px; font-weight:500}
 body.adm .cn-row .note{margin:0}
 body.adm .cn-off{color:var(--v-mute)}
+body.adm .cn-old{color:var(--v-warn)}   /* (10/26) 마지막 앱 사용 7일 넘음 */
 body.adm .cn-title{width:100%; margin:0 0 8px; box-sizing:border-box}
 body.adm .cn-actions{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:8px}
 body.adm .cw-code code{font-family:ui-monospace,Consolas,monospace; font-size:14px; letter-spacing:.04em; padding:2px 8px; border:1px solid var(--v-line); border-radius:4px; background:var(--v-sunken)}
