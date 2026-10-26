@@ -16,7 +16,7 @@
  *   따라서 './firebase-messaging-sw.js' 를 다시 등록하는 코드를 넣지 말 것.
  *
  * 코드를 고친 뒤 반영이 안 되면 CACHE 버전 숫자를 올리세요(브라우저 캐시 갱신). */
-const CACHE = 'ilhak-v86';   // 기업 앱 전담인력수당 뺌
+const CACHE = 'ilhak-v87';   // 공지 본문 줄바꿈·■ 소제목 굵게
 const ASSETS = ['./', './index.html', './install.html', './notice.html', './library.html', './calendar.html',
   './consult.html', './chat.html', './survey.html', './company-survey.html', './faq.html', './privacy.html',
   './qna.html', './mycompany.html',

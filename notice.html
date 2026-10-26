@@ -62,7 +62,15 @@
       const att = [], txt = [];
       lines.forEach(l => { const m = /^첨부 · (자료|일정|설문): (.+)$/.exec(l.trim()); if (m) att.push(m); else txt.push(l); });
       while (txt.length && !txt[txt.length - 1].trim()) txt.pop();
-      return `<p class="notice-body">${esc(txt.join('\n'))}</p>` + (att.length ? '<div class="notice-att">' + att.map(m =>
+      // (10/26 사용자 "쓴 양식 그대로") 줄마다 그대로 — 빈 줄은 간격, '■' 줄은 소제목(굵게), '-·•' 줄은 들여쓰기
+      const line = l => {
+        const t = l.trim();
+        if (!t) return '<div class="nb-gap"></div>';
+        if (/^[■□▶◆●※]/.test(t)) return `<div class="nb-h">${esc(t)}</div>`;
+        if (/^[-·•]\s/.test(t)) return `<div class="nb-li">${esc(t)}</div>`;
+        return `<div class="nb-l">${esc(l)}</div>`;
+      };
+      return `<div class="notice-body">${txt.map(line).join('')}</div>` + (att.length ? '<div class="notice-att">' + att.map(m =>
         `<a class="notice-att-link" href="${ATT_HREF[m[1]]}"><b>${esc(m[1])}</b> ${esc(m[2])}</a>`).join('') + '</div>' : '');
     }
     function cardFor(n) {
