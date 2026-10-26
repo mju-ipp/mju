@@ -33,7 +33,7 @@
       <img class="wm" src="./assets/logo-mono-white.png" alt="" />
       <div class="ph-lockup"><img src="./assets/logo-mono-white.png" alt="" /><span>일학습병행 공동훈련센터</span></div>
       <div class="ph-title-row"><a class="ph-back" href="./index.html" aria-label="뒤로"><i data-lucide="chevron-left"></i></a><h1 class="ph-title">만족도 조사</h1></div>
-      <p class="ph-sub"><span id="who"></span> 센터 운영 개선을 위한 자체 설문입니다</p>
+      <p class="ph-sub"><span id="who"></span> 센터 운영 개선을 위한 자체 설문</p>
     </header>
     <main class="ph-body">
       <!-- 설문 목록 -->
@@ -42,7 +42,7 @@
           <span class="mju-alert__icon">i</span>
           <div class="mju-alert__body">
             <div class="mju-alert__title">센터 자체 설문</div>
-            <div class="mju-alert__text">공단 공식 만족도와 별개이며, 익명으로 집계됩니다.</div>
+            <div class="mju-alert__text">공단 공식 만족도와 별개, 익명 집계</div>
           </div>
         </div>
         <div id="sv-list"><p class="note" style="margin-top:12px">설문을 불러오는 중...</p></div>
@@ -79,7 +79,7 @@
 
     // 내 정보 없는 기기 — 대상 필터를 적용할 수 없어 안내만
     if (!profile.name) {
-      $('list').innerHTML = '<span class="ei" style="margin:0 auto 10px"><i data-lucide="user"></i></span><p class="ph-card-title" style="text-align:center">내 정보가 필요해요</p><p class="ph-note" style="text-align:center">가입(또는 내 정보 불러오기) 후 참여할 수 있어요.</p><a href="./index.html" class="mju-btn mju-btn--secondary mju-btn--full" style="margin-top:14px">홈에서 정보 입력하기</a>';
+      $('list').innerHTML = '<span class="ei" style="margin:0 auto 10px"><i data-lucide="user"></i></span><p class="ph-card-title" style="text-align:center">내 정보 필요</p><p class="ph-note" style="text-align:center">가입(또는 내 정보 불러오기) 후 참여 가능</p><a href="./index.html" class="mju-btn mju-btn--secondary mju-btn--full" style="margin-top:14px">홈에서 정보 입력하기</a>';
       window.lucide?.createIcons();
     }
 
@@ -107,7 +107,7 @@
         return;
       }
       const rows = (data || []).filter(visible);
-      if (!rows.length) { el.innerHTML = '<p class="note" style="margin-top:12px">지금 참여할 수 있는 설문이 없어요.</p>'; return; }
+      if (!rows.length) { el.innerHTML = '<p class="note" style="margin-top:12px">지금 참여할 수 있는 설문 없음</p>'; return; }
       el.innerHTML = '';
       rows.forEach(s => {
         const did = answered(s.id);
@@ -132,12 +132,12 @@
       const sfq = supabase.from('surveys').select('id,title,description,target_scope,target_value,questions').eq('id', svId).eq('center_id', cid);
       const { data, error } = await sfq.maybeSingle();
       if (error || !data) {
-        $('form').innerHTML = '<p class="ph-card-title">안내</p><p class="ph-note">설문을 찾을 수 없거나 마감된 설문이에요.</p><a href="./survey.html" class="mju-btn mju-btn--secondary mju-btn--full" style="margin-top:12px">설문 목록으로</a>';
+        $('form').innerHTML = '<p class="ph-card-title">안내</p><p class="ph-note">설문을 찾을 수 없거나 마감된 설문</p><a href="./survey.html" class="mju-btn mju-btn--secondary mju-btn--full" style="margin-top:12px">설문 목록으로</a>';
         return;
       }
       current = data;
       if (!visible(data)) {
-        $('form').innerHTML = '<p class="ph-card-title">안내</p><p class="ph-note">이 설문은 다른 대상을 위한 설문이에요.</p><a href="./survey.html" class="mju-btn mju-btn--secondary mju-btn--full" style="margin-top:12px">설문 목록으로</a>';
+        $('form').innerHTML = '<p class="ph-card-title">안내</p><p class="ph-note">다른 대상을 위한 설문</p><a href="./survey.html" class="mju-btn mju-btn--secondary mju-btn--full" style="margin-top:12px">설문 목록으로</a>';
         return;
       }
       if (answered(data.id)) {

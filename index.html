@@ -23,7 +23,7 @@
       <img class="wm" src="./assets/logo-mono-white.png" alt="" />
       <div class="ph-lockup"><img src="./assets/logo-mono-white.png" alt="" /><span id="t-center">공동훈련센터</span></div>
       <div class="ph-title-row"><h1 class="ph-title" id="t-title">일학습병행 앱</h1></div>
-      <p class="ph-sub" id="t-sub">가입하면 공지·자료·일정을 푸시 알림으로 받아볼 수 있어요</p>
+      <p class="ph-sub" id="t-sub">가입 시 공지·자료·일정 푸시 알림 수신</p>
       <!-- [디자인 2단계] 학생 홈: 결론 한 문장(제목) + 큰 숫자 + 진도 막대 — renderAttendance 가 채움 -->
       <div class="hero" id="hero" hidden></div>
       <hr class="ph-gold" />
@@ -32,8 +32,8 @@
     <main class="ph-body">
       <!-- 카카오톡/인스타 인앱브라우저 경고 (아이폰 푸시·설치 불가) -->
       <div class="warn" id="inapp" style="display:none">
-        지금 <b>카카오톡 등 앱 안의 브라우저</b>로 열려 있어요. 알림(푸시)과 홈 화면 추가가 안 됩니다.
-        <b>오른쪽 위 메뉴 → "다른 브라우저로 열기"(Safari/크롬)</b>로 다시 열어주세요.<br/>
+        현재 <b>카카오톡 등 앱 안의 브라우저</b>로 열림 — 알림(푸시)·홈 화면 추가 불가
+        <br/><b>오른쪽 위 메뉴 → "다른 브라우저로 열기"(Safari/크롬)</b>로 다시 열기<br/>
         <button type="button" class="mju-btn mju-btn--sm mju-btn--secondary" id="copyUrl" style="margin-top:10px">주소 복사 → Safari/크롬에 붙여넣기</button>
       </div>
 
@@ -57,7 +57,7 @@
         <div id="w24" style="display:none">
           <p class="menu-group-label" style="margin-top:14px">고용24</p>
           <div class="w24">
-            <p class="w24-t">학습일지(학습활동서)는 고용24에서 써요</p>
+            <p class="w24-t">학습일지(학습활동서) 작성은 고용24에서</p>
             <p class="w24-path">로그인한 뒤 <b>마이페이지</b> › <b>일학습병행훈련</b> › <b>학습진행현황</b></p>
             <a class="mju-btn mju-btn--full" href="https://www.work24.go.kr/cm/z/b/0210/openLginPage.do" target="_blank" rel="noopener">고용24 로그인 ↗</a>
           </div>
@@ -93,8 +93,8 @@
         <div class="mju-alert mju-alert--info" style="margin-top:12px">
           <span class="mju-alert__icon"><i data-lucide="party-popper"></i></span>
           <div class="mju-alert__body">
-            <div class="mju-alert__title">합격 통보를 받으셨나요?</div>
-            <div class="mju-alert__text">안내에 적힌 초대코드로 학습근로자 정보로 전환하세요. <a href="./index.html?convert=1">코드 입력하기</a></div>
+            <div class="mju-alert__title">합격 통보를 받은 경우</div>
+            <div class="mju-alert__text">안내에 적힌 초대코드로 학습근로자 정보 전환. <a href="./index.html?convert=1">코드 입력하기</a></div>
           </div>
         </div>
         <p class="menu-group-label" style="margin-top:14px">모집</p>
@@ -117,7 +117,7 @@
       <!-- 표준앱(홈 화면 추가) 첫 진입 + 프로필 없음 = iOS는 Safari와 저장소가 분리돼 정보가 사라짐 → 복원 게이트 -->
       <div class="card" id="restoreCard" style="display:none">
         <p class="ph-card-title">내 정보 불러오기</p>
-        <p class="ph-note" style="margin-bottom:6px">앱 아이콘에서 처음 여셨네요. <b>이미 가입하셨다면</b> 초대코드만 입력하면 정보를 그대로 불러옵니다 — 다시 가입 안 하셔도 돼요.</p>
+        <p class="ph-note" style="margin-bottom:6px">앱 아이콘으로 처음 연 경우: <b>이미 가입했다면</b> 초대코드 입력만으로 정보 불러오기 — 다시 가입 불필요</p>
         <!-- (코드 전용 전환 2026-08-20) 이름·휴대폰 복원 폐지 — 사칭 방지. 필드는 확인 후 자동채움용으로 숨김 유지 -->
         <div style="display:none">
           <label>이름</label>
@@ -127,7 +127,7 @@
         </div>
         <label>초대코드 <span class="req">*</span></label>
         <input type="text" id="r-code" class="code-input" placeholder="합격 안내에 적힌 코드" autocomplete="off" maxlength="12" />
-        <p class="note" style="margin-top:6px">코드를 잃어버렸다면 담당자에게 문의해주세요 (재발급 가능).</p>
+        <p class="note" style="margin-top:6px">코드 분실 시 담당자 문의(재발급 가능)</p>
         <div class="cond" id="r-jobGrp" hidden>
           <label>본인 직무 <span class="req">*</span></label>
           <select id="r-job"><option value="">— 선택 —</option></select>
@@ -138,12 +138,12 @@
         </div>
         <button class="btn" id="r-go">내 정보 불러오기</button>
         <div class="status" id="r-status"></div>
-        <p class="note" style="text-align:center;margin-top:10px"><a href="#" id="r-fresh">처음 가입하시나요? 새로 가입하기</a></p>
+        <p class="note" style="text-align:center;margin-top:10px"><a href="#" id="r-fresh">처음 가입이면 새로 가입하기</a></p>
       </div>
 
       <div class="card" id="signupCard">
         <p class="ph-card-title">간편 가입</p>
-        <p class="ph-note" id="signup-note" style="margin-bottom:6px">합격 안내에 동봉된 초대코드만 입력하면 가입됩니다.</p>
+        <p class="ph-note" id="signup-note" style="margin-bottom:6px">합격 안내에 동봉된 초대코드 입력만으로 가입</p>
 
         <form id="form">
           <label id="targets-label">대상 구분 <span class="req">*</span></label>
@@ -162,7 +162,7 @@
           <div class="cond" id="grp-code" hidden>
             <label>초대코드 <span class="req">*</span></label>
             <input type="text" id="join-code" class="code-input" placeholder="합격 안내에 적힌 코드" autocomplete="off" maxlength="12" />
-            <p class="note" style="margin-top:6px" id="code-note">합격 안내에 동봉된 코드를 입력하면 명단 정보(이름·직무·기업)로 가입돼요. 코드가 없거나 잃어버렸다면 담당자에게 문의해주세요.</p>
+            <p class="note" style="margin-top:6px" id="code-note">합격 안내에 동봉된 코드 입력 시 명단 정보(이름·직무·기업)로 가입. 코드가 없거나 분실 시 담당자 문의</p>
           </div>
 
           <!-- 조건부: 훈련 직무 -->
@@ -185,7 +185,7 @@
           <div class="cond" id="grp-cocode" hidden>
             <label>기업 초대코드 <span class="req">*</span></label>
             <input type="text" id="co-code" class="code-input" placeholder="지정완료 안내 메일의 코드" autocomplete="off" maxlength="12" />
-            <p class="note" style="margin-top:6px">코드를 입력하면 소속 기업과 담당자 정보(HRD)가 자동으로 확인돼요. 코드가 없으면 센터에서 받은 메일을 확인하거나 담당자에게 문의하세요.</p>
+            <p class="note" style="margin-top:6px">코드 입력 시 소속 기업·담당자 정보(HRD) 자동 확인. 코드가 없으면 센터 안내 메일 확인 또는 담당자 문의</p>
           </div>
 
           <!-- 조건부: 지원자 관심직무·학과 -->
@@ -222,7 +222,7 @@
           <button class="btn" id="submit" type="submit">가입하기</button>
           <div class="status" id="status"></div>
           <div id="help" class="warn" style="display:none;margin-top:14px">
-            명단 확인이 안 되면 담당자에게 문의하거나, 아래로 도움을 요청해주세요.
+            명단 확인이 안 되면 담당자 문의 또는 아래에서 도움 요청
             <b id="help-contact" style="display:block;margin-top:4px"></b>
             <button type="button" class="mju-btn mju-btn--sm mju-btn--secondary" id="help-send" style="margin-top:10px">가입 도움 요청 보내기</button>
             <div class="status" id="help-status"></div>
@@ -425,15 +425,15 @@
       if (cur) {
         const ym = String(cur.month).slice(0, 7), us = unitsOf(cur);
         h += `<p class="menu-group-label" style="margin-top:14px">${ym === curYm ? '이번 달 OJT' : '다음 OJT'} · ${moName(ym)}${cur.planned != null ? ` 예정 ${Number(cur.planned)}시간` : ''}</p>` +
-          `<div class="op-cur">` + (us.length ? us.map(big).join('') : `<p class="op-none">능력단위가 아직 없어요.</p>`) +
-          (us.some(u => ((info(u) || {}).elements || []).length) ? `<p class="oj-copy">참고만 하고 <b>자기 말로</b> 바꿔 쓰세요 — 그대로 복사하면 공단 모니터링 대상이 돼요.</p>` : '') +
+          `<div class="op-cur">` + (us.length ? us.map(big).join('') : `<p class="op-none">능력단위 아직 없음</p>`) +
+          (us.some(u => ((info(u) || {}).elements || []).length) ? `<p class="oj-copy">참고만 하고 <b>자기 말로</b> 바꿔 쓰기 — 그대로 복사 시 공단 모니터링 대상</p>` : '') +
           `</div>`;
       }
       h += `<details class="op-all"><summary>전체 월 보기</summary><div class="op-list">` + rows.map(r => {
         const ym = String(r.month).slice(0, 7), us = unitsOf(r);
         return `<div class="op-row${ym === curYm ? ' now' : ym < curYm ? ' past' : ''}"><span class="op-mo">${moName(ym)}</span><span class="op-p">${r.planned != null ? Number(r.planned) + 'h' : '—'}</span>` +
           `<span class="op-us">${us.map(u => { const i = info(u); return `<span>${e(u)}${i && i.hours != null ? ` <small>${Number(i.hours)}h</small>` : ''}</span>`; }).join('') || '—'}</span></div>`;
-      }).join('') + `</div><p class="op-note">h 는 그 능력단위 전체 시간(학습안내서)이에요.</p></details>`;
+      }).join('') + `</div><p class="op-note">h = 그 능력단위 전체 시간(학습안내서 기준)</p></details>`;
       const box = document.getElementById('ojt-plan');
       box.innerHTML = h;
       box.style.display = '';
@@ -473,7 +473,7 @@
         }
       }
       // [디자인 2단계] 먹색 머리 — 결론 한 문장(제목) + 큰 숫자(300) + 진도 막대 + 다음 훈련
-      document.getElementById('t-title').textContent = `${prof.name}님, ${mon}월 ${TL[curT]} ${Number(cur.actual)}시간 출석했어요`;
+      document.getElementById('t-title').textContent = `${prof.name}님, ${mon}월 ${TL[curT]} ${Number(cur.actual)}시간 출석`;
       const hero = document.getElementById('hero');
       hero.innerHTML =
         `<div class="hero-num"><b>${pct}</b><span>% · 배정 ${Number(cur.planned)}시간</span></div>` +
@@ -489,9 +489,9 @@
     let _obSeen = true; try { _obSeen = !!localStorage.getItem(OB_KEY); } catch (_) {}
     if (!_centerBlocked && !(_prof && _prof.name) && !_obSeen && !isStandalone() && !_convert) {
       const slides = [
-        { icon: 'megaphone',  t: '공지·자료·일정을 한곳에서',      s: '공동훈련센터의 공지사항, 학습안내서·서식, 외부평가·마감 일정을 이 앱 하나로 확인해요.' },
-        { icon: 'user-check', t: '가입은 이름·휴대폰이면 끝',      s: '센터 명단과 자동으로 확인해 30초면 가입돼요. 직무·기업 정보는 명단에서 자동으로 채워집니다.' },
-        { icon: 'bell-ring',  t: '홈 화면에 추가하고 알림 받기',   s: '가입 후 "홈 화면에 추가"하면 앱처럼 쓰고, 새 공지를 푸시 알림으로 받아요. 아이폰은 Safari에서 열어주세요.' },
+        { icon: 'megaphone',  t: '공지·자료·일정을 한곳에서',      s: '공동훈련센터 공지사항, 학습안내서·서식, 외부평가·마감 일정을 앱 하나로 확인' },
+        { icon: 'user-check', t: '가입은 이름·휴대폰이면 끝',      s: '센터 명단과 자동 대조, 30초면 가입. 직무·기업 정보는 명단에서 자동 입력' },
+        { icon: 'bell-ring',  t: '홈 화면에 추가하고 알림 받기',   s: '가입 후 "홈 화면에 추가"하면 앱처럼 사용, 새 공지는 푸시 알림으로 수신. 아이폰은 Safari에서 열기' },
       ];
       let obIdx = 0;
       const ob = document.getElementById('ob'), obDots = document.getElementById('ob-dots');
@@ -667,7 +667,7 @@
           if (ch && ch.ok) (ch.tasks || []).forEach(t => {
             if (!t.due_on) return;
             all.push({ title: t.title, event_date: t.due_on, kind: t.kind, field: true, done: !!t.done_on,
-                       memo: t.done_on ? '센터가 받았어요' : t.note || '' });
+                       memo: t.done_on ? '센터 접수 완료' : t.note || '' });
           });
         } catch (_) {}
       }
@@ -740,15 +740,15 @@
         const a = m.byDay[ds];
         const who = a && (a.by_role === 'company' || a.by_role === 'teacher') ? ` · 기업 담당자${a.by_name ? ' ' + esc(a.by_name) : ''} 체크` : '';
         if (a && a.state === 'applied')
-          return `<div class="ab-box done"><p class="ab-t">${AK[a.kind] || '휴가'} · 다른 날로 옮겼어요${who}</p><p class="ab-s">바뀐 훈련 날짜는 달력에서 확인하세요.</p></div>`;
+          return `<div class="ab-box done"><p class="ab-t">${AK[a.kind] || '휴가'} · 다른 날로 옮김${who}</p><p class="ab-s">바뀐 훈련 날짜는 달력에서 확인</p></div>`;
         if (a && a.state === 'open')
-          return `<div class="ab-box on"><p class="ab-t">${AKRO[a.kind] || '휴가로'} 체크했어요${who}</p>` +
-            `<p class="ab-s">센터 선생님이 이 날 훈련을 다른 날로 옮겨요.${a.note ? ' 메모: ' + esc(a.note) : ''}</p>` +
+          return `<div class="ab-box on"><p class="ab-t">${AKRO[a.kind] || '휴가로'} 체크함${who}</p>` +
+            `<p class="ab-s">센터 선생님이 이 날 훈련을 다른 날로 옮길 예정${a.note ? ' 메모: ' + esc(a.note) : ''}</p>` +
             `<button type="button" class="ab-cancel" data-id="${esc(a.id)}">체크 취소</button></div>`;
-        return `<div class="ab-box"><p class="ab-t">이 날 휴가·출장인가요?</p>` +
-          `<p class="ab-s">체크하면 센터 선생님이 이 날 훈련을 다른 날로 옮겨요.` +
-          (m.size > 1 ? ` 같은 과정 학생 ${m.size}명이 함께 훈련해서 <b>이 날은 과정 전체가 옮겨져요.</b>` : '') + `</p>` +
-          (a && a.state === 'rejected' ? `<p class="ab-s ab-warn">지난번 체크는 반려됐어요. 궁금하면 센터에 문의하세요.</p>` : '') +
+        return `<div class="ab-box"><p class="ab-t">이 날 휴가·출장인 경우</p>` +
+          `<p class="ab-s">체크 시 센터 선생님이 이 날 훈련을 다른 날로 옮김` +
+          (m.size > 1 ? ` 같은 과정 학생 ${m.size}명이 함께 훈련 중이라 <b>이 날은 과정 전체 이동</b>` : '') + `</p>` +
+          (a && a.state === 'rejected' ? `<p class="ab-s ab-warn">지난번 체크는 반려됨. 궁금한 점은 센터 문의</p>` : '') +
           `<div class="ab-btns"><button type="button" class="ab-btn" data-kind="leave" data-d="${ds}">휴가</button>` +
           `<button type="button" class="ab-btn" data-kind="trip" data-d="${ds}">출장</button></div></div>`;
       }
@@ -797,7 +797,7 @@
           : '';
         const rows = shown.map(r => rowHtml(r, badgeOf(r))).join('') + undShown.map(t => rowHtml(t, `<span class="dday muted">미정</span>`)).join('');
         return `<p class="hc-sub">${mo}월 일정${shown.length + undShown.length ? ' ' + (shown.length + undShown.length) + '건' : ''}</p>` + chips +
-          (rows || `<p class="note" style="margin:10px 0 0">${homeKind ? '이 종류의 일정이 없어요.' : '이 달 일정이 없어요.'}</p>`);
+          (rows || `<p class="note" style="margin:10px 0 0">${homeKind ? '이 종류의 일정 없음' : '이 달 일정 없음'}</p>`);
       }
 
       const byDate = {};
@@ -827,7 +827,7 @@
           const meta = info && info.hours != null ? `<span class="oj-u-meta">학습안내서 ${Number(info.hours)}시간</span>` : '';
           if (!els.length) return `<div class="oj-u"><span class="oj-u-n">${esc(u)}</span>${meta}</div>`;
           return `<details class="oj-u"><summary><span class="oj-u-n">${esc(u)}</span>${meta}<span class="oj-u-more">요소 보기</span></summary>` +
-            `<p class="oj-copy">참고만 하고 <b>자기 말로</b> 바꿔 쓰세요 — 그대로 복사하면 공단 모니터링 대상이 돼요.</p>` +
+            `<p class="oj-copy">참고만 하고 <b>자기 말로</b> 바꿔 쓰기 — 그대로 복사 시 공단 모니터링 대상</p>` +
             els.map((el, i) => `<details class="oj-el"><summary>${i + 1}. ${esc(el.name)}</summary><ul>${(el.tasks || []).map(t => `<li>${esc(t)}</li>`).join('')}</ul></details>`).join('') +
             `</details>`;
         }).join('');
@@ -846,7 +846,7 @@
               const meta = info && info.hours != null ? `<span class="oj-u-meta">학습안내서 ${Number(info.hours)}시간</span>` : '';
               if (!els.length) return `<div class="oj-u"><span class="oj-u-s">${esc(x.s)}</span><span class="oj-u-n">${esc(x.u)}</span>${meta}</div>`;
               return `<details class="oj-u"><summary><span class="oj-u-s">${esc(x.s)}</span><span class="oj-u-n">${esc(x.u)}</span>${meta}<span class="oj-u-more">요소 보기</span></summary>` +
-                `<p class="oj-copy">참고만 하고 <b>자기 말로</b> 바꿔 쓰세요 — 그대로 복사하면 공단 모니터링 대상이 돼요.</p>` +
+                `<p class="oj-copy">참고만 하고 <b>자기 말로</b> 바꿔 쓰기 — 그대로 복사 시 공단 모니터링 대상</p>` +
                 els.map((el, i) => `<details class="oj-el"><summary>${i + 1}. ${esc(el.name)}</summary><ul>${(el.tasks || []).map(t => `<li>${esc(t)}</li>`).join('')}</ul></details>`).join('') +
                 `</details>`;
             }).join('');
@@ -921,8 +921,8 @@
               `</div>` +
               `<div class="cal-grid hc-cal">${dow}</div>` +
               `<div class="cal-grid hc-cal" style="margin-bottom:4px">${cells}</div>` +
-              (wkndEvts ? `<p class="ph-note" style="margin:6px 0 0">주말 일정 ${wkndEvts}건은 아래 목록에 있어요.</p>` : '') +
-              (homeSel ? dayDetail(homeSel) : (sd && (sDays.some(r => r.day.slice(0, 7) === homeYm)) ? `<p class="ph-note" style="margin:6px 0 0">날짜를 누르면 그날 수업·훈련 내용이 나와요.</p>` : '')) +
+              (wkndEvts ? `<p class="ph-note" style="margin:6px 0 0">주말 일정 ${wkndEvts}건은 아래 목록 참고</p>` : '') +
+              (homeSel ? dayDetail(homeSel) : (sd && (sDays.some(r => r.day.slice(0, 7) === homeYm)) ? `<p class="ph-note" style="margin:6px 0 0">날짜를 누르면 그날 수업·훈련 내용 표시</p>` : '')) +
               monthList(homeYm) +
               (homeYm !== thisYm ? `<button type="button" class="hc-today" id="hc-today">이번 달로</button>` : '') +
           `</div>`;
@@ -1044,9 +1044,9 @@
     let pendingCompany = null; // 명단에 담당자 연락처가 없는 기업의 2단계(직접 입력)용
     let pendingCoConfirm = null; // (10/23) 기업 코드 확인 후 '○○ 담당자로 가입' 한 번 더 확인 — 코드를 잘못 넣어도 바로 가입되지 않게
     const SIGNUP_NOTE = {
-      student: '합격 안내에 동봉된 초대코드만 입력하면 가입됩니다.',
-      company: '센터에서 받은 기업 초대코드만 입력하면 가입됩니다.',
-      applicant: '이름·휴대폰과 관심 직무만 적으면 모집 알림을 받아요.',
+      student: '합격 안내에 동봉된 초대코드 입력만으로 가입',
+      company: '센터에서 받은 기업 초대코드 입력만으로 가입',
+      applicant: '이름·휴대폰·관심 직무 입력 시 모집 알림 수신',
     };
     function resetCoConfirm() {
       if (!pendingCoConfirm) return;

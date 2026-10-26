@@ -276,7 +276,7 @@
       <h2 class="sec">더보기</h2>
       <div class="more card">
         <details id="stage-sec" hidden><summary>우리 회사 진행 현황 <span id="stage-now"></span></summary><div id="stage-view"></div></details>
-        <details><summary>능력단위 <span>달마다 배우는 내용</span></summary><p class="lede">실시신고 시간표의 달별 배정이에요. 단위를 누르면 능력단위요소·수행과업이 나와요.</p><div id="u-list"></div></details>
+        <details><summary>능력단위 <span>달마다 배우는 내용</span></summary><p class="lede">실시신고 시간표의 달별 배정. 단위를 누르면 능력단위요소·수행과업 표시</p><div id="u-list"></div></details>
         <details><summary>월별 출결 마감 <span>학습일지·출석확인</span></summary><div id="a-view"></div></details>
       </div>
     </section>
@@ -293,7 +293,7 @@
   <div class="veil" id="veil" hidden>
     <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sh-t">
       <h3 id="sh-t">휴가·출장 알리기</h3>
-      <p class="lede">알려 주시면 센터가 그 날 훈련을 다른 날로 옮겨요.</p>
+      <p class="lede">알리면 센터가 그 날 훈련을 다른 날로 옮김</p>
       <p class="q">누가 <span>(여러 명 가능)</span></p><div class="chips" id="sh-who"></div>
       <p class="q">언제 <span>(훈련일만, 여러 날 가능)</span></p><div class="chips" id="sh-day"></div>
       <p class="q">무엇</p><div class="seg" id="sh-kind"><button type="button" aria-pressed="true" data-k="leave">휴가</button><button type="button" aria-pressed="false" data-k="trip">출장</button></div>
@@ -384,16 +384,16 @@
       //   건수 = '할 일' 목록과 같은 기준(내부평가·면담일지 마감 + 모자란 날 묶음 1). (10/23 사용자) 전담인력수당은 기업 앱에서 뺌
       const openT = (D.tasks || []).filter(t => !t.done_on && t.month <= thisYm).sort((a, b) => ((a.due_on || a.month) < (b.due_on || b.month) ? -1 : 1));
       const nTodo = openT.length + (sh.length ? 1 : 0);
-      const title = nTodo ? `확인할 일이 ${nTodo}건 있어요` : `${moName(thisYm)} 남은 훈련일 ${leftDays}일`;
+      const title = nTodo ? `확인할 일 ${nTodo}건` : `${moName(thisYm)} 남은 훈련일 ${leftDays}일`;
       const subs = [];
       const nd = openT.find(t => t.due_on);
       if (nd) subs.push(`가장 가까운 마감 <b>${esc(md(nd.due_on))}</b> ${esc([...new Set(openT.filter(t => t.due_on === nd.due_on).map(t => t.kind))].join('·'))}`);
       if (sh.length) subs.push(`인정 시간 모자란 날 <b>${sh.length}건</b>`);
-      if (!nTodo && leftDays) subs.push('지금은 처리할 일이 없어요');
+      if (!nTodo && leftDays) subs.push('지금 처리할 일 없음');
       $('head').innerHTML = `<p class="co">${esc(D.company)} · 학생 ${studs().length}명</p><h1 class="ph-title">${esc(title)}</h1>` +
         (subs.length ? `<p class="hd-sub">${subs.join(' · ')}</p>` : '');
       $('t-month').hidden = false; $('links').hidden = false;
-      $('foot').textContent = `인정 시간은 센터가 매일 아침 행정지원시스템에서 조회한 값이에요(어제까지). 문의는 센터 담당 선생님께.`;
+      $('foot').textContent = `인정 시간 = 센터가 매일 아침 행정지원시스템에서 조회한 값(어제까지). 문의는 센터 담당 선생님께`;
       drawMonth(); drawTodo(sh); drawAbs(); drawUnits(); drawAttn(); drawStage();
     }
 
@@ -479,7 +479,7 @@
           `${us.length ? `<small class="u">${esc(us.join(' · '))}</small>` : ''}</span>${!a && ds >= today ? '' : st}${act}</div>`;   // 앞으로의 날은 '예정' 대신 버튼만
       }).join('');
       h += inf.evs.map(e => `<div class="sr tk"><span class="n"><b>${esc(e.kind)}</b><span>${esc(e.title)}${e.memo ? ' · ' + esc(e.memo) : ''}</span></span></div>`).join('');
-      if (!rows.length && !inf.tasks.length && !inf.evs.length) h += `<p class="lede" style="margin:0">이 날은 OJT 훈련이 없어요.</p>`;
+      if (!rows.length && !inf.tasks.length && !inf.evs.length) h += `<p class="lede" style="margin:0">이 날은 OJT 훈련 없음</p>`;
       $('m-day').innerHTML = h + `</div>`;
       // (10/23 점검) 바로 접수하지 않고 알리기 시트를 그 학생·날짜·종류로 채워 엶 — 알리는 분 이름·과정 전체 이동 안내를 거치게
       $('m-day').querySelectorAll('[data-ab]').forEach(b => b.addEventListener('click', () => openSheet(ds, b.dataset.sid, b.dataset.ab)));
@@ -492,11 +492,11 @@
       let h = '';
       h += tasks.map(taskRow).join('');
       if (sh.length) h += `<div class="bi"><span class="k ev" style="background:var(--v-warn)">확인</span><span class="wh"><b>인정 시간이 모자란 날 ${sh.length}건</b>` +
-        `<span>${sh.slice(0, 4).map(({ s, d }) => `${md(d.day)} ${esc(s.name)} ${d.status === 'none' ? '기록 없음' : (Number(d.recognized) || 0) + 'h/' + Number(d.hours) + 'h'}`).join(' · ')}${sh.length > 4 ? ` 외 ${sh.length - 4}건` : ''} — 휴가·출장이었다면 알려 주세요</span></span></div>`;
+        `<span>${sh.slice(0, 4).map(({ s, d }) => `${md(d.day)} ${esc(s.name)} ${d.status === 'none' ? '기록 없음' : (Number(d.recognized) || 0) + 'h/' + Number(d.hours) + 'h'}`).join(' · ')}${sh.length > 4 ? ` 외 ${sh.length - 4}건` : ''} — 휴가·출장이었다면 알리기</span></span></div>`;
       // (10/23) 마감 알림 — 이 기기에서 알림을 안 켰으면 켜기 안내(켜면 기업 코드로 등록돼 내부평가·면담일지 D-3 알림을 받음, sql/78)
       let noti = '';
-      try { if ('Notification' in window && Notification.permission !== 'granted') noti = `<div class="bi"><span class="k">알림</span><span class="wh"><b>마감 알림 받기</b><span>내부평가·면담일지 마감 3일 전부터 평일 아침에 알려 드려요</span></span><a class="lnk" href="./install.html">켜기</a></div>`; } catch (_) {}
-      $('m-todo').innerHTML = `<div class="box">${h || '<p class="empty">지금은 할 일이 없어요.</p>'}${noti}</div>`;
+      try { if ('Notification' in window && Notification.permission !== 'granted') noti = `<div class="bi"><span class="k">알림</span><span class="wh"><b>마감 알림 받기</b><span>내부평가·면담일지 마감 3일 전부터 평일 아침 알림</span></span><a class="lnk" href="./install.html">켜기</a></div>`; } catch (_) {}
+      $('m-todo').innerHTML = `<div class="box">${h || '<p class="empty">지금 할 일 없음</p>'}${noti}</div>`;
       $('m-todo').querySelectorAll('[data-open]').forEach(a => a.addEventListener('click', e => {
         e.preventDefault();
         const d = $(a.dataset.open); if (!d) return;
@@ -506,13 +506,13 @@
     // 알린 휴가·출장 — 취소 가능. 알리기는 달력에서 날짜를 고른 뒤(아래 버튼은 중복이라 뺌, 사용자 10/22)
     function drawAbs() {
       const list = studs().flatMap(s => liveAbs(s).map(a => ({ s, a }))).filter(x => x.a.day >= ymAdd(thisYm, -1) + '-01').sort((x, y) => (x.a.day < y.a.day ? -1 : 1));
-      $('m-abs').innerHTML = `<p class="sec-sub">알려 주시면 센터가 그 날 훈련을 다른 날로 옮겨요.</p><div class="box">` +
+      $('m-abs').innerHTML = `<p class="sec-sub">알리면 센터가 그 날 훈련을 다른 날로 옮김</p><div class="box">` +
         (list.length ? list.map(({ s, a }) => {
           const who = a.by_role === 'company' || a.by_role === 'teacher' ? (a.by_name || '기업 담당자') : a.by_role === 'admin' ? '센터' : '학생 본인';
           return `<div class="bi"><span class="k${a.kind === 'trip' ? ' trip' : ''}">${AK[a.kind]}</span><span class="wh"><b>${md(a.day)} ${esc(s.name)}</b>` +
             `<span>${esc(who)}${a.note ? ' · ' + esc(a.note) : ''}</span></span>` +
             (a.state === 'applied' ? `<span class="r">다른 날로 옮김</span>` : a.by_role === 'company' ? `<button type="button" class="lnk" data-cancel="${esc(a.id)}">취소</button>` : `<span class="r">센터에 문의</span>`) + `</div>`;
-        }).join('') : `<p class="empty">아직 없어요. 달력에서 날짜를 누르고 학생 옆 [휴가]·[출장]을 누르면 돼요.</p>`) + `</div>`;
+        }).join('') : `<p class="empty">아직 없음. 달력에서 날짜를 누르고 학생 옆 [휴가]·[출장] 누르기</p>`) + `</div>`;
       $('m-abs').querySelectorAll('[data-cancel]').forEach(b => b.addEventListener('click', () => cancel(b)));
     }
 
@@ -523,7 +523,7 @@
       const days = [...new Set(studs().flatMap(s => (s.days || []).filter(d => d.day >= today).map(d => d.day)))].sort();
       $('sh-who').innerHTML = studs().map(s => `<button type="button" class="chip2" aria-pressed="false" data-v="${esc(s.id)}">${esc(s.name)}</button>`).join('');
       $('sh-day').innerHTML = days.length ? days.map(d => `<button type="button" class="chip2" aria-pressed="false" data-v="${d}">${md(d)}</button>`).join('')
-        : `<p class="lede" style="margin:0">${moName(ym)}에 앞으로 남은 훈련일이 없어요. 위에서 다음 달로 넘긴 뒤 알려 주세요.</p>`;
+        : `<p class="lede" style="margin:0">${moName(ym)}에 앞으로 남은 훈련일 없음. 위에서 다음 달로 넘긴 뒤 알리기</p>`;
       const bind = (id, set) => $(id).querySelectorAll('.chip2').forEach(b => b.addEventListener('click', () => {
         const on = b.getAttribute('aria-pressed') !== 'true'; b.setAttribute('aria-pressed', on);
         on ? set.add(b.dataset.v) : set.delete(b.dataset.v); sheetMsg();
@@ -591,7 +591,7 @@
         if (courseOf(s)) h += `<p class="grp">${esc(s.name)} · ${esc(courseOf(s))}</p>`;
         const info = u => (s.units || []).find(x => x.unit === u) || null;
         const months = (s.months || []).filter(m => Number(m.planned) > 0 || m.units);
-        if (!months.length) { h += `<p class="msg" style="margin:8px 0">OJT 배정이 아직 없어요.</p>`; return; }
+        if (!months.length) { h += `<p class="msg" style="margin:8px 0">OJT 배정 아직 없음</p>`; return; }
         months.forEach(m => {
           const now = m.month === thisYm;
           h += `<p class="mo${now ? ' now' : ''}"><b>${moName(m.month)}${m.month.slice(0, 4) !== thisYm.slice(0, 4) ? ` (${m.month.slice(0, 4)})` : ''}</b><span>${Number(m.planned) || 0}시간</span>${now ? '<em>이번 달</em>' : ''}</p>`;
@@ -605,7 +605,7 @@
           }).join('') : `<div class="unit"><span class="mu">능력단위 없음</span></div>`;
         });
       });
-      $('u-list').innerHTML = h || `<p class="msg">학생이 없어요.</p>`;
+      $('u-list').innerHTML = h || `<p class="msg">학생 없음</p>`;
       $('u-list').querySelectorAll('#u-who .chip2').forEach(b => b.addEventListener('click', () => { uSel = b.dataset.v; drawUnits(); }));
     }
 
@@ -621,7 +621,7 @@
     let attnYm = null;
     function drawAttn() {
       const ms = ojtMonths();
-      if (!ms.length) { $('a-view').innerHTML = `<h2>월별 출결</h2><p class="msg" style="margin:8px 0">아직 OJT 배정 달이 없어요.</p>`; return; }
+      if (!ms.length) { $('a-view').innerHTML = `<h2>월별 출결</h2><p class="msg" style="margin:8px 0">아직 OJT 배정 달 없음</p>`; return; }
       if (!attnYm || !ms.includes(attnYm)) attnYm = latestStatusMonth() || ms[ms.length - 1];
       const i = ms.indexOf(attnYm), m = attnYm, cur = m === thisYm;
       const rows = studs().filter(s => monthRow(s, m)).map(s => ({ s, mr: monthRow(s, m), ok: checked(s, m), cc: centerOn(s, m) }));
@@ -630,10 +630,10 @@
       const firstNo = steps.findIndex(x => !x[1]);
       const lack = rows.filter(r => !r.ok);
       let h = `<div class="mnav"><button type="button" id="a-prev" aria-label="이전 달"${i <= 0 ? ' disabled' : ''}>‹</button><b>${m.slice(0, 4)}년 ${moName(m)}분</b><button type="button" id="a-next" aria-label="다음 달"${i >= ms.length - 1 ? ' disabled' : ''}>›</button></div>` +
-        `<p class="lede">한 달 출결은 아래 순서로 마감돼요. 학생이 고용24에서 학습일지를 쓰고 [출석결과확인 등록]을 누른 뒤 앱에서 완료 체크하면 '완료'로 바뀌어요.</p>` +
+        `<p class="lede">한 달 출결 마감 순서. 학생이 고용24에서 학습일지 작성 → [출석결과확인 등록] → 앱에서 완료 체크하면 '완료'로 바뀜</p>` +
         `<div class="steps">${steps.map(([l, d], k) => `<div class="${d ? 'd' : k === firstNo ? 'n' : ''}">${l}</div>`).join('')}</div>`;
-      if (!cur && lack.length) h += `<div class="alert"><p><b>${esc(lack.map(r => r.s.name).join(', '))} 학생이 아직 ${moName(m)} 학습일지·출석확인을 마치지 않았어요.</b></p><p>센터도 알림을 보내요. 회사에서도 한 번 알려 주세요.</p></div>`;
-      else if (cur) h += `<p class="lede">${moName(m)}분은 다음 달 1일부터 마감해요(마감 ${moName(ymAdd(m, 1))} 3일).</p>`;
+      if (!cur && lack.length) h += `<div class="alert"><p><b>${esc(lack.map(r => r.s.name).join(', '))} 학생이 아직 ${moName(m)} 학습일지·출석확인 미완료</b></p><p>센터도 알림 발송. 회사에서도 한 번 안내 부탁</p></div>`;
+      else if (cur) h += `<p class="lede">${moName(m)}분은 다음 달 1일부터 마감(마감 ${moName(ymAdd(m, 1))} 3일).</p>`;
       // 학생마다 한 줄(폰에서 4칸 표는 좁아 읽기 어려움 — 사용자 10/22 가시성): 이름·인정/계획 / 오른쪽 학습일지·출석확인 상태 + 센터 확인일
       h += `<div class="rows">` + rows.map(({ s, mr, ok, cc }) => `<div class="row"><div class="l"><b>${esc(s.name)}</b>` +
           `<span>인정 ${mr.actual != null ? Number(mr.actual) : '—'} / 계획 ${Number(mr.planned) || 0}시간${courseOf(s) && multiCourse() ? ' · ' + esc(courseOf(s)) : ''}</span></div>` +

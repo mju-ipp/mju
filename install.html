@@ -17,7 +17,7 @@
       <img class="wm" src="./assets/logo-mono-white.png" alt="" />
       <div class="ph-lockup"><img src="./assets/logo-mono-white.png" alt="" /><span>일학습병행 공동훈련센터</span></div>
       <div class="ph-title-row"><a class="ph-back" href="./index.html" aria-label="뒤로"><i data-lucide="chevron-left"></i></a><h1 class="ph-title">앱처럼 쓰기 · 알림 받기</h1></div>
-      <p class="ph-sub">마지막 한 단계만 따라 하세요</p>
+      <p class="ph-sub">홈 화면 추가·알림 켜기 마지막 단계</p>
     </header>
 
     <main class="ph-body">
@@ -25,45 +25,45 @@
       <div class="mju-alert mju-alert--success" id="joined" style="display:none">
         <span class="mju-alert__icon"><i data-lucide="check"></i></span>
         <div class="mju-alert__body">
-          <div class="mju-alert__title">가입이 완료됐어요</div>
-          <div class="mju-alert__text">이제 <b>홈 화면에 추가</b>하면 앱처럼 쓰고, 공지 알림(푸시)을 받을 수 있어요.</div>
+          <div class="mju-alert__title">가입 완료</div>
+          <div class="mju-alert__text">이제 <b>홈 화면에 추가</b>하면 앱처럼 사용, 공지 알림(푸시) 수신 가능</div>
         </div>
       </div>
 
       <!-- 인앱브라우저 경고 -->
       <div class="warn" id="inapp" style="display:none">
-        <b><i data-lucide="alert-triangle"></i> 카카오톡 등 앱 안의 브라우저</b>에서는 홈 화면 추가·알림이 안 됩니다.<br/>
-        오른쪽 위 메뉴 → <b>"다른 브라우저로 열기"</b> (아이폰=Safari, 안드로이드=Chrome) 로 다시 열어주세요.<br/>
+        <b><i data-lucide="alert-triangle"></i> 카카오톡 등 앱 안의 브라우저</b>에서는 홈 화면 추가·알림 불가<br/>
+        오른쪽 위 메뉴 → <b>"다른 브라우저로 열기"</b> (아이폰=Safari, 안드로이드=Chrome) 로 다시 열기<br/>
         <button type="button" id="copyUrl" class="mju-btn mju-btn--secondary mju-btn--sm" style="margin-top:10px"><i data-lucide="clipboard-list"></i> 주소 복사 → Safari/크롬에 붙여넣기</button>
       </div>
 
       <!-- iOS 안내 -->
       <div class="card" id="ios" style="display:none">
         <p class="ph-card-title">아이폰(Safari) 사용자</p>
-        <div class="step-row"><span class="step-num">1</span><span class="st">화면 아래 <b>공유 버튼</b>(□에 ↑) 을 누르세요.</span></div>
-        <div class="step-row"><span class="step-num">2</span><span class="st">목록에서 <b>"홈 화면에 추가"</b> 를 누르세요.</span></div>
-        <div class="step-row"><span class="step-num">3</span><span class="st">오른쪽 위 <b>"추가"</b> 를 누르면 홈 화면에 앱 아이콘이 생겨요.</span></div>
-        <div class="step-row"><span class="step-num">4</span><span class="st">이제 <b>그 아이콘으로 앱을 열고</b>, 아래 "알림 켜기"를 눌러주세요.</span></div>
-        <p class="ph-note">※ 아이폰은 <b>홈 화면에 추가한 뒤 그 아이콘으로 연 상태</b>에서만 알림이 켜집니다(애플 정책).</p>
+        <div class="step-row"><span class="step-num">1</span><span class="st">화면 아래 <b>공유 버튼</b>(□에 ↑) 누르기</span></div>
+        <div class="step-row"><span class="step-num">2</span><span class="st">목록에서 <b>"홈 화면에 추가"</b> 누르기</span></div>
+        <div class="step-row"><span class="step-num">3</span><span class="st">오른쪽 위 <b>"추가"</b> 누르면 홈 화면에 앱 아이콘 생성</span></div>
+        <div class="step-row"><span class="step-num">4</span><span class="st">이제 <b>그 아이콘으로 앱을 열고</b>, 아래 "알림 켜기" 누르기</span></div>
+        <p class="ph-note">※ 아이폰은 <b>홈 화면에 추가한 뒤 그 아이콘으로 연 상태</b>에서만 알림 켜짐(애플 정책)</p>
       </div>
 
       <!-- Android 안내 -->
       <div class="card" id="android" style="display:none">
         <p class="ph-card-title">안드로이드 사용자</p>
         <p class="ph-note" style="margin:0 0 4px;font-weight:800;color:var(--text-primary)">크롬(Chrome)</p>
-        <div class="step-row"><span class="step-num">1</span><span class="st">오른쪽 위 <b>⋮ 메뉴</b> 를 누르세요.</span></div>
-        <div class="step-row"><span class="step-num">2</span><span class="st"><b>"앱 설치"</b> 또는 <b>"홈 화면에 추가"</b> 를 누르세요. <span style="color:var(--text-muted)">(자동으로 안 떠요 — 메뉴에서 직접)</span></span></div>
+        <div class="step-row"><span class="step-num">1</span><span class="st">오른쪽 위 <b>⋮ 메뉴</b> 누르기</span></div>
+        <div class="step-row"><span class="step-num">2</span><span class="st"><b>"앱 설치"</b> 또는 <b>"홈 화면에 추가"</b> 누르기 <span style="color:var(--text-muted)">(자동으로 안 뜸 — 메뉴에서 직접)</span></span></div>
         <div class="step-row"><span class="step-num">3</span><span class="st"><b>"설치" / "추가"</b> 를 누르면 끝!</span></div>
         <p class="ph-note" style="margin:14px 0 4px;font-weight:800;color:var(--text-primary)">삼성 인터넷 <span style="font-weight:500;color:var(--text-muted)">(삼성폰 기본 브라우저)</span></p>
-        <div class="step-row"><span class="step-num">1</span><span class="st">아래쪽 <b>☰ 메뉴</b> 를 누르세요.</span></div>
-        <div class="step-row"><span class="step-num">2</span><span class="st"><b>"현재 페이지 추가"</b> → <b>"홈 화면"</b> 을 누르세요.</span></div>
-        <p class="ph-note" style="margin-top:10px">※ 카카오톡·네이버 등 <b>앱 안의 브라우저</b>로 열면 설치가 안 됩니다 → 오른쪽 위 ⋮ → <b>"다른 브라우저로 열기"(크롬)</b>로 먼저 여세요.</p>
+        <div class="step-row"><span class="step-num">1</span><span class="st">아래쪽 <b>☰ 메뉴</b> 누르기</span></div>
+        <div class="step-row"><span class="step-num">2</span><span class="st"><b>"현재 페이지 추가"</b> → <b>"홈 화면"</b> 누르기</span></div>
+        <p class="ph-note" style="margin-top:10px">※ 카카오톡·네이버 등 <b>앱 안의 브라우저</b>로 열면 설치 불가 → 오른쪽 위 ⋮ → <b>"다른 브라우저로 열기"(크롬)</b>로 먼저 열기</p>
       </div>
 
       <!-- 알림 켜기 -->
       <div class="card accent">
         <p class="ph-card-title"><i data-lucide="bell"></i> 알림 켜기</p>
-        <p class="ph-note">홈 화면에 추가한 <b>앱 아이콘으로 연 상태</b>에서 아래 버튼을 눌러주세요.</p>
+        <p class="ph-note">홈 화면에 추가한 <b>앱 아이콘으로 연 상태</b>에서 아래 버튼 누르기</p>
         <button class="mju-btn mju-btn--gold mju-btn--full" id="notify" style="margin-top:12px"><i data-lucide="bell"></i> 알림 켜기</button>
         <div class="status" id="status"></div>
       </div>
@@ -95,7 +95,7 @@
     let _ip = {}; try { _ip = JSON.parse(localStorage.getItem('ilhak_profile') || '{}'); } catch (_) {}
     if (_ip.target_type === 'applicant') {
       const jt = document.querySelector('#joined .mju-alert__text');
-      if (jt) jt.innerHTML = '이제 <b>홈 화면에 추가</b>하면 앱처럼 쓰고, <b>새 채용공고</b>를 알림으로 받을 수 있어요.';
+      if (jt) jt.innerHTML = '이제 <b>홈 화면에 추가</b>하면 앱처럼 사용, <b>새 채용공고</b> 알림 수신 가능';
     }
     if (isInAppBrowser()) document.getElementById('inapp').style.display = 'block';
     document.getElementById('copyUrl')?.addEventListener('click', () => {

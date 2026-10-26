@@ -27,7 +27,7 @@
       <p class="result-count" id="rcount" style="display:none" aria-live="polite"></p>
       <div id="list"></div>
       <button class="mju-btn mju-btn--secondary mju-btn--full loadmore" id="more" style="display:none">더 보기</button>
-      <p class="note" id="empty" style="display:none;text-align:center;margin-top:30px">표시할 공지가 없습니다.</p>
+      <p class="note" id="empty" style="display:none;text-align:center;margin-top:30px">표시할 공지 없음</p>
       <a href="./index.html" class="mju-btn mju-btn--secondary mju-btn--full" style="margin-top:auto;text-decoration:none">홈으로</a>
     </main>
   </div>
@@ -100,7 +100,7 @@
       listEl.innerHTML = ''; shownCount = 0;
       if (!filtered.length) {
         emptyEl.style.display = 'block';
-        emptyEl.textContent = q ? `'${qEl.value.trim()}' 검색 결과가 없습니다.` : '표시할 공지가 없습니다.';
+        emptyEl.textContent = q ? `'${qEl.value.trim()}' 검색 결과 없음` : '표시할 공지 없음';
         moreBtn.style.display = 'none'; rcount.style.display = 'none';
         return;
       }
@@ -154,7 +154,7 @@
       all = shown;
       if (!all.length) {
         emptyEl.style.display = 'block';
-        if (!profile.name) emptyEl.innerHTML = '내 정보가 이 기기에 없어 맞춤 공지가 안 보일 수 있어요.<br/><a href="./index.html">홈에서 정보 입력하기</a>';
+        if (!profile.name) emptyEl.innerHTML = '내 정보가 이 기기에 없어 맞춤 공지가 안 보일 수 있음<br/><a href="./index.html">홈에서 정보 입력하기</a>';
         return;
       }
       if (all.length > 3) $('sb').style.display = 'block';

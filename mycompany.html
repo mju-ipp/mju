@@ -35,8 +35,8 @@
     <main class="ph-body">
       <div id="gate" style="display:none" class="card">
         <span class="ei" style="margin:0 auto 10px"><i data-lucide="building-2"></i></span>
-        <p class="ph-card-title" style="text-align:center">소속 기업 정보가 없어요</p>
-        <p class="ph-note" style="text-align:center">매칭학생·기업 담당자로 가입(또는 내 정보 불러오기)하면 우리 회사 정보를 볼 수 있어요.</p>
+        <p class="ph-card-title" style="text-align:center">소속 기업 정보 없음</p>
+        <p class="ph-note" style="text-align:center">매칭학생·기업 담당자로 가입(또는 내 정보 불러오기)하면 우리 회사 정보 확인 가능</p>
         <a href="./index.html" class="mju-btn mju-btn--secondary mju-btn--full" style="margin-top:14px">홈에서 정보 입력하기</a>
       </div>
       <div id="body" style="display:none">
@@ -46,13 +46,13 @@
         <div class="card" id="card-contacts">
           <p class="ph-card-title"><i data-lucide="users"></i> 우리 회사 담당자</p>
           <div id="contacts"><p class="note">담당자 명단을 불러오는 중...</p></div>
-          <p class="note" style="margin-top:8px">연락이 필요하면 운영팀 <a href="./consult.html">1:1 상담</a>을 이용해주세요.</p>
+          <p class="note" style="margin-top:8px">연락이 필요하면 운영팀 <a href="./consult.html">1:1 상담</a> 이용</p>
         </div>
         <!-- 3. 회사·학습 안내 — 항목은 항상 표시, 입력 전엔 자리만 -->
         <div class="card" id="card-info">
           <p class="ph-card-title"><i data-lucide="info"></i> 회사·학습 안내</p>
           <div id="info"></div>
-          <p class="note" style="margin-top:10px">출퇴근·비콘 안내는 참고용 정보예요 (앱은 출결을 기록하지 않습니다).</p>
+          <p class="note" style="margin-top:10px">출퇴근·비콘 안내는 참고용 정보(앱은 출결 기록 안 함)</p>
         </div>
         <!-- 4. 내부평가·우리 회사 자료 -->
         <div class="card" id="card-lib">
@@ -141,7 +141,7 @@
       $('info').innerHTML = INFO_BLOCKS.map(([k, ic, label]) =>
         `<div class="info-block"><div class="ib-t"><i data-lucide="${ic}"></i>${label}</div>` +
         (info[k] ? `<div class="ib-b">${esc(info[k])}</div>`
-                 : `<div class="ib-b" style="color:var(--text-muted)">아직 입력 전이에요 — 운영팀이 등록하면 여기에 표시돼요.</div>`) +
+                 : `<div class="ib-b" style="color:var(--text-muted)">아직 입력 전 — 운영팀 등록 시 여기에 표시</div>`) +
         `</div>`).join('');
       window.lucide?.createIcons();
     }
@@ -151,9 +151,9 @@
       try {
         // (10/23 점검, sql/77) 기업명 대신 내 코드·토큰으로 — 서버가 기업을 정함
         const res = await supabase.rpc('my_company_info', { p_code: profile.code || null, p_token: profile.token || null });
-        if (res.error || !res.data) { $('contacts').innerHTML = '<p class="note">담당자 명단 준비 중이에요.</p>'; return; }
+        if (res.error || !res.data) { $('contacts').innerHTML = '<p class="note">담당자 명단 준비 중</p>'; return; }
         d = res.data;
-      } catch (_) { $('contacts').innerHTML = '<p class="note">담당자 명단 준비 중이에요.</p>'; return; }
+      } catch (_) { $('contacts').innerHTML = '<p class="note">담당자 명단 준비 중</p>'; return; }
       const cts = d.contacts || [];
       if (cts.length) {
         let teacherN = 0;
@@ -164,14 +164,14 @@
           return `<div class="ct-row"><b>${esc(c.name)}</b><span class="role">${esc(label)}</span></div>`;
         }).join('');
       } else {
-        $('contacts').innerHTML = '<p class="note">담당자 명단 준비 중이에요.</p>';
+        $('contacts').innerHTML = '<p class="note">담당자 명단 준비 중</p>';
       }
       renderInfoBlocks(d.info || {});
     }
 
     // 4. 내부평가·우리 회사 자료 — 자료실(custom 타게팅) 중 내 기업 매칭 행 (library.html visible() 서브셋)
     async function loadLib() {
-      const empty = '<p class="note">아직 등록된 자료가 없어요 — 내부평가 문제지·회사 자료가 등록되면 여기에 표시돼요.</p>';
+      const empty = '<p class="note">아직 등록된 자료 없음 — 내부평가 문제지·회사 자료 등록 시 여기에 표시</p>';
       let data = null;
       try {
         const cidL = await requireCenterId();
@@ -227,7 +227,7 @@
         data = res.data;
       } catch (_) { return; }
       const mine = (data || []).filter(isMyCompanyNotice).slice(0, 5);
-      if (!mine.length) { $('news').innerHTML = '<p class="note">아직 우리 회사 대상 소식이 없어요.</p>'; return; }
+      if (!mine.length) { $('news').innerHTML = '<p class="note">아직 우리 회사 대상 소식 없음</p>'; return; }
       $('news').innerHTML = mine.map(n =>
         `<a class="nt-item" href="./notice.html"><b>${esc(n.title)}</b><div class="note" style="margin-top:2px">${esc((n.body || '').slice(0, 60))}${(n.body || '').length > 60 ? '…' : ''}</div><div class="note">${new Date(n.created_at).toLocaleDateString('ko-KR')}</div></a>`).join('');
     }

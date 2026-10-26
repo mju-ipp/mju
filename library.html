@@ -17,7 +17,7 @@
       <img class="wm" src="./assets/logo-mono-white.png" alt="" />
       <div class="ph-lockup"><img src="./assets/logo-mono-white.png" alt="" /><span>일학습병행 공동훈련센터</span></div>
       <div class="ph-title-row"><a class="ph-back" href="./index.html" aria-label="뒤로"><i data-lucide="chevron-left"></i></a><h1 class="ph-title">자료실</h1></div>
-      <p class="ph-sub">학습안내서·서식·일정표를 한곳에서 확인하세요</p>
+      <p class="ph-sub">학습안내서·서식·일정표 모음</p>
     </header>
     <main class="ph-body">
       <div class="searchbar" id="sb" style="display:none">
@@ -30,8 +30,8 @@
       <button class="mju-btn mju-btn--secondary mju-btn--full loadmore" id="more" style="display:none">더 보기</button>
       <div class="empty-state" id="empty" style="display:none">
         <span class="ei"><i data-lucide="folder"></i></span>
-        <div class="et">아직 등록된 자료가 없어요</div>
-        <p class="es">새 자료가 등록되면 여기에 표시됩니다.</p>
+        <div class="et">아직 등록된 자료 없음</div>
+        <p class="es">새 자료 등록 시 여기에 표시</p>
       </div>
       <a href="./index.html" class="mju-btn mju-btn--secondary mju-btn--full" style="margin-top:auto;text-decoration:none">홈으로</a>
     </main>
@@ -127,7 +127,7 @@
       listEl.innerHTML = ''; shownCount = 0;
       if (!filtered.length) {
         emptyEl.style.display = 'block';
-        emptyEl.innerHTML = '<span class="ei"><i data-lucide="search"></i></span><div class="et">조건에 맞는 자료가 없어요</div><p class="es">검색어나 종류 필터를 바꿔보세요.</p>';
+        emptyEl.innerHTML = '<span class="ei"><i data-lucide="search"></i></span><div class="et">조건에 맞는 자료 없음</div><p class="es">검색어나 종류 필터 변경</p>';
         moreBtn.style.display = 'none'; window.lucide?.createIcons();
         return;
       }
@@ -192,7 +192,7 @@
       }
       if (!all.length) {
         emptyEl.style.display = 'block';
-        if (!profile.name) emptyEl.innerHTML = '<span class="ei"><i data-lucide="folder"></i></span><div class="et">맞춤 자료가 없어요</div><p class="es">내 정보가 이 기기에 없어 맞춤 자료가 안 보일 수 있어요.</p><a href="./index.html" class="mju-btn mju-btn--sm mju-btn--secondary" style="text-decoration:none;margin-top:12px">홈에서 정보 입력하기</a>';
+        if (!profile.name) emptyEl.innerHTML = '<span class="ei"><i data-lucide="folder"></i></span><div class="et">맞춤 자료 없음</div><p class="es">내 정보가 이 기기에 없어 맞춤 자료가 안 보일 수 있음</p><a href="./index.html" class="mju-btn mju-btn--sm mju-btn--secondary" style="text-decoration:none;margin-top:12px">홈에서 정보 입력하기</a>';
         window.lucide?.createIcons();
         return;
       }
