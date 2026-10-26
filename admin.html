@@ -2337,6 +2337,9 @@
       try {
         const { data: pst } = await supabase.rpc('admin_push_status');
         (pst || []).forEach(p => { pushMap[(p.name || '').replace(/\s+/g, '')] = Number(p.devices) || 0; pushTotal += Number(p.devices) || 0; });
+        // (10/26) 마지막 앱 사용 = 알림 켠 기기가 앱을 열 때 하루 1회 등록을 새로 고친 시각(admin_push_status.last_at). 열 정렬용으로 행에 붙임
+        const seen = {}; (pst || []).forEach(p => { seen[(p.name || '').replace(/\s+/g, '')] = p.last_at || null; });
+        rows.forEach(r => { if ((r.target_type || 'student') === 'student') r.seen = seen[(r.name || '').replace(/\s+/g, '')] || ''; });
       } catch (_) {}
       // 기업담당자: 노션 HRD담당자 명단(company_contacts) 기준으로 가입/미가입 표시 (sql/12 + 동기화 적용 시)
       ccReady = false;
@@ -2468,7 +2471,7 @@
       }
       $('rg-count').textContent = cntTxt + (rows.length !== segTotal ? ' · 필터 ' + rows.length + '명' : '');
       const cols = isStu
-        ? [['name', '이름'], ['manager', '담당직원'], ['job_key', '직무'], ['company', '기업'], ['cohort', '기수'], ['phase', '단계'], ['status', '상태'], ['signed', '가입']]
+        ? [['name', '이름'], ['manager', '담당직원'], ['job_key', '직무'], ['company', '기업'], ['cohort', '기수'], ['phase', '단계'], ['status', '상태'], ['signed', '가입'], ['seen', '마지막 앱 사용']]
         : regSeg === 'applicant'
           ? [['name', '이름'], ['interest', '관심직무'], ['created_at', '등록일']]
           : ccReady
@@ -2502,7 +2505,8 @@
         const bell = ((r.target_type || 'student') === 'student' && _nb) ? ` <span class="mju-badge" title="알림 켠 기기 ${_nb}대">알림${_nb > 1 ? ' ' + _nb : ''}</span>` : '';
         const signed = (r.signed ? '<span class="mju-badge mju-badge--success">가입</span>' : '<span class="mju-badge mju-badge--neutral">미가입</span>') + bell;
         const vals = isStu
-          ? [esc(r.name || ''), esc(r.manager || '-'), esc(r.job_key || '-'), esc(r.company || '-'), esc(r.cohort || '-'), phaseCell(r), esc(r.status || '-'), signed]
+          ? [esc(r.name || ''), esc(r.manager || '-'), esc(r.job_key || '-'), esc(r.company || '-'), esc(r.cohort || '-'), phaseCell(r), esc(r.status || '-'), signed,
+             r.seen ? seenAgo(r.seen).replace('마지막 사용 ', '') : '<span class="cn-off" title="알림을 켠 기기가 없어 기록이 없어요">기록 없음</span>']
           : regSeg === 'applicant'
             ? [esc(r.name || ''), esc(r.interest || '-'), fmtD(r.created_at)]
             : ccReady
