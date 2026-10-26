@@ -156,6 +156,7 @@
           return;
         }
 
+        try { localStorage.setItem('ilhak_push_token', token); localStorage.setItem('ilhak_push_refresh', String(Date.now())); } catch (_) {}   // [sql/86] 권한을 끄면 app.js 가 이 번호로 등록을 지움
         setStatus(statusEl, '✅ 알림이 켜졌어요! 이제 공지를 푸시 알림으로 받습니다.', 'ok');
       } catch (e) {
         let m = e.message || String(e);

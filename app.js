@@ -393,7 +393,22 @@ if ('Notification' in window && Notification.permission === 'granted' && window.
         },
       });
       localStorage.setItem('ilhak_push_refresh', String(Date.now()));
+      localStorage.setItem('ilhak_push_token', token);    // [sql/86] 나중에 권한을 끄면 이 번호로 서버 등록을 지움
     } catch (_) { /* SDK 로드·구독 실패 시 조용히 무시 — 백그라운드 배너는 sw.js 가 처리 */ }
+  })();
+} else if ('Notification' in window && Notification.permission !== 'granted') {
+  // [sql/86] 알림을 켰던 기기인데 지금 권한이 꺼져 있으면(휴대폰 설정에서 끔) 서버 등록을 바로 지운다.
+  //  전엔 다음 발송이 실패해야 지워져서 관리자 '알림 n대'·대화방 '알림 꺼짐'이 한참 켬으로 남았음.
+  //  'Notification' 이 없는 곳(iOS 사파리 탭 등)은 권한을 알 수 없으니 건드리지 않는다.
+  (async () => {
+    let tk = null; try { tk = localStorage.getItem('ilhak_push_token'); } catch (_) {}
+    if (!tk) return;
+    try {
+      const { data, error } = await supabase.rpc('unregister_push_token', { p_token: tk });
+      if (!error && data && data.ok) {   // 지웠거나 이미 없음 → 다시 부르지 않게. 실패(sql/86 적용 전·오프라인)면 다음에 다시
+        localStorage.removeItem('ilhak_push_token'); localStorage.removeItem('ilhak_push_refresh');
+      }
+    } catch (_) {}
   })();
 }
 
