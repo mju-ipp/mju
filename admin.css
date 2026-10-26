@@ -425,6 +425,10 @@ body.adm .ch-sheet .ch-compose textarea{min-height:64px; margin:0}
 body.adm .ch-sheet .ch-actions{display:flex; justify-content:space-between; align-items:center; gap:8px; margin-top:8px}
 body.adm .ch-m{max-width:80%; display:flex; flex-direction:column; gap:3px; align-self:flex-start; align-items:flex-start}
 body.adm .ch-m .n{font-size:12px; color:var(--v-mute)}
+/* (10/26) 선생님 글 읽음 — 안 읽음은 경고색, 모두 읽음은 흐리게 */
+body.adm .ch-m .ch-rd, body.adm .ch-m .ch-rdb{font-size:12px; font-weight:700; color:var(--v-warn)}
+body.adm .ch-m .ch-rd.ok, body.adm .ch-m .ch-rdb.ok{font-weight:400; color:var(--v-mute)}
+body.adm .ch-m .ch-who{font-size:12px; color:var(--v-mute); text-align:right}
 body.adm .ch-m .b{padding:9px 12px; border:1px solid var(--v-line); border-radius:10px; background:var(--v-paper); white-space:pre-wrap; word-break:break-word}
 body.adm .ch-m.teacher{align-self:flex-end; align-items:flex-end}
 body.adm .ch-m.teacher .b{background:var(--v-cobalt-bg); border-color:transparent}

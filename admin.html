@@ -6,7 +6,7 @@
   <title>관리자 · 일학습병행 앱</title>
   <meta name="theme-color" content="#121318" />
   <link rel="stylesheet" href="./styles.css" />
-  <link rel="stylesheet" href="./admin.css?v=20261026-1" /><!-- 배포 때 v 를 올려 캐시된 옛 스타일과 새 HTML 이 섞이지 않게 -->
+  <link rel="stylesheet" href="./admin.css?v=20261026-2" /><!-- 배포 때 v 를 올려 캐시된 옛 스타일과 새 HTML 이 섞이지 않게 -->
   <script src="./config.js"></script>
   <style>
     .msg{max-width:80%;padding:9px 12px;border-radius:12px;margin:5px 0;font-size:14px;white-space:pre-wrap}
@@ -2109,15 +2109,33 @@
       $('ch-members').innerHTML += ` · 보내는 글은 <b>${esc(asName)}</b>으로 보여요`;
       $('ch-text').placeholder = `${asName} 이름으로 학생에게 보내요 — 보내면 푸시 알림이 가요`;
       const box = $('ch-msgs'); box.innerHTML = '<p class="note">불러오는 중…</p>';
-      const { data, error } = await supabase.from('chat_messages').select('id,sender,sender_name,body,hidden,created_at,push_state')
-        .eq('room_id', id).order('created_at', { ascending: true }).limit(500);
+      const [{ data, error }, rd] = await Promise.all([
+        supabase.from('chat_messages').select('id,sender,sender_name,body,hidden,created_at,push_state')
+          .eq('room_id', id).order('created_at', { ascending: true }).limit(500),
+        supabase.rpc('admin_chat_reads', { p_room: id }),
+      ]);
       if (error) { loadFail(box, '글을 불러오지 못했어요.', () => chOpen(id)); return; }
+      // (10/26, sql/85) 선생님 글 읽음 — 관리자 화면에만. 진행중 학생만 셈, '읽음' = 학생이 앱에서 방을 연 시각(10/23부터 기록)
+      //   sql/85 적용 전이면 rd 실패 → 표시 안 함
+      const rdOk = !rd.error && rd.data && rd.data.ok;
+      const readers = rdOk ? rd.data.reads.filter(x => (x.status || '진행중') === '진행중') : [];
+      const readMark = m => {
+        if (!rdOk || m.sender !== 'teacher' || m.hidden || !readers.length) return '';
+        const t = new Date(m.created_at).getTime();
+        const yes = readers.filter(x => x.read_at && new Date(x.read_at).getTime() >= t), no = readers.filter(x => !yes.includes(x));
+        if (chCur.kind === 'direct') return yes.length ? ' · <b class="ch-rd ok">읽음</b>' : ' · <b class="ch-rd">안 읽음</b>';
+        const who = `읽음: ${yes.map(x => x.name).join(', ') || '없음'} / 안 읽음: ${no.map(x => x.name).join(', ') || '없음'}`;
+        return ` · <button type="button" class="ch-link ch-rdb${no.length ? '' : ' ok'}" data-who="${esc(who)}">${no.length ? `안 읽음 ${no.length}` : '모두 읽음'}</button>`;
+      };
       box.innerHTML = (data || []).length ? data.map(m =>
         `<div class="ch-m ${m.sender}${m.hidden ? ' hid' : ''}"><span class="n">${esc(m.sender_name)} · ${new Date(m.created_at).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: 'numeric', minute: '2-digit' })}` +
-        `${m.sender === 'teacher' ? (m.push_state === 'sent' ? ' · 알림 보냄' : m.push_state === 'pending' ? ' · 알림 대기' : '') : ''}${m.hidden ? ' · 숨김' : ''}</span>` +
-        `<span class="b">${esc(m.body)}</span>` +
+        `${m.sender === 'teacher' ? (m.push_state === 'sent' ? ' · 알림 보냄' : m.push_state === 'pending' ? ' · 알림 대기' : '') : ''}${m.hidden ? ' · 숨김' : ''}${readMark(m)}</span>` +
+        `<span class="b">${esc(m.body)}</span><span class="ch-who" hidden></span>` +
         `<button type="button" class="ch-link ch-hide" data-id="${m.id}" data-h="${m.hidden ? 0 : 1}">${m.hidden ? '다시 보이기' : '숨기기'}</button></div>`).join('')
         : `<p class="note">아직 글이 없어요. 첫 글을 보내면 ${chCur.kind === 'company' ? '이 기업 학생들' : '이 학생'}에게 알림이 가요.</p>`;
+      box.querySelectorAll('.ch-rdb').forEach(b => b.addEventListener('click', () => {
+        const w = b.closest('.ch-m').querySelector('.ch-who'); w.textContent = b.dataset.who; w.hidden = !w.hidden;
+      }));
       box.querySelectorAll('.ch-hide').forEach(b => b.addEventListener('click', async () => {
         const hide = b.dataset.h === '1';
         if (hide && !confirm('이 글을 학생들에게서 숨길까요? (선생님 화면에는 남아요)')) return;
