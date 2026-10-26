@@ -523,9 +523,9 @@
         <div class="card">
           <div class="filter-chips" id="rg-seg" role="group" aria-label="가입자 구분" style="margin-bottom:10px"></div>
           <div class="mtbl-bar">
-            <input type="text" id="rg-search" placeholder="이름·기업·직무·담당직원 검색" aria-label="가입자 검색" style="flex:1;min-width:150px" />
+            <input type="text" id="rg-search" placeholder="이름·기업·과정·담당직원 검색" aria-label="가입자 검색" style="flex:1;min-width:150px" />
             <select id="rg-fmanager" aria-label="담당직원 필터"><option value="">담당직원 전체</option></select>
-            <select id="rg-fjob" aria-label="직무 필터"><option value="">직무 전체</option></select>
+            <select id="rg-fjob" aria-label="과정 필터"><option value="">과정 전체</option></select>
             <select id="rg-ftype" aria-label="유형 필터"><option value="">유형 전체</option></select>
             <select id="rg-fstatus" aria-label="기업 상태 필터"><option value="">기업 상태 전체</option></select>
             <select id="rg-fsigned" aria-label="가입 여부 필터"><option value="">가입 전체</option></select>
@@ -2375,9 +2375,15 @@
         if (!cerr) { coCodesReady = true; coCodeMap = {}; (codes || []).forEach(x => { if (x.active) coCodeMap[x.company] = x.code; }); }
       } catch (_) {}
       await loadCodes();
+      // (10/26 사용자 "직무가 아니라 과정으로") 학생 과정 = 출결 월 기록(attendance_month_status)의 가장 최근 과정명. 못 읽으면 '-'
+      try {
+        const { data: cr } = await selAll(() => supabase.from('attendance_month_status').select('name,course,month').not('course', 'is', null).order('month').order('id'));
+        const crs = {}; (cr || []).forEach(x => { crs[(x.name || '').replace(/\s+/g, '')] = x.course; });   // 달 순서라 마지막 = 최근
+        rows.forEach(r => { if ((r.target_type || 'student') === 'student') r.course = crs[(r.name || '').replace(/\s+/g, '')] || ''; });
+      } catch (_) {}
       regCache = rows; regDims = null;
       fillSel('rg-fmanager', (window.MANAGERS || []).slice());
-      fillSel('rg-fjob', [...new Set(regCache.map(r => r.job_key).filter(Boolean))].sort());
+      fillSel('rg-fjob', [...new Set(regCache.map(r => r.course).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ko')));
       fillSel('rg-ftype', (window.TYPES || []).slice());
       fillSel('rg-fstatus', [...new Set(regCache.filter(r => r.target_type === 'company').map(r => r.status).filter(Boolean))].sort());
       fillSel('rg-fsigned', ['가입', '미가입']);
@@ -2417,8 +2423,8 @@
       const rows = regCache.filter(r =>
         (r.target_type || 'student') === regSeg &&
         (!fc || (r.cohort || '') === fc) &&
-        (!q || [r.name, r.company, r.job_key, r.manager, r.role, r.status, r.interest].some(x => (x || '').toLowerCase().includes(q))) &&
-        (regSeg === 'student' ? ((!fm || r.manager === fm) && (!fj || r.job_key === fj) && (!ft || r.type1 === ft))
+        (!q || [r.name, r.company, r.course, r.job_key, r.manager, r.role, r.status, r.interest].some(x => (x || '').toLowerCase().includes(q))) &&
+        (regSeg === 'student' ? ((!fm || r.manager === fm) && (!fj || r.course === fj) && (!ft || r.type1 === ft))
           : regSeg === 'company' ? (!ccReady || ((!fm || r.manager === fm) && (!fs || (r.status || '') === fs) && (!fg || (fg === '가입') === !!r.signed))) : true));
       const k = regSort.key, dir = regSort.dir;
       rows.sort((a, b) => { const va = a[k] || '', vb = b[k] || ''; return va < vb ? -dir : va > vb ? dir : 0; });
@@ -2471,7 +2477,7 @@
       }
       $('rg-count').textContent = cntTxt + (rows.length !== segTotal ? ' · 필터 ' + rows.length + '명' : '');
       const cols = isStu
-        ? [['name', '이름'], ['manager', '담당직원'], ['job_key', '직무'], ['company', '기업'], ['cohort', '기수'], ['phase', '단계'], ['status', '상태'], ['signed', '가입'], ['seen', '마지막 앱 사용']]
+        ? [['name', '이름'], ['manager', '담당직원'], ['course', '과정'], ['company', '기업'], ['cohort', '기수'], ['phase', '단계'], ['status', '상태'], ['signed', '가입'], ['seen', '마지막 앱 사용']]
         : regSeg === 'applicant'
           ? [['name', '이름'], ['interest', '관심직무'], ['created_at', '등록일']]
           : ccReady
@@ -2505,7 +2511,7 @@
         const bell = ((r.target_type || 'student') === 'student' && _nb) ? ` <span class="mju-badge" title="알림 켠 기기 ${_nb}대">알림${_nb > 1 ? ' ' + _nb : ''}</span>` : '';
         const signed = (r.signed ? '<span class="mju-badge mju-badge--success">가입</span>' : '<span class="mju-badge mju-badge--neutral">미가입</span>') + bell;
         const vals = isStu
-          ? [esc(r.name || ''), esc(r.manager || '-'), esc(r.job_key || '-'), esc(r.company || '-'), esc(r.cohort || '-'), phaseCell(r), esc(r.status || '-'), signed,
+          ? [esc(r.name || ''), esc(r.manager || '-'), esc(r.course || '-'), esc(r.company || '-'), esc(r.cohort || '-'), phaseCell(r), esc(r.status || '-'), signed,
              r.seen ? seenAgo(r.seen).replace('마지막 사용 ', '') : '<span class="cn-off" title="알림을 켠 기기가 없어 기록이 없어요">기록 없음</span>']
           : regSeg === 'applicant'
             ? [esc(r.name || ''), esc(r.interest || '-'), fmtD(r.created_at)]
@@ -2710,11 +2716,11 @@
       const rows = regFiltered();
       if (!rows.length) { alert('내보낼 행이 없어요 — 필터를 확인해주세요.'); return; }
       const isStu = regSeg === 'student';
-      const header = isStu ? ['이름', '담당직원', '직무', '기업', '유형', '기수', '상태', '초대코드']
+      const header = isStu ? ['이름', '담당직원', '과정', '기업', '유형', '기수', '상태', '초대코드']
                            : ['이름', '기업', '역할', '담당직원', '상태', '앱가입'];
       dlCsv(isStu ? '참여학생' : (regSeg === 'applicant' ? '지원자' : '기업담당자'), header,
         rows.map(r => isStu
-          ? [r.name, r.manager, r.job_key, r.company, r.type1, r.cohort, r.status, (codeMap[(r.name || '') + '|' + (r.phone || '')] || {}).code || '']
+          ? [r.name, r.manager, r.course, r.company, r.type1, r.cohort, r.status, (codeMap[(r.name || '') + '|' + (r.phone || '')] || {}).code || '']
           : [r.name, r.company, r.role, r.manager, r.status, r.signed ? '가입' : '미가입']));
       logAction('CSV내보내기', (isStu ? '참여학생' : regSeg) + ' ' + rows.length + '행');
     });
