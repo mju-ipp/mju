@@ -6,7 +6,7 @@
   <title>관리자 · 일학습병행 앱</title>
   <meta name="theme-color" content="#121318" />
   <link rel="stylesheet" href="./styles.css" />
-  <link rel="stylesheet" href="./admin.css?v=20261023-6" /><!-- 배포 때 v 를 올려 캐시된 옛 스타일과 새 HTML 이 섞이지 않게 -->
+  <link rel="stylesheet" href="./admin.css?v=20261026-1" /><!-- 배포 때 v 를 올려 캐시된 옛 스타일과 새 HTML 이 섞이지 않게 -->
   <script src="./config.js"></script>
   <style>
     .msg{max-width:80%;padding:9px 12px;border-radius:12px;margin:5px 0;font-size:14px;white-space:pre-wrap}
@@ -4467,7 +4467,7 @@
     $('cw-mgr').addEventListener('change', () => { cwScope = $('cw-mgr').value ? 'm:' + $('cw-mgr').value : 'all'; try { localStorage.setItem('adm_cw_scope', cwScope); } catch (_) {} cwLoad(); });
     // ===== (10/23, sql/83) 기업에 알림 보내기 — 학습일지·출석 확인 요청 / 전담인력수당 신청 =====
     //   기업 목록 = 지금 보이는 기업(선생님별 보기 따름). 기본 선택: 학습일지 = 전부, 수당 = 그 달 '미신청'.
-    let cnKind = 'diary', cnDev = null, cnSel = null;
+    let cnKind = 'diary', cnDev = null, cnSign = null, cnSel = null;   // cnSign: (sql/84) 기업 키 → { n: 가입 건수, last: 마지막 가입 }
     const cnText = (kind, ym) => kind === 'diary'
       ? [`${moOf(ym)} 학습일지·출석 확인 요청`, `${moOf(ym)}분 학습근로자 학습일지(학습활동서)와 출석 확인을 눌러 주세요. 문의는 센터 담당 선생님께 해 주세요.`]
       : [`${moOf(ym)}분 전담인력활동수당 신청 안내`, `${moOf(ym)}분 전담인력활동수당을 신청해 주세요. 일학습병행 행정지원시스템(기업 로그인) › 비용관리(전담자) › 전담인력활동수당 신청`];
@@ -4476,8 +4476,13 @@
       if (!cnDev) {
         const { data, error } = await supabase.rpc('admin_company_push_status');
         cnDev = {};
-        if (!error && data && data.ok) (data.rows || []).forEach(r => { cnDev[r.key] = r.devices; });
+        if (!error && data && data.ok) {
+          (data.rows || []).forEach(r => { cnDev[r.key] = r.devices; });
+          // sql/84 적용 전이면 signups 가 없음 → 가입 표시는 안 함
+          if ((data.rows || []).some(r => 'signups' in r)) { cnSign = {}; data.rows.forEach(r => { cnSign[r.key] = { n: r.signups || 0, last: r.last_signup }; }); }
+        }
         else $('cn-status').textContent = 'sql/83 적용 전이라 알림 켠 기기 수를 못 읽었어요.';
+        cwDrawCodes();   // 기업·초대코드 줄에 가입·알림 붙이기(cwLoad 첫 그림은 상태 읽기 전)
       }
       cnSel = null; cnDraw(true);
     }
@@ -4532,14 +4537,25 @@
       const { cos, codes } = cwData;
       // (10/23) [안내 복사] 뺌 — 사용자 "필요없을 거 같아"
       const n = cos.filter(c => codes[c.key] && codes[c.key].active).length;
-      $('cw-code-n').textContent = cos.length ? `${n} / ${cos.length}곳` : '';
+      // (10/26, sql/84) 가입·알림 — 가입 = 기업 가입 건수(이름이 기업명이라 사람 수 아님), 알림 = 기업 코드로 알림 켠 기기
+      const sg = k => (cnSign || {})[k] || { n: 0 }, dv = k => (cnDev || {})[k] || 0;
+      const head = [`코드 ${n}`];
+      if (cnSign) head.push(`가입 ${cos.filter(c => sg(c.key).n > 0).length}`);
+      if (cnDev) head.push(`알림 ${cos.filter(c => dv(c.key) > 0).length}`);
+      $('cw-code-n').textContent = cos.length ? `${head.join(' · ')} / ${cos.length}곳` : '';
+      const st = c => {
+        const a = [];
+        if (cnSign) { const s = sg(c.key); a.push(s.n ? `<span title="마지막 가입 ${esc(String(s.last || '').slice(0, 10))} · 다시 가입도 한 건으로 셈">가입 ${s.n}명</span>` : '<span class="cn-off">미가입</span>'); }
+        if (cnDev) a.push(dv(c.key) ? `알림 ${dv(c.key)}대` : '<span class="cn-off">알림 안 켬</span>');
+        return a.length ? `<span class="cw-st">${a.join(' · ')}</span>` : '';
+      };
       // (10/23) 담당 선생님별로 묶음 — 기업은 학생이 가장 많은 선생님 아래, 같이 맡은 선생님은 줄에 표시. 내 묶음이 맨 위
       const groups = new Map();
       cos.forEach(c => { const m = coMgrs(c)[0] || '담당 없음'; if (!groups.has(m)) groups.set(m, []); groups.get(m).push(c); });
       const order = [...groups.keys()].sort((a, b) => (b === cwMe) - (a === cwMe) || (a === '담당 없음') - (b === '담당 없음') || a.localeCompare(b, 'ko'));
       const row = c => {
         const k = codes[c.key], ms = coMgrs(c), nst = Object.values(c.mgrs || {}).reduce((x, y) => x + y, 0);
-        return `<div class="cw-code"><span class="cw-co">${esc(c.label)}</span><span class="cw-who">학생 ${nst}명${ms.length > 1 ? ` · 같이 ${esc(ms.slice(1).join(', '))}` : ''}</span>` +
+        return `<div class="cw-code"><span class="cw-co">${esc(c.label)}</span><span class="cw-who">학생 ${nst}명${ms.length > 1 ? ` · 같이 ${esc(ms.slice(1).join(', '))}` : ''}</span>` + st(c) +
           (k && k.active ? `<code>${esc(k.code)}</code><button type="button" class="phone-btn" data-copy="${esc(k.code)}">코드 복사</button>`
             : `<span class="note">${k ? '꺼진 코드' : '코드 없음'}</span><button type="button" class="phone-btn" data-issue="${esc(c.label)}">코드 만들기</button>`) + `</div>`;
       };
