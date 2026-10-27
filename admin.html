@@ -726,7 +726,8 @@
       </aside>
       <!-- [개편 5단계] 학생 상세 — 이번 달 정규시간 달력(attendance_daily). 진도 표·오늘 목록에서 연다 -->
       <aside class="stu-sheet" id="stu-sheet" aria-label="학생 상세" aria-hidden="true">
-        <div class="sh"><button type="button" class="x" id="stu-close">닫기</button><h3 id="stu-name"></h3><p id="stu-sub"></p></div>
+        <div class="sh"><button type="button" class="x" id="stu-close">닫기</button><h3 id="stu-name"></h3><p id="stu-sub"></p>
+          <button type="button" class="phone-btn" id="stu-preview" style="margin-top:6px" title="이 학생이 앱에서 보는 화면을 새 탭에 보기 전용으로 열어요"><i data-lucide="eye"></i> 학생 화면 보기</button></div>
         <div class="sb">
           <p class="note" id="stu-cum" style="margin:14px 0 0"></p>
           <div class="stu-nav">
@@ -2637,6 +2638,12 @@
         if (!isStu) { tb.appendChild(tr); return; }
         // 관리 셀 — 코드 발급/회수 제거(명단등록·기업 탭에서 발급). 편집만(삭제는 편집 창 안).
         const tdc = document.createElement('td');
+        // (sql/88) 학생 화면 보기 — 새 탭에 보기 전용 미리보기
+        const pvBtn = document.createElement('button'); pvBtn.type = 'button'; pvBtn.className = 'phone-btn';
+        pvBtn.title = r.dbId ? '학생 화면 보기(보기 전용)' : '명단(students)에 없는 학생이라 열 수 없어요'; pvBtn.setAttribute('aria-label', `${r.name || ''} 학생 화면 보기`);
+        pvBtn.innerHTML = '<i data-lucide="eye"></i>'; pvBtn.disabled = !r.dbId;
+        pvBtn.addEventListener('click', () => openPreview('student', r.dbId, pvBtn));
+        tdc.appendChild(pvBtn);
         // [정합성] 가입자 생애주기 편집 — 기수/상태/담당/유형. update_student_lifecycle RPC(센터 스코프·스키마 안전).
         const editBtn = document.createElement('button'); editBtn.type = 'button'; editBtn.className = 'phone-btn';
         editBtn.style.marginLeft = '4px'; editBtn.title = '기수·상태·담당·유형·단계 수정'; editBtn.innerHTML = '<i data-lucide="pencil"></i>';
@@ -4199,6 +4206,34 @@
         $('stu-unit').scrollIntoView({ block: 'nearest', behavior: 'smooth' });
       }));
     }
+    // (sql/88) 학생·기업 화면 미리보기 — docs/PREVIEW.md. 서버(admin_preview_identity, 같은 센터만·열람 기록)가 준 신원을
+    //  localStorage 1회용 칸에 넣고 새 탭 index.html?preview=1 → 새 탭이 바로 지우고 자기 sessionStorage 로 옮김(app.js).
+    //  팝업 차단을 피하려고 클릭 직후 빈 탭을 먼저 열고, 신원을 받은 뒤 주소를 바꾼다.
+    async function openPreview(kind, id, btn) {
+      const w = window.open('', '_blank');
+      if (btn) btn.disabled = true;
+      let data = null, error = null;
+      try { ({ data, error } = await supabase.rpc('admin_preview_identity', { p_kind: kind, p_id: id })); } catch (e) { error = e; }
+      if (btn) btn.disabled = false;
+      if (error || !data || !data.ok) {
+        try { w && w.close(); } catch (_) {}
+        const why = { phone: '명단에 전화번호·초대코드가 없어 열 수 없어요.', code: '켜진 기업 초대코드가 없어 열 수 없어요.', student: '명단에서 학생을 찾지 못했어요.', auth: '관리자 로그인이 필요해요.' }[data && data.reason];
+        alert(why || ('화면을 열지 못했어요.' + (error ? ' (' + (error.message || error) + ')' : '')));
+        return;
+      }
+      try { localStorage.setItem('ilhak_preview_handoff', JSON.stringify({ profile: data.profile, at: Date.now() })); } catch (_) {}
+      const url = './index.html?preview=1';
+      if (w) w.location.href = url; else window.open(url, '_blank');
+    }
+    // 학생 상세 창 — 이름으로 명단 id 찾기(_chat_me 와 같은 기준: 진행중 먼저, 최근 기수)
+    $('stu-preview').addEventListener('click', async () => {
+      const name = $('stu-name').textContent, b = $('stu-preview');
+      const { data } = await supabase.from('students').select('id,name,status,cohort');
+      const hit = (data || []).filter(s => normNm(s.name) === normNm(name))
+        .sort((a, c) => ((c.status === '진행중') - (a.status === '진행중')) || String(c.cohort || '').localeCompare(String(a.cohort || '')))[0];
+      if (!hit) { alert('명단에서 학생을 찾지 못했어요.'); return; }
+      openPreview('student', hit.id, b);
+    });
     function closeStuSheet() { const sh = $('stu-sheet'); if (!sh) return; sh.classList.remove('open'); sh.setAttribute('aria-hidden', 'true'); }
     $('stu-close').addEventListener('click', closeStuSheet);
     document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('stu-sheet').classList.contains('open')) closeStuSheet(); });
@@ -4597,7 +4632,8 @@
       const row = c => {
         const k = codes[c.key], ms = coMgrs(c), nst = Object.values(c.mgrs || {}).reduce((x, y) => x + y, 0);
         return `<div class="cw-code"><span class="cw-co">${esc(c.label)}</span><span class="cw-who">학생 ${nst}명${ms.length > 1 ? ` · 같이 ${esc(ms.slice(1).join(', '))}` : ''}</span>` + st(c) +
-          (k && k.active ? `<code>${esc(k.code)}</code><button type="button" class="phone-btn" data-copy="${esc(k.code)}">코드 복사</button>`
+          (k && k.active ? `<code>${esc(k.code)}</code><button type="button" class="phone-btn" data-copy="${esc(k.code)}">코드 복사</button>` +
+              `<button type="button" class="phone-btn" data-preview="${esc(k.company)}" title="이 기업 담당자가 앱에서 보는 화면을 새 탭에 보기 전용으로 열어요">화면 보기</button>`
             : `<span class="note">${k ? '꺼진 코드' : '코드 없음'}</span><button type="button" class="phone-btn" data-issue="${esc(c.label)}">코드 만들기</button>`) + `</div>`;
       };
       $('cw-code-list').innerHTML = order.map(m => `<h4 class="cw-mgr-h">${esc(m)} <span class="n">${groups.get(m).length}곳</span></h4>` + groups.get(m).map(row).join('')).join('')
@@ -4606,6 +4642,7 @@
       $('cw-code-list').querySelectorAll('[data-copy]').forEach(b => b.addEventListener('click', async () => {
         try { await navigator.clipboard.writeText(b.dataset.copy); flash(b, '복사됨'); } catch (_) { flash(b, '복사 실패'); }
       }));
+      $('cw-code-list').querySelectorAll('[data-preview]').forEach(b => b.addEventListener('click', () => openPreview('company', b.dataset.preview, b)));
       $('cw-code-list').querySelectorAll('[data-issue]').forEach(b => b.addEventListener('click', async () => {
         b.disabled = true;
         try { await issueCoCode(b.dataset.issue); logAction('기업코드발급', b.dataset.issue); cwLoad(); }
