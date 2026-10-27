@@ -66,10 +66,10 @@
 
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
   <script type="module">
-    import { supabase, configReady, setStatus, friendlyError, esc, getCenter } from './app.js';
+    import { supabase, configReady, setStatus, friendlyError, esc, getCenter, getProfile } from './app.js';
     if (window.lucide) window.lucide.createIcons();
     const $ = id => document.getElementById(id);
-    let profile = {}; try { profile = JSON.parse(localStorage.getItem('ilhak_profile') || '{}'); } catch (_) {}
+    const profile = getProfile();
     $('who').textContent = profile.company ? `${profile.company} ·` : '';
 
     // 이 설문은 학습기업 담당자(기업현장교사·HRD담당자) 대상

@@ -88,11 +88,11 @@
     if (window.lucide) window.lucide.createIcons();
     import { initializeApp, getApps } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
     import { getMessaging, getToken, isSupported } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging.js';
-    import { supabase, configReady, getPlatform, isInAppBrowser, isStandalone, getQueryParam, setStatus, getCenter } from './app.js';
+    import { supabase, configReady, getPlatform, isInAppBrowser, isStandalone, getQueryParam, setStatus, getCenter, getProfile, isPreview } from './app.js';
 
     if (getQueryParam('joined') === '1') document.getElementById('joined').style.display = 'block';
     // 지원자에게는 안내 문구를 모집 중심으로
-    let _ip = {}; try { _ip = JSON.parse(localStorage.getItem('ilhak_profile') || '{}'); } catch (_) {}
+    const _ip = getProfile();
     if (_ip.target_type === 'applicant') {
       const jt = document.querySelector('#joined .mju-alert__text');
       if (jt) jt.innerHTML = '이제 <b>홈 화면에 추가</b>하면 앱처럼 사용, <b>새 채용공고</b> 알림 수신 가능';
@@ -113,6 +113,7 @@
 
     const statusEl = document.getElementById('status');
     document.getElementById('notify').addEventListener('click', async () => {
+      if (isPreview()) { setStatus(statusEl, '미리보기에서는 알림을 켜지 않아요.', 'info'); return; }   // (sql/88) 관리자 브라우저를 학생 기기로 등록하지 않음
       // iOS는 홈 화면 추가(standalone) 상태에서만 가능
       if (p === 'ios' && !isStandalone()) {
         setStatus(statusEl, '먼저 "홈 화면에 추가" 후, 생긴 아이콘으로 앱을 열고 다시 눌러주세요.', 'error'); return;
@@ -135,7 +136,7 @@
         if (!token) { setStatus(statusEl, '토큰 발급 실패 — 잠시 후 다시 시도해주세요.', 'error'); return; }
 
         // 토큰 + 기기 프로필을 Supabase에 저장(타게팅 발송용)
-        let prof = {}; try { prof = JSON.parse(localStorage.getItem('ilhak_profile') || '{}'); } catch (_) {}
+        const prof = getProfile();
         // 프로필이 없으면(특히 iOS 표준앱 첫 진입) 메타가 전부 null로 저장돼 맞춤 푸시가 누락됨 → 먼저 복원 유도
         if (!prof || !prof.name) {
           setStatus(statusEl, '먼저 "홈으로" 가서 내 정보를 불러온 뒤 알림을 켜주세요. (학생·기업담당자=내 정보 불러오기, 지원자=새로 가입하기에서 지원자로 다시 등록 — 중복돼도 괜찮아요)', 'error');

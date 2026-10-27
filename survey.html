@@ -70,11 +70,11 @@
 
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
   <script type="module">
-    import { supabase, configReady, setStatus, friendlyError, esc, matchSel, requireCenterId, centerRequiredMessage } from './app.js';
+    import { supabase, configReady, setStatus, friendlyError, esc, matchSel, requireCenterId, centerRequiredMessage, getProfile } from './app.js';
     import { renderQuestions, collectAnswers } from './survey-ui.js';
     if (window.lucide) window.lucide.createIcons();
     const $ = id => document.getElementById(id);
-    let profile = {}; try { profile = JSON.parse(localStorage.getItem('ilhak_profile') || '{}'); } catch (_) {}
+    const profile = getProfile();
     $('who').textContent = profile.name ? `${profile.name}님 ·` : '';
 
     // 내 정보 없는 기기 — 대상 필터를 적용할 수 없어 안내만

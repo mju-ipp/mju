@@ -57,7 +57,7 @@
 
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
   <script type="module">
-    import { supabase, configReady, setStatus, friendlyError } from './app.js';
+    import { supabase, configReady, setStatus, friendlyError, getProfile, isPreview } from './app.js';
 
     if (window.lucide) window.lucide.createIcons();
 
@@ -65,14 +65,13 @@
     const esc = (s) => { const e = document.createElement('div'); e.textContent = s || ''; return e.innerHTML; };
     const KEY = 'ilhak_consult_id';
 
-    let profile = {};
-    try { profile = JSON.parse(localStorage.getItem('ilhak_profile') || '{}'); } catch (_) {}
+    const profile = getProfile();
 
     function showNew() { $('newForm').style.display = 'block'; $('thread').style.display = 'none'; }
     function showThread() { $('newForm').style.display = 'none'; $('thread').style.display = 'block'; }
 
     async function loadThread() {
-      let id = null; try { id = localStorage.getItem(KEY); } catch (_) {}
+      let id = null; try { id = isPreview() ? null : localStorage.getItem(KEY); } catch (_) {}   // 미리보기 = 이 기기 상담 말고 새 상담 화면
       if (!id) { showNew(); return; }
       if (!configReady()) { showThread(); $('sub').textContent = '연결 설정이 필요해요.'; return; }
       let data = null, error = null;

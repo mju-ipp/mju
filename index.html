@@ -251,7 +251,7 @@
 
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
   <script type="module">
-    import { supabase, configReady, getQueryParam, isInAppBrowser, isStandalone, setStatus, friendlyError, attachPhoneFormat, getCenter, requireCenterId, centerLookupNetFailed, matchSel } from './app.js';
+    import { supabase, configReady, getQueryParam, isInAppBrowser, isStandalone, setStatus, friendlyError, attachPhoneFormat, getCenter, requireCenterId, centerLookupNetFailed, matchSel, getProfile, isPreview, closePreview, isPreviewBlocked } from './app.js';
 
     if (window.lucide) window.lucide.createIcons();
 
@@ -295,10 +295,11 @@
 
     // 이미 가입한 기기면 가입폼 대신 홈 메뉴를 보여줌
     // (?convert=1 = 지원자→학생 전환: 프로필이 있어도 가입폼을 띄움)
-    let _prof = null; try { _prof = JSON.parse(localStorage.getItem('ilhak_profile') || 'null'); } catch (_) {}
+    let _prof = null; try { _prof = isPreview() ? getProfile() : JSON.parse(localStorage.getItem('ilhak_profile') || 'null'); } catch (_) {}   // (sql/88) 미리보기 탭은 미리보기 프로필
     const _convert = getQueryParam('convert') === '1';
     const _resignup = (e) => {
       e.preventDefault();
+      if (isPreview()) { closePreview(); return; }   // (sql/88) 미리보기에서는 기기 가입 정보를 지우지 않고 미리보기만 닫음
       if (confirm('가입 정보를 지우고 다시 가입할까요?')) { localStorage.removeItem('ilhak_profile'); location.href = './index.html'; }
     };
     // (10/22 사용자) 기업 담당자는 '우리 학생 OJT'가 첫 화면 — 코드로 가입한 기기는 바로 넘김(?stay=1 이면 옛 홈 메뉴)
@@ -943,7 +944,7 @@
           b.closest('.ab-btns').querySelectorAll('button').forEach(x => { x.disabled = true; });
           try {
             const { data, error } = await supabase.rpc('report_absence', { p_code: prof.code || null, p_token: prof.token || null, p_day: ds, p_kind: kind, p_note: note });
-            if (error || !data || !data.ok) absFail(data);
+            if (!isPreviewBlocked(error) && (error || !data || !data.ok)) absFail(data);   // 미리보기 = 토스트만
           } catch (_) { alert('연결이 불안정해요. 잠시 후 다시 시도해주세요.'); }
           absDone(ds.slice(0, 7));
         }));
@@ -952,7 +953,7 @@
           b.disabled = true;
           try {
             const { data, error } = await supabase.rpc('cancel_absence', { p_code: prof.code || null, p_token: prof.token || null, p_id: b.dataset.id });
-            if (error || !data || !data.ok) absFail(data);
+            if (!isPreviewBlocked(error) && (error || !data || !data.ok)) absFail(data);   // 미리보기 = 토스트만
           } catch (_) { alert('연결이 불안정해요. 잠시 후 다시 시도해주세요.'); }
           absDone(homeYm);
         }));
@@ -965,7 +966,7 @@
             const rpcName = isCompany ? (undo ? 'uncheck_company_task' : 'complete_company_task') : (undo ? 'uncheck_task' : 'complete_task');
             const rpcArgs = isCompany ? { p_task_id: b.dataset.task, p_code: prof.code } : { p_task_id: b.dataset.task, p_token: prof.token };
             const { data: res, error } = await supabase.rpc(rpcName, rpcArgs);
-            if (error) throw error;
+            if (error && !isPreviewBlocked(error)) throw error;   // 미리보기 = 토스트만
             if (res && res.ok === false && res.reason === 'locked') alert('마감이 지난 할 일은 완료 해제할 수 없어요. 정정이 필요하면 센터에 문의해주세요.');
             else if (res && res.ok === false) alert('처리하지 못했어요. 잠시 후 다시 시도해주세요.');
           } catch (_) { alert('연결이 불안정해요. 잠시 후 다시 시도해주세요.'); }

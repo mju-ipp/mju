@@ -309,7 +309,7 @@
     // [sql/70] 우리 학생 OJT — 기업 담당자(앱에 기업 초대코드로 가입한 기기)용. 본인 확인 = 프로필 code(학생과 같은 방식, 사용자 10/22).
     //   현장교사·HRD담당자로 나누지 않고 회사 하나: 이번 달(휴가·출장) · 월별 출결 · 능력단위 · 평가·면담 마감.
     //   첫 화면 위에 '이번 달 예정 시수·능력단위·월말 할 일' 요약(사용자 10/22). 비콘은 인정 시간·상태만(입실·퇴실 시각은 서버도 안 줌).
-    import { supabase, configReady, friendlyError, esc, getProfile, requireCenterId } from './app.js';
+    import { supabase, configReady, friendlyError, esc, getProfile, requireCenterId, isPreview, closePreview } from './app.js';
 
     const $ = id => document.getElementById(id);
     const prof = getProfile();
@@ -552,6 +552,7 @@
     $('veil').addEventListener('click', e => { if (e.target === $('veil')) $('veil').hidden = true; });
     $('sh-ok').addEventListener('click', async () => {
       const by = $('sh-by').value.trim();
+      if (isPreview()) { $('sh-msg').textContent = '미리보기에서는 저장되지 않아요.'; return; }   // (sql/88)
       if (!by) { $('sh-msg').textContent = '알리는 분 이름을 적어 주세요.'; $('sh-by').focus(); return; }
       try { localStorage.setItem(BY_KEY, by); } catch (_) {}
       $('sh-ok').disabled = true;
@@ -670,6 +671,7 @@
     document.addEventListener('click', e => {
       const a = e.target.closest('.resignup'); if (!a) return;
       e.preventDefault();
+      if (isPreview()) { closePreview(); return; }   // (sql/88) 미리보기는 미리보기만 닫음
       if (!confirm('이 기기의 가입 정보를 지우고 다시 가입할까요? 기업 초대코드가 다시 필요해요.')) return;
       try { localStorage.removeItem('ilhak_profile'); } catch (_) {}
       location.href = './index.html?as=company';

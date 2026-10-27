@@ -37,7 +37,7 @@
    - `my_chat_messages` `p_peek` 추가.
    - pglite 시험: 다른 센터·비로그인·anon 차단, peek 이면 chat_student_reads 0행, 기존 호출(peek 없음)은 그대로 읽음 기록.
    - SQL 은 보여드리고 승인 후 운영 적용.
-2. **학생 앱 미리보기 모드 (app.js + 화면 8곳)** — 전달·sessionStorage·getProfile 우선·rpc 허용 목록·띠·푸시/읽음 건너뛰기. chat.html 은 미리보기면 `p_peek:true`. sw.js CACHE 올림(v90).
+2. **학생 앱 미리보기 모드 (app.js + 화면 8곳)** — ✅ 10/27 커밋(배포는 3단계와 함께). 전달·sessionStorage·getProfile 우선·rpc 허용 목록(막히면 오류 code PREVIEW + 토스트, friendlyError 문구)·띠·푸시/읽음 건너뛰기. `my_chat_messages` 는 app.js 가 미리보기면 `p_peek:true` 를 붙임(chat.html 수정 없음). 다시 가입 링크 = 미리보기 닫기. 상담은 이 기기 상담 번호 대신 새 상담 화면. sw.js CACHE v90. 모의(launch `preview-mode-mock` 5198): 학생 10개·기업 화면 오류 0, 쓰기 호출 0, 기기 ilhak_profile·읽음 목록 그대로, 60초 지난 전달값 무시, 평소 모드 글쓰기·읽음 그대로.
 3. **관리자 버튼 (admin.html)** — 학생 명단 줄·학생 상세 시트·기업·초대코드 줄에 [화면 보기]. 내 학생/전체 보기 모두 가능(10/16 결정 ① — 권한 차단 아님, 같은 센터).
 4. **확인**
    - 모의(mockserver)로 화면별 오류 0, 막힌 버튼 눌러 토스트 확인, 서버로 나간 요청 목록에 쓰기 함수 0.

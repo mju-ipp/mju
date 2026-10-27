@@ -41,7 +41,7 @@
         <a href="./consult.html" id="faq-ask" class="mju-btn mju-btn--full" style="text-decoration:none">1:1 상담하기</a>
         <script>
           // (10/23 점검) 코드로 가입한 학생은 대화방(1:1)으로 — 홈의 상담 타일을 대화방으로 바꾼 것과 맞춤(10/22). 그 밖엔 옛 상담
-          try { const p = JSON.parse(localStorage.getItem('ilhak_profile') || '{}'); if (p.target_type === 'student' && p.code) { const a = document.getElementById('faq-ask'); a.href = './chat.html'; a.textContent = '대화방에서 선생님께 묻기'; } } catch (_) {}
+          try { const p = JSON.parse(sessionStorage.getItem('ilhak_preview') || localStorage.getItem('ilhak_profile') || '{}'); if (p.target_type === 'student' && p.code) { const a = document.getElementById('faq-ask'); a.href = './chat.html'; a.textContent = '대화방에서 선생님께 묻기'; } } catch (_) {}
         </script>
       </div>
 

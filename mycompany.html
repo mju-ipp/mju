@@ -73,10 +73,10 @@
 
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
   <script type="module">
-    import { supabase, configReady, esc, matchSel, normCo, requireCenterId } from './app.js';
+    import { supabase, configReady, esc, matchSel, normCo, requireCenterId, getProfile } from './app.js';
     if (window.lucide) window.lucide.createIcons();
     const $ = id => document.getElementById(id);
-    let profile = {}; try { profile = JSON.parse(localStorage.getItem('ilhak_profile') || '{}'); } catch (_) {}
+    const profile = getProfile();
 
     const isLibraryObject = (u) => !!u && (!/^https?:\/\//i.test(u) || /\/storage\/v1\/object\/(?:public\/|sign\/)?library\//i.test(u));
     async function signedHref(r) {

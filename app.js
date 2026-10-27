@@ -19,6 +19,82 @@ export function configReady() {
   return !!supabase;
 }
 
+/* ── [sql/88] 관리자 '화면 보기' 미리보기 (docs/PREVIEW.md) ──
+ *  관리자 탭이 localStorage('ilhak_preview_handoff')에 {profile, at}를 넣고 index.html?preview=1 새 탭을 엶
+ *  → 이 탭이 읽자마자 지우고 sessionStorage 로 옮김(이 탭 안 이동 동안만, 탭 닫으면 사라짐. URL 에 토큰 안 실음).
+ *  미리보기 중에는 getProfile() 이 미리보기 프로필을 돌려주고, 기기 가입 정보(localStorage.ilhak_profile)는 건드리지 않음.
+ *  서버 호출은 읽기 목록(PREVIEW_READ_RPC)만 보냄 — 나머지는 서버에 안 가고 오류 {code:'PREVIEW'}(새 쓰기 함수도 기본 막힘). */
+const PREVIEW_KEY = 'ilhak_preview', PREVIEW_HANDOFF = 'ilhak_preview_handoff';
+const PREVIEW_READ_RPC = new Set([
+  'center_id_for_slug', 'public_notices', 'poll_results', 'get_consultation',
+  'my_attendance', 'my_attendance_days', 'my_absences', 'my_offjt_units',
+  'my_targeted_calendar', 'my_targeted_calendar_from', 'my_task_checks', 'my_company_task_checks',
+  'my_personal_notices', 'my_targeted_library', 'my_chats', 'my_chat_messages', 'my_chat_unread',
+  'company_home', 'my_company_info', 'my_company_stage',
+]);
+const PREVIEW = (() => {
+  if (/(^|\/)admin\.html$/.test(location.pathname)) return null;
+  try {
+    if (new URLSearchParams(location.search).get('preview') === '1') {
+      const h = JSON.parse(localStorage.getItem(PREVIEW_HANDOFF) || 'null');
+      localStorage.removeItem(PREVIEW_HANDOFF);
+      if (h && h.profile && h.profile.name && Date.now() - (Number(h.at) || 0) < 60000) {
+        sessionStorage.setItem(PREVIEW_KEY, JSON.stringify(h.profile));
+      }
+    }
+    const p = JSON.parse(sessionStorage.getItem(PREVIEW_KEY) || 'null');
+    return p && p.name ? p : null;
+  } catch (_) { return null; }
+})();
+export function isPreview() { return !!PREVIEW; }
+export function isPreviewBlocked(e) { return !!e && e.code === 'PREVIEW'; }
+if (PREVIEW && supabase) {
+  const rpc = supabase.rpc.bind(supabase);
+  supabase.rpc = (fn, args, opts) => {
+    if (!PREVIEW_READ_RPC.has(fn)) {
+      previewToast();
+      return Promise.resolve({ data: null, error: { code: 'PREVIEW', message: '미리보기에서는 저장되지 않아요' } });
+    }
+    if (fn === 'my_chat_messages') args = { ...(args || {}), p_peek: true };   // 대화방을 열어도 학생 읽음 기록 안 남김
+    return rpc(fn, args, opts);
+  };
+}
+function previewToast() {
+  try {
+    document.getElementById('preview-toast')?.remove();
+    const el = document.createElement('div');
+    el.id = 'preview-toast'; el.setAttribute('role', 'status');
+    el.textContent = '미리보기에서는 저장되지 않아요';
+    el.style.cssText = 'position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:10000;padding:10px 16px;border-radius:999px;background:#121318;color:#fff;font-size:14px;box-shadow:0 4px 16px rgba(0,0,0,.2)';
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 2500);
+  } catch (_) {}
+}
+// 미리보기 닫기 — 이 탭의 미리보기만 지움(관리자 탭이 열었으므로 창 닫기, 안 닫히면 관리자 화면으로)
+export function closePreview() {
+  try { sessionStorage.removeItem(PREVIEW_KEY); } catch (_) {}
+  window.close();
+  setTimeout(() => { location.href = './admin.html'; }, 200);
+}
+// 맨 위 띠 — '○○ 화면 미리보기 · 보기 전용 · [닫기]'
+function renderPreviewBand() {
+  if (!PREVIEW || document.getElementById('preview-band')) return;
+  const who = PREVIEW.target_type === 'company' ? `${PREVIEW.name} 담당자` : PREVIEW.name;
+  const b = document.createElement('div');
+  b.id = 'preview-band'; b.setAttribute('role', 'note');
+  b.style.cssText = 'position:sticky;top:0;z-index:10001;display:flex;align-items:center;justify-content:center;gap:10px;padding:8px 12px;background:#121318;color:#fff;font-size:13.5px;line-height:1.4';
+  const t = document.createElement('span'); t.textContent = `${who} 화면 미리보기 · 보기 전용`;
+  const x = document.createElement('button'); x.type = 'button'; x.textContent = '닫기';
+  x.style.cssText = 'border:1px solid rgba(255,255,255,.5);background:transparent;color:#fff;border-radius:999px;padding:3px 12px;font:inherit;font-size:13px;cursor:pointer';
+  x.addEventListener('click', closePreview);
+  b.append(t, x);
+  document.body.prepend(b);
+}
+if (PREVIEW) {
+  document.title = '[미리보기] ' + document.title;
+  if (document.body) renderPreviewBand(); else document.addEventListener('DOMContentLoaded', renderPreviewBand);
+}
+
 // URL 쿼리 파라미터 읽기 (예: ?src=2026spring)
 export function getQueryParam(name) {
   return new URLSearchParams(location.search).get(name) || '';
@@ -152,8 +228,9 @@ export function esc(s) {
   const e = document.createElement('div'); e.textContent = s || ''; return e.innerHTML;
 }
 
-// 이 기기의 가입 프로필 (없으면 {})
+// 이 기기의 가입 프로필 (없으면 {}) — 미리보기 탭이면 미리보기 프로필
 export function getProfile() {
+  if (PREVIEW) return { ...PREVIEW };
   try { return JSON.parse(localStorage.getItem('ilhak_profile') || '{}') || {}; } catch (_) { return {}; }
 }
 
@@ -226,21 +303,23 @@ export function clearSkeleton(el) {
 
 /* ── 공지 읽음 추적 (배지는 이 기기 localStorage, 관리자 집계용 기록은 서버 sql/57) ── */
 const READ_KEY = 'ilhak_read_notices';
+// 미리보기는 이 기기(관리자 브라우저)의 읽음 목록 대신 이 탭 전용 목록 — 처음엔 전부 안 읽음으로 보임
+const readStore = () => (PREVIEW ? sessionStorage : localStorage);
 export function getReadSet() {
-  try { return new Set(JSON.parse(localStorage.getItem(READ_KEY) || '[]')); } catch (_) { return new Set(); }
+  try { return new Set(JSON.parse(readStore().getItem(READ_KEY) || '[]')); } catch (_) { return new Set(); }
 }
 export function markNoticesRead(ids) {
   try {
     const s = getReadSet();
     ids.forEach(id => s.add(id));
-    localStorage.setItem(READ_KEY, JSON.stringify([...s].slice(-800))); // 무한 증식 방지
+    readStore().setItem(READ_KEY, JSON.stringify([...s].slice(-800))); // 무한 증식 방지
   } catch (_) {}
 }
 // 서버에도 읽음 기록(sql/57 mark_notices_read) — 관리자 '읽음 n / 대상 n' 집계용.
 // 본인 확인은 코드 또는 서명토큰(my_attendance 와 같은 방식). RPC 미적용·실패여도 화면은 그대로(응답 안 기다림).
 export function recordNoticesRead(ids) {
   const p = getProfile();
-  if (!supabase || !ids.length || !(p.code || p.token)) return;
+  if (PREVIEW || !supabase || !ids.length || !(p.code || p.token)) return;   // 미리보기는 학생 읽음 기록 안 남김(토스트도 없이)
   try {
     supabase.rpc('mark_notices_read', { p_ids: ids.slice(0, 200), p_code: p.code || null, p_token: p.token || null })
       .then(() => {}, () => {});
@@ -314,6 +393,7 @@ export function friendlyError(error) {
   if (/Failed to fetch|NetworkError|network|timeout|타임아웃/i.test(m)) return '인터넷 연결을 확인한 뒤 다시 시도해주세요.';
   if (/JWT|expired|로그인|session|invalid token/i.test(m)) return '로그인이 만료됐어요. 다시 로그인해주세요.';
   if (/row-level security|permission denied|42501/i.test(m)) return '일시적인 문제가 있어요. 잠시 후 다시 시도하거나 담당자에게 문의해주세요.';
+  if (isPreviewBlocked(error)) return '미리보기에서는 저장되지 않아요.';
   if (/duplicate|23505|already exists/i.test(m)) return '이미 처리된 내용이에요.';
   return '문제가 발생했어요. 잠시 후 다시 시도해주세요.';
 }
@@ -360,7 +440,9 @@ if ('serviceWorker' in navigator) {
 //     조용히 회수해버린 기기가 있다. 이 경우 서버엔 토큰 행이 남아 FCM 은 계속 성공을
 //     반환하지만 실제로는 갈 곳이 없다. 학생에게 "알림 다시 켜세요"를 요구하는 대신,
 //     앱을 여는 것만으로 새 구독을 만들어 서버 토큰을 갱신한다(하루 1회로 제한).
-if ('Notification' in window && Notification.permission === 'granted' && window.FIREBASE_CONFIG) {
+// (sql/88) 미리보기 탭은 둘 다 건너뜀 — 관리자 브라우저 알림 권한으로 학생 기기를 등록·삭제하면 안 됨
+if (PREVIEW) { /* 건너뜀 */ }
+else if ('Notification' in window && Notification.permission === 'granted' && window.FIREBASE_CONFIG) {
   (async () => {
     try {
       const { initializeApp, getApps } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js');
