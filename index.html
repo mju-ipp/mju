@@ -297,6 +297,9 @@
     // (?convert=1 = 지원자→학생 전환: 프로필이 있어도 가입폼을 띄움)
     let _prof = null; try { _prof = isPreview() ? getProfile() : JSON.parse(localStorage.getItem('ilhak_profile') || 'null'); } catch (_) {}   // (sql/88) 미리보기 탭은 미리보기 프로필
     const _convert = getQueryParam('convert') === '1';
+    // (10/27 현장 설치) 개인 링크 ?code=XXXX — 가입 화면에 학생·초대코드를 미리 채움. 읽은 뒤 주소에서 코드를 지움(캡처·공유로 퍼지지 않게)
+    const _linkCode = getQueryParam('code').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 12);
+    if (_linkCode) { try { const u = new URL(location.href); u.searchParams.delete('code'); history.replaceState(null, '', u.pathname + u.search + u.hash); } catch (_) {} }
     const _resignup = (e) => {
       e.preventDefault();
       if (isPreview()) { closePreview(); return; }   // (sql/88) 미리보기에서는 기기 가입 정보를 지우지 않고 미리보기만 닫음
@@ -488,7 +491,7 @@
     // (홈 화면 추가 후 첫 실행은 '내 정보 불러오기' 복원이 우선이므로 제외)
     const OB_KEY = 'ilhak_onboard_v1';
     let _obSeen = true; try { _obSeen = !!localStorage.getItem(OB_KEY); } catch (_) {}
-    if (!_centerBlocked && !(_prof && _prof.name) && !_obSeen && !isStandalone() && !_convert) {
+    if (!_centerBlocked && !(_prof && _prof.name) && !_obSeen && !isStandalone() && !_convert && !_linkCode) {   // (10/27) 개인 링크(현장 설치)는 소개 건너뜀
       const slides = [
         { icon: 'megaphone',  t: '공지·자료·일정을 한곳에서',      s: '공동훈련센터 공지사항, 학습안내서·서식, 외부평가·마감 일정을 앱 하나로 확인' },
         { icon: 'user-check', t: '가입은 이름·휴대폰이면 끝',      s: '센터 명단과 자동 대조, 30초면 가입. 직무·기업 정보는 명단에서 자동 입력' },
@@ -522,6 +525,7 @@
       const rJobGrp = document.getElementById('r-jobGrp'), rJob = document.getElementById('r-job');
       const rCompGrp = document.getElementById('r-companyGrp'), rComp = document.getElementById('r-company');
       const rGo = document.getElementById('r-go'), rStatus = document.getElementById('r-status');
+      if (_linkCode) document.getElementById('r-code').value = _linkCode;   // 개인 링크(안드로이드 설치앱)
       const saveAndHome = (prof) => { try { localStorage.setItem('ilhak_profile', JSON.stringify(prof)); } catch (_) {} location.href = './index.html'; };
       document.getElementById('r-fresh').addEventListener('click', (e) => {
         e.preventDefault();
@@ -1131,6 +1135,13 @@
       if (r) { r.checked = true; applyTarget(presetTarget); }
     }
     if (_convert) setStatus(document.getElementById('status'), '합격 안내의 초대코드를 입력하면 학습근로자 정보로 전환됩니다.', 'info');
+    // 개인 링크 — 대상 '학생' + 초대코드. 학생은 필수 동의 체크 후 [가입]만
+    if (_linkCode && !presetTarget) {
+      const r = document.querySelector('input[name=target][value="student"]');
+      if (r) { r.checked = true; applyTarget('student'); }
+      document.getElementById('join-code').value = _linkCode;
+      setStatus(document.getElementById('status'), '초대코드가 입력돼 있어요. 아래 동의 두 가지에 체크하고 가입을 눌러 주세요.', 'info');
+    }
 
     // 기업 '직접입력' 토글
     compSel.addEventListener('change', () => {

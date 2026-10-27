@@ -524,6 +524,7 @@
             <b id="rg-selcount">선택 0명</b>
             <button class="mju-btn mju-btn--gold mju-btn--sm" id="rg-notify"><i data-lucide="send"></i> 개인 공지</button>
             <button class="mju-btn mju-btn--secondary mju-btn--sm" id="rg-bissue"><i data-lucide="ticket"></i> 코드 일괄 발급</button>
+            <button class="mju-btn mju-btn--secondary mju-btn--sm" id="rg-bcard" title="현장 설치용 — QR(개인 링크)·초대코드·설치 순서 카드, A4 한 장 8명"><i data-lucide="qr-code"></i> 설치 카드 인쇄</button>
             <button class="mju-btn mju-btn--secondary mju-btn--sm" id="rg-bcohort"><i data-lucide="users"></i> 기수 변경</button>
             <button class="mju-btn mju-btn--secondary mju-btn--sm" id="rg-bstatus"><i data-lucide="tag"></i> 상태 변경</button>
             <button class="mju-btn mju-btn--coral mju-btn--sm" id="rg-bdelete"><i data-lucide="trash-2"></i> 삭제</button>
@@ -2425,6 +2426,7 @@
       if ($('rg-bcohort')) $('rg-bcohort').style.display = stuOnly ? '' : 'none';
       if ($('rg-notify')) $('rg-notify').style.display = stuOnly ? '' : 'none';
       if ($('rg-bissue')) $('rg-bissue').style.display = stuOnly ? '' : 'none';
+      if ($('rg-bcard')) $('rg-bcard').style.display = stuOnly ? '' : 'none';
       $('rg-selcount').textContent = '선택 ' + n + '명';
     }
     // 학생 1명 코드 발급 (이미 있으면 기존 행 갱신 — 같은 학생에게 행이 쌓이지 않게)
@@ -2796,6 +2798,55 @@
     });
     // 선택한 사람에게 개인 공지(personal·비공개 수신자)
     // [UX] 초대코드 일괄 발급 — 선택 인원 중 코드 없는 학생만 순차 발급 후 1회 재렌더 (새 기수 N명 = 클릭 N회 → 1회)
+    // (10/27 현장 설치, docs/FIELD_INSTALL.md) 고른 학생 설치 카드 — 새 창에 A4 인쇄용(한 장 8명, 기업별).
+    //  QR = 개인 링크 index.html?code=XXXX(가입 화면에 학생·코드가 채워짐). QR 은 새 창 안에서 만듦(cdnjs qrcode-generator) — 이름·코드를 외부로 보내지 않음.
+    $('rg-bcard')?.addEventListener('click', () => {
+      const base = location.origin + location.pathname.replace(/admin\.html$/, '') + 'index.html?code=';
+      const picked = regCache.filter(r => regSel.has(r.id) && (r.target_type || 'student') === 'student');
+      const cards = [], noCode = [];
+      picked.forEach(r => {
+        const e = codeMap[(r.name || '') + '|' + (r.phone || '')];
+        if (e && e.code) cards.push({ name: (r.name || '').trim(), company: r.company || '', manager: r.manager || '', code: e.code, url: base + encodeURIComponent(e.code) });
+        else noCode.push((r.name || '').trim());
+      });
+      if (!cards.length) { setStatus($('rg-status'), '초대코드가 있는 학생을 골라 주세요' + (noCode.length ? ` (코드 없음: ${noCode.join(', ')})` : '') + '.', 'error'); return; }
+      cards.sort((a, b) => a.company.localeCompare(b.company, 'ko') || a.name.localeCompare(b.name, 'ko'));
+      const w = window.open('', '_blank');
+      if (!w) { setStatus($('rg-status'), '팝업이 막혔어요 — 주소창에서 팝업을 허용한 뒤 다시 눌러 주세요.', 'error'); return; }
+      const data = JSON.stringify(cards).replace(/</g, '\\u003c');
+      w.document.write(`<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>앱 설치 카드 ${cards.length}명</title>
+<style>
+@page{size:A4;margin:8mm}
+*{box-sizing:border-box}body{margin:0;font-family:'Noto Sans KR','Malgun Gothic',sans-serif;color:#121318;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.bar{padding:10px 14px;background:#f2f3f5;font-size:14px;display:flex;gap:12px;align-items:center}.bar button{font:inherit;padding:6px 14px}
+.sheet{display:grid;grid-template-columns:1fr 1fr;grid-auto-rows:65mm;gap:2.5mm;padding:2mm;width:194mm;margin:0 auto;page-break-after:always}
+.card{border:1px dashed #9aa0a6;border-radius:3mm;padding:3.5mm 4mm;display:grid;grid-template-columns:30mm 1fr;grid-template-rows:auto 1fr;column-gap:4mm;overflow:hidden}
+.hd{grid-column:1/3;display:flex;align-items:baseline;gap:2mm;margin-bottom:2mm}.nm{font-size:15pt;font-weight:700}.co{font-size:8.5pt;color:#555}
+.qr svg{width:30mm;height:30mm;display:block}.code{font:700 13pt ui-monospace,Consolas,monospace;letter-spacing:1px;text-align:center;margin-top:1.5mm}.cl{font-size:6.5pt;color:#666;text-align:center}
+.st{font-size:7.6pt;line-height:1.45}.st b{display:block;font-size:8pt;margin-top:1mm}.st b:first-child{margin-top:0}.ft{font-size:6.5pt;color:#777;margin-top:1.2mm}
+@media print{.bar{display:none}}
+</style></head><body>
+<div class="bar"><b>앱 설치 카드 ${cards.length}명</b>${noCode.length ? `<span>코드 없어 뺀 학생: ${noCode.map(esc).join(', ')}</span>` : ''}<button onclick="print()">인쇄</button><span>설치 끝나면 카드 회수·폐기(개인 초대코드)</span></div>
+<div id="out"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"><\/script>
+<script>
+const C = ${data};
+const e = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const qr = u => { try { const q = qrcode(0, 'M'); q.addData(u); q.make(); return q.createSvgTag({ cellSize: 3, margin: 2, scalable: true }); } catch (_) { return '<p style="font-size:8pt">QR 실패</p>'; } };
+let h = '';
+for (let i = 0; i < C.length; i += 8) {
+  h += '<div class="sheet">' + C.slice(i, i + 8).map(c => '<div class="card"><div class="hd"><span class="nm">' + e(c.name) + '</span><span class="co">' + e(c.company) + (c.manager ? ' · 담당 ' + e(c.manager) : '') + '</span></div>'
+    + '<div><div class="qr">' + qr(c.url) + '</div><div class="code">' + e(c.code) + '</div><div class="cl">초대코드</div></div>'
+    + '<div class="st"><b>안드로이드</b>① QR 찍기 → 크롬으로 열기<br>② 필수 동의 2개 체크 → 가입<br>③ [알림 켜기] → 허용<br>④ 크롬 메뉴 ⋮ › 홈 화면에 추가'
+    + '<b>아이폰</b>① QR 찍기 → 사파리로 열기<br>② 공유 □↑ › 홈 화면에 추가<br>③ 홈 화면 아이콘으로 열기 → 위 코드 입력<br>④ 메뉴 [알림 설정] › 알림 켜기 → 허용'
+    + '<div class="ft">명지대 일학습병행 앱 · 설치 후 이 카드는 회수</div></div></div>').join('') + '</div>';
+}
+document.getElementById('out').innerHTML = h;
+<\/script></body></html>`);
+      w.document.close();
+      logAction('설치카드인쇄', `${cards.length}명`);
+      setStatus($('rg-status'), `설치 카드 ${cards.length}명` + (noCode.length ? ` · 코드 없어 뺀 학생 ${noCode.join(', ')}` : ''), 'ok');
+    });
     $('rg-bissue')?.addEventListener('click', async () => {
       const targets = regCache.filter(r => regSel.has(r.id) && !(codeMap[(r.name || '') + '|' + (r.phone || '')] || {}).code);
       if (!targets.length) { setStatus($('rg-status'), '선택 인원 모두 이미 초대코드가 있어요.', 'ok'); return; }
