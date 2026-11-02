@@ -457,9 +457,12 @@
       } catch (_) { return; }
       // [sql/61] 월 행마다 track(OFF-JT/OJT) — 없으면(적용 전) OJT. 실적이 있는 가장 최근 달을 머리에 보여준다.
       const trk = r => r.track === 'offjt' ? 'offjt' : 'ojt';
+      // (11/02 사용자 결정) 매달 1일부터 이번 달을 머리에 — 실적이 아직 없으면 0시간. 이번 달 행이 없을 때만 실적 있는 가장 최근 달
+      const _n = new Date(), nowYm = _n.getFullYear() + '-' + String(_n.getMonth() + 1).padStart(2, '0');
+      const nowRows = rows.filter(r => String(r.month).slice(0, 7) === nowYm && Number(r.planned) > 0);
       const done = rows.filter(r => r.actual != null && Number(r.planned) > 0);
-      if (!done.length) return;
-      const cur = done[done.length - 1];                       // 실적이 있는 가장 최근 달(지금 단계)
+      const cur = nowRows.find(r => trk(r) === 'ojt') || nowRows[0] || done[done.length - 1];
+      if (!cur) return;
       const curT = trk(cur), TL = { offjt: 'OFF-JT', ojt: 'OJT' };
       const pct = Math.min(100, Math.round(Number(cur.actual) / Number(cur.planned) * 100));
       const mon = Number(String(cur.month).split('-')[1]) || '';
