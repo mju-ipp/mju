@@ -248,7 +248,7 @@
     .links a:last-child{border-bottom:0}
     .links a::after{content:"›"; margin-left:auto; color:var(--v-mute)}
     /* 알리기 시트 */
-    .veil{position:fixed; inset:0; z-index:9; background:rgba(18,19,24,.45); display:flex; align-items:flex-end; justify-content:center}
+    .veil{position:fixed; inset:0; z-index:1000; background:rgba(18,19,24,.45);   /* (11/5) 아래 탭(z 90) 위로 — 알리기 버튼이 가려지던 것 */ display:flex; align-items:flex-end; justify-content:center}
     .veil[hidden]{display:none}
     .sheet{width:100%; max-width:560px; max-height:88vh; overflow:auto; padding:18px 16px calc(20px + env(safe-area-inset-bottom)); background:var(--v-bg); border-radius:14px 14px 0 0}
     .sheet h3{margin:0 0 2px; font-size:18px; color:var(--v-ink)}
@@ -262,7 +262,7 @@
     .seg button + button{border-left:1px solid var(--v-line)}
     .seg button[aria-pressed="true"]{background:var(--v-ink); color:var(--v-bg); font-weight:700}
     .sheet input{width:100%; box-sizing:border-box; min-height:44px; padding:0 12px; border:1px solid var(--v-line); border-radius:8px; background:var(--v-paper); color:var(--v-ink); font:inherit}
-    .sheet .foot{display:flex; gap:8px; margin-top:20px}
+    .sheet .foot{display:flex; gap:8px; margin-top:20px; position:sticky; bottom:calc(-20px - env(safe-area-inset-bottom)); padding:10px 0 calc(12px + env(safe-area-inset-bottom)); background:var(--v-bg)}   /* 길어져도 닫기·알리기가 늘 보이게 */
     .sheet .foot .btn{flex:1}
     .sheet .sm{margin:12px 0 0; font-size:13px; color:var(--v-mute)}
   </style>
