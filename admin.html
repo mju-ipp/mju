@@ -4336,7 +4336,7 @@ document.getElementById('out').innerHTML = h;
     // 반영: 다시 조회해 올렸을 때 그 날 정규시간이 없어졌으면 '반영'으로 자동 표시(예정이 사라진 날 = 옮김).
     // 공휴일(평일만 의미) 2026-10 ~ 2027-02 — 2027 설 연휴 2/6~2/9(대체 포함)는 달력으로 다시 확인할 것
     const ABS_HOLI = new Set(['2026-10-05', '2026-10-09', '2026-12-25', '2027-01-01', '2027-02-08', '2027-02-09']);
-    const ABS_K = { leave: '휴가', trip: '출장' };
+    const ABS_K = { leave: '휴가', trip: '출장', sched: '회사 일정' };
     const p2 = n => String(n).padStart(2, '0');
     const ymdOf = d => `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`;
     const dowOf = ds => '일월화수목금토'[new Date(ds + 'T00:00:00').getDay()];
@@ -4350,7 +4350,7 @@ document.getElementById('out').innerHTML = h;
       return rows.join(',');
     }
     // 한 과정·한 달의 제안: out = 뺄 날, ops = move.py ops, short = 못 옮긴 시간
-    function absPropose(month, rows, removeDays, today) {
+    function absPropose(month, rows, removeDays, today, wants) {
       const day = {};   // 날짜 → { h: 그날 정규시간(학생 중 큰 값), s: 시작 시 }
       rows.forEach(r => {
         const h = Number(r.planned_hours) || 0; if (h <= 0) return;
@@ -4362,9 +4362,17 @@ document.getElementById('out').innerHTML = h;
       const out = [...removeDays].filter(d => day[d]).sort();
       let need = out.reduce((s, d) => s + day[d].h, 0);
       const ops = out.map(d => [d, 'del', 0]), adds = [];
+      // ⓪ [sql/90] 기업이 고른 옮길 날(want_day) 먼저 — 그 달·내일 이후·평일·공휴일 아님, 6시간까지
+      [...new Set(wants || [])].filter(d => d && d.slice(0, 7) === month && d > today && !removeDays.has(d) && !ABS_HOLI.has(d) && ![0, 6].includes(new Date(d + 'T00:00:00').getDay())).sort().forEach(d => {
+        if (need <= 0) return;
+        const cur = day[d] ? day[d].h : 0; if (cur >= 6) return;
+        const add = Math.min(6 - cur, need); need -= add;
+        ops.push([d, cur ? 'reset' : 'fill', absHours(start, cur + add)]); adds.push(`${mdOf(d)}(${dowOf(d)}) ${cur ? cur + '→' : ''}${cur + add}h 기업 희망`);
+        day[d] = { h: cur + add, s: start };
+      });
       // ① 오늘 이후 등록된 날을 6시간까지
       Object.keys(day).sort().forEach(d => {
-        if (need <= 0 || d <= today || removeDays.has(d) || day[d].h >= 6) return;
+        if (need <= 0 || d <= today || removeDays.has(d) || day[d].h >= 6 || ops.some(o => o[0] === d)) return;
         const add = Math.min(6 - day[d].h, need); need -= add;
         ops.push([d, 'reset', absHours(start, day[d].h + add)]); adds.push(`${mdOf(d)} ${day[d].h}→${day[d].h + add}h`);
       });
@@ -4377,7 +4385,7 @@ document.getElementById('out').innerHTML = h;
         ops.push([d, 'fill', absHours(start, h)]); adds.push(`${mdOf(d)}(${dowOf(d)}) ${h}h`);
       }
       ops.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
-      return { out: out.map(d => ({ d, h: day[d].h })), ops, adds, short: need };
+      return { out: out.map(d => ({ d, h: day[d].h })), ops, adds, short: need, first: (ops.find(o => o[1] !== 'del') || [])[0] || null };
     }
     // [sql/72] 반영·반려됐는데 학생에게 안 알린 건 → 학생마다 한 통(서버가 notified_at 으로 한 번만). 실패해도 다음에 열 때 다시.
     async function absNotify() {
@@ -4395,7 +4403,7 @@ document.getElementById('out').innerHTML = h;
       const today = ymdLocal(0);
       const [{ data: abs, error }, me, { data: mgr }] = await Promise.all([
         supabase.from('attendance_absences')
-          .select('id,student_id,name,company,course,day,kind,note,by_role,by_name,state,created_at').eq('state', 'open').order('day'),
+          .select('id,student_id,name,company,course,day,kind,note,by_role,by_name,state,created_at,want_day,moved_to').eq('state', 'open').order('day'),
         myAdminName(),
         supabase.from('students').select('id,manager'),
       ]);
@@ -4435,6 +4443,17 @@ document.getElementById('out').innerHTML = h;
         list.innerHTML = `<p class="note">${others > 0 ? `${me ? esc(me) + ' 담당 학생의' : '내 학생'} 체크는 없어요. 다른 선생님 담당 ${others}건은 [전체]에서 보여요.` : '체크된 날이 없어요.'}</p>`;
         $('d-abs-plan').disabled = true; return;
       }
+      // [sql/90] 기업·달별 변경 횟수(접수·반영, 취소·반려 제외)
+      const absMoves = {};
+      try {
+        const mons = [...new Set(open.map(a => a.day.slice(0, 7)))];
+        for (const m of mons) {
+          const nx = new Date(Number(m.slice(0, 4)), Number(m.slice(5)), 1);
+          const { data: rows2 } = await supabase.from('attendance_absences').select('company,student_id,day').in('state', ['open', 'applied']).gte('day', m + '-01').lt('day', ymdOf(nx));
+          const seen = new Set();
+          (rows2 || []).forEach(r => { const k = (r.company || '') + '|' + m, kk = k + '|' + r.day; if (seen.has(kk)) return; seen.add(kk); absMoves[k] = (absMoves[k] || 0) + 1; });
+        }
+      } catch (_) {}
       // 과정·달마다 묶음
       const groups = new Map();
       open.forEach(a => { const k = (a.course || a.company || '') + '|' + a.day.slice(0, 7); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(a); });
@@ -4444,13 +4463,16 @@ document.getElementById('out').innerHTML = h;
         const [course, month] = k.split('|');
         const rows = daily[month].filter(r => r.course === course);
         const studs = new Set(rows.map(r => normNm(r.name)));
-        const p = absPropose(month, rows, new Set(items.map(a => a.day)), today);
-        if (course && p.ops.length) (byMonth[month] = byMonth[month] || []).push({ label: course, ops: p.ops });
-        h += `<div class="abs-g"><p class="abs-gh"><b>${esc(course || '(과정 모름)')}</b> <span class="note">${Number(month.slice(5))}월 · 학생 ${studs.size}명</span></p>`;
+        const p = absPropose(month, rows, new Set(items.map(a => a.day)), today, items.map(a => a.want_day).filter(Boolean));
+        if (course && p.ops.length) (byMonth[month] = byMonth[month] || []).push({ label: course, ops: p.ops,
+          // [sql/90] 옮길 날 기록용 — 기업이 고른 날이 계획에 들어갔으면 그 날, 아니면 계획의 첫 넣는 날
+          moves: items.map(a => ({ id: a.id, to: a.want_day && p.ops.some(o => o[0] === a.want_day && o[1] !== 'del') ? a.want_day : p.first })) });
+        const nMove = absMoves[(items[0].company || '') + '|' + month] || 0;   // [sql/90] 이번 달 그 기업 변경 횟수(품질관리 — 잦으면 모니터링 대상)
+        h += `<div class="abs-g"><p class="abs-gh"><b>${esc(course || '(과정 모름)')}</b> <span class="note">${Number(month.slice(5))}월 · 학생 ${studs.size}명${nMove ? ` · 이번 달 변경 ${nMove}건` : ''}</span></p>`;
         items.forEach(a => {
           const who = a.by_role === 'company' || a.by_role === 'teacher' ? `기업 담당자 ${a.by_name || ''}` : a.by_role === 'admin' ? '센터' : '학생 본인';
           h += `<div class="abs-row"><span class="ad">${esc(mdOf(a.day))}(${dowOf(a.day)})</span><span class="an">${esc(a.name)}</span>` +
-            `<span class="ak ${a.kind}">${ABS_K[a.kind] || a.kind}</span><span class="aw">${esc(who.trim())}${a.note ? ' · ' + esc(a.note) : ''}</span>` +
+            `<span class="ak ${a.kind}">${ABS_K[a.kind] || a.kind}</span><span class="aw">${esc(who.trim())}${a.want_day ? ' · 희망 ' + esc(mdOf(a.want_day)) : ''}${a.note ? ' · ' + esc(a.note) : ''}</span>` +
             `<button type="button" class="phone-btn" data-reject="${esc(a.id)}">반려</button></div>`;
         });
         h += `<p class="abs-pr">빼기 ${p.out.map(x => `${mdOf(x.d)}(${dowOf(x.d)}) ${x.h}h`).join(', ') || '-'} → 넣기 ${esc(p.adds.join(', ') || '-')}</p>` +
@@ -4474,11 +4496,17 @@ document.getElementById('out').innerHTML = h;
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible' && absAt && !$('d-abs-sec').hidden && Date.now() - absAt > 60000) dashAbsLoad().catch(() => {});
     });
-    $('d-abs-plan').addEventListener('click', () => {
+    $('d-abs-plan').addEventListener('click', async () => {
+      // [sql/90] 옮길 날 기록 → 기업·학생 화면에 '11/13 → 11/20 옮길 예정/옮김'
+      try {
+        for (const pl of absPlans) for (const it of pl.items) for (const mv of (it.moves || [])) {
+          if (mv.to) await supabase.from('attendance_absences').update({ moved_to: mv.to }).eq('id', mv.id);
+        }
+      } catch (_) {}
       // 달마다 한 파일 — 출결점검 scripts\plan_<MMDD>.json 으로 두고 move.py 로 실행(프라임솔루션은 사용자 결정으로 제외 — 받은 뒤 확인)
       const d = new Date(), tag = p2(d.getMonth() + 1) + p2(d.getDate());
       absPlans.forEach(pl => {
-        const blob = new Blob([JSON.stringify(pl, null, 1)], { type: 'application/json' });
+        const blob = new Blob([JSON.stringify({ ...pl, items: pl.items.map(({ moves, ...x }) => x) }, null, 1)], { type: 'application/json' });   // move.py 형식 그대로(moves 는 앱 기록용)
         const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
         a.download = `plan_${tag}${absPlans.length > 1 ? '_' + pl.month.slice(5) : ''}.json`; a.click();
         setTimeout(() => URL.revokeObjectURL(a.href), 2000);

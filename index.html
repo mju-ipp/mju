@@ -772,7 +772,7 @@
 
       // [sql/69] 휴가·출장 체크 — OJT 정규시간(예정 포함)이 있는 날만, 마감 없음(지난 날도). 선생님이 다른 날로 옮김.
       //   sql/69 적용 전이거나 실패하면 체크 칸 없이 기존 화면(회귀 0)
-      const AK = { leave: '휴가', trip: '출장' }, AKRO = { leave: '휴가로', trip: '출장으로' };
+      const AK = { leave: '휴가', trip: '출장', sched: '회사 일정' }, AKRO = { leave: '휴가로', trip: '출장으로', sched: '회사 일정으로' };
       const absOn = !!(sd && sd.ok);
       function loadAbs(ym) {
         if (!absOn || _absByYm[ym]) return;
@@ -793,14 +793,18 @@
         if (!m || m.loading || m.off) return '';
         const a = m.byDay[ds];
         const who = a && (a.by_role === 'company' || a.by_role === 'teacher') ? ` · 기업 담당자${a.by_name ? ' ' + esc(a.by_name) : ''} 체크` : '';
+        const mdS = s => `${Number(s.slice(5, 7))}/${Number(s.slice(8, 10))}`;
         if (a && a.state === 'applied')
-          return `<div class="ab-box done"><p class="ab-t">${AK[a.kind] || '휴가'} · 다른 날로 옮김${who}</p><p class="ab-s">바뀐 훈련 날짜는 달력에서 확인</p></div>`;
+          return `<div class="ab-box done"><p class="ab-t">${AK[a.kind] || '휴가'} · ${a.moved_to ? mdS(a.moved_to) + '로 옮김' : '다른 날로 옮김'}${who}</p><p class="ab-s">바뀐 훈련 날짜는 달력에서 확인</p></div>`;
         if (a && a.state === 'open')
           return `<div class="ab-box on"><p class="ab-t">${AKRO[a.kind] || '휴가로'} 체크함${who}</p>` +
-            `<p class="ab-s">센터 선생님이 이 날 훈련을 다른 날로 옮길 예정${a.note ? ' 메모: ' + esc(a.note) : ''}</p>` +
+            `<p class="ab-s">${a.moved_to ? mdS(a.moved_to) + '로 옮길 예정' : a.want_day ? '희망 날짜 ' + mdS(a.want_day) + ' · 센터 선생님이 옮길 예정' : '센터 선생님이 이 날 훈련을 다른 날로 옮길 예정'}${a.note ? ' 메모: ' + esc(a.note) : ''}</p>` +
             `<button type="button" class="ab-cancel" data-id="${esc(a.id)}">체크 취소</button></div>`;
+        // (11/5 훈련품질관리) 원래 날짜 전날까지만 — 오늘·지난 날은 센터에 연락
+        const _n = new Date(), _td = `${_n.getFullYear()}-${String(_n.getMonth() + 1).padStart(2, '0')}-${String(_n.getDate()).padStart(2, '0')}`;
+        if (ds <= _td) return a && a.state === 'rejected' ? `<div class="ab-box"><p class="ab-s ab-warn">지난번 체크는 반려됨. 궁금한 점은 센터 문의</p></div>` : '';
         return `<div class="ab-box"><p class="ab-t">이 날 휴가·출장인 경우</p>` +
-          `<p class="ab-s">체크 시 센터 선생님이 이 날 훈련을 다른 날로 옮김` +
+          `<p class="ab-s">체크 시 센터 선생님이 이 날 훈련을 다른 날로 옮김 · <b>전날까지</b> 체크` +
           (m.size > 1 ? ` 같은 과정 학생 ${m.size}명이 함께 훈련 중이라 <b>이 날은 과정 전체 이동</b>` : '') + `</p>` +
           (a && a.state === 'rejected' ? `<p class="ab-s ab-warn">지난번 체크는 반려됨. 궁금한 점은 센터 문의</p>` : '') +
           `<div class="ab-btns"><button type="button" class="ab-btn" data-kind="leave" data-d="${ds}">휴가</button>` +
