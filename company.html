@@ -529,7 +529,7 @@
         rows.forEach(({ s, a }) => { const k = ckey(s); if (!byC.has(k)) byC.set(k, { free: [], mine: [], n: 0 }); const g = byC.get(k); g.n++; if (!a) g.free.push(s); else if (a.state === 'open' && a.by_role === 'company') g.mine.push(a); });
         byC.forEach((g, k) => {
           const n = g.n;
-          h += `<div class="sr ca"><span class="n"><b>${mc || byC.size > 1 ? esc(k) : '이 날 훈련'}</b><span>학생 ${n}명 함께</span></span>` +
+          h += `<div class="sr ca"><span class="n"><b>${mc || byC.size > 1 ? esc(k) : '이 날 훈련'}</b><span>학생 ${n}명</span></span>` +
             (g.free.length ? `<span class="ab2"><button type="button" data-abc="${esc(k)}">다른 날로</button></span>` : '') +
             (g.mine.length ? `<button type="button" class="ab-x" data-cancels="${esc(g.mine.map(a => a.id).join(','))}">알린 것 취소</button>` : '') + `</div>`;
         });
