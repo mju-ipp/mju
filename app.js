@@ -33,7 +33,7 @@ const PREVIEW_READ_RPC = new Set([
   'company_home', 'my_company_info', 'my_company_stage', 'my_ojt_daily_units', 'company_ojt_units',
 ]);
 const PREVIEW = (() => {
-  if (/(^|\/)admin\.html$/.test(location.pathname)) return null;
+  if (/(^|\/)admin(\.html)?$/.test(location.pathname)) return null;   // GitHub Pages 는 /admin 로도 열림(11/5 검수)
   try {
     if (new URLSearchParams(location.search).get('preview') === '1') {
       const h = JSON.parse(localStorage.getItem(PREVIEW_HANDOFF) || 'null');
