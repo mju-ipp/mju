@@ -211,3 +211,5 @@ body{background:var(--v-bg); color:var(--v-ink); font-variant-numeric:tabular-nu
 /* (11/5) 학생 앱 '센터 선생님께 알리기' — 대화방 링크 버튼 */
 .ab-msg{display:flex; align-items:center; justify-content:center; min-height:40px; margin-top:8px; border-radius:6px; background:var(--v-cobalt); color:#fff; font-size:14px; font-weight:600; text-decoration:none}
 .ab-msg:active{background:var(--v-cobalt-d)}
+.ab-list,.ojd-list{margin:4px 0 0; padding-left:18px} .ab-list li,.ojd-list li{margin:2px 0}
+.ab-list{font-size:13px; color:var(--v-mute)}

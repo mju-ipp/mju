@@ -185,7 +185,8 @@
   .ued-save:disabled{opacity:.45; cursor:default}
   .sr.ca{margin-top:6px; padding:8px; background:var(--v-paper); border:1px dashed var(--v-line)}
   #sh-who .chip2 small{font-weight:400; opacity:.75; margin-left:4px}
-  .wrow + .wrow{margin-top:10px} .wrow-h{margin:0 0 6px; font-size:13px; font-weight:600; color:var(--v-ink)}
+  .wrow + .wrow{margin-top:10px}
+  .sh-list{margin:4px 0 0; padding-left:18px} .sh-list li{margin:1px 0} .wrow-h{margin:0 0 6px; font-size:13px; font-weight:600; color:var(--v-ink)}
     .cal button .lb[title]{font-size:10.5px; font-weight:600; letter-spacing:-.05em; line-height:17px; padding:0 1px; text-overflow:clip}   /* 학생 칸: 이름 전체 + 시간(사용자: 크기 줄여도 풀네임) */
     .calcard{padding-left:4px; padding-right:4px}
     .cal button[aria-pressed="true"]{border-width:1px; padding:5px 1px; box-shadow:0 0 0 1px var(--v-cobalt)}   /* 고른 날 테두리가 칸 폭을 먹지 않게 */
@@ -311,8 +312,8 @@
   <div class="veil" id="veil" hidden>
     <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sh-t">
       <h3 id="sh-t">다른 날로 옮기기</h3>
-      <p class="lede">휴가·출장·회사 일정으로 훈련을 못 하는 날을 알리면 센터가 옮겨요 · 원래 날짜 <b>전날까지</b></p>
-      <p class="q">과정 <span>(같은 과정 학생은 함께 옮겨져요)</span></p><div class="chips" id="sh-who"></div>
+      <ul class="lede sh-list"><li>휴가·출장·회사 일정으로 훈련 못 하는 날 알리기</li><li>원래 날짜 <b>전날까지</b></li><li>실제 옮기기는 센터가 처리 · 능력단위는 새 날짜에 자동</li></ul>
+      <p class="q">과정 <span>(같은 과정 학생 함께 이동)</span></p><div class="chips" id="sh-who"></div>
       <p class="q">언제 <span>(훈련일만, 여러 날 가능)</span></p><div class="chips" id="sh-day"></div>
       <p class="q">무엇</p><div class="seg" id="sh-kind"><button type="button" aria-pressed="true" data-k="leave">휴가</button><button type="button" aria-pressed="false" data-k="trip">출장</button><button type="button" aria-pressed="false" data-k="sched">회사 일정</button></div>
       <p class="q">옮길 날 <span>(고른 날마다, 선택)</span></p><div id="sh-want"></div>
@@ -532,7 +533,7 @@
             (g.free.length ? `<span class="ab2"><button type="button" data-abc="${esc(k)}">다른 날로</button></span>` : '') +
             (g.mine.length ? `<button type="button" class="ab-x" data-cancels="${esc(g.mine.map(a => a.id).join(','))}">알린 것 취소</button>` : '') + `</div>`;
         });
-      } else if (rows.length) h += `<p class="lede" style="margin:6px 0 0">오늘·지난 날 변경은 센터 담당 선생님께 연락해 주세요</p>`;
+      } else if (rows.length) h += `<p class="lede" style="margin:6px 0 0">오늘·지난 날 변경은 센터 담당 선생님께 연락</p>`;
       h += inf.evs.map(e => `<div class="sr tk"><span class="n"><b>${esc(e.kind)}</b><span>${esc(e.title)}${e.memo ? ' · ' + esc(e.memo) : ''}</span></span></div>`).join('');
       if (!rows.length && !inf.tasks.length && !inf.evs.length) h += `<p class="lede" style="margin:0">이 날은 OJT 훈련 없음</p>`;
       $('m-day').innerHTML = h + `</div>`;
@@ -649,7 +650,7 @@
     function wantChips() {
       const box = $('sh-want'), days = [...pick.day].sort();
       Object.keys(pick.wants).forEach(d => { if (!pick.day.has(d)) delete pick.wants[d]; });
-      if (!days.length || !pick.who.size) { box.innerHTML = `<p class="lede" style="margin:0">과정과 날짜를 먼저 골라 주세요</p>`; return; }
+      if (!days.length || !pick.who.size) { box.innerHTML = `<p class="lede" style="margin:0">과정·날짜 먼저 고르기</p>`; return; }
       const who = studs().filter(s => pick.who.has(ckey(s)));
       const hrs = (s, ds) => (s.days || []).filter(x => x.day === ds).reduce((t, x) => t + (Number(x.hours) || 0), 0);
       const cands = d0 => {
@@ -683,7 +684,7 @@
       $('sh-who').innerHTML = cks.map(k => `<button type="button" class="chip2" aria-pressed="false" data-v="${esc(k)}">${esc(k)} <small>${esc(studs().filter(s => ckey(s) === k).map(s => s.name).join('·'))}</small></button>`).join('');
       if (!preWho && cks.length === 1) preWho = cks[0];
       $('sh-day').innerHTML = days.length ? days.map(d => `<button type="button" class="chip2" aria-pressed="false" data-v="${d}">${md(d)}</button>`).join('')
-        : `<p class="lede" style="margin:0">${moName(ym)}에 내일 이후 남은 훈련일 없음. 위에서 다음 달로 넘긴 뒤 알리기</p>`;
+        : `<p class="lede" style="margin:0">${moName(ym)}에 내일 이후 남은 훈련일 없음 · 다음 달로 넘긴 뒤 알리기</p>`;
       const bind = (id, set) => $(id).querySelectorAll('.chip2').forEach(b => b.addEventListener('click', () => {
         const on = b.getAttribute('aria-pressed') !== 'true'; b.setAttribute('aria-pressed', on);
         on ? set.add(b.dataset.v) : set.delete(b.dataset.v); sheetMsg();
@@ -693,7 +694,7 @@
         const ds2 = daysOf();
         [...pick.day].forEach(d => { if (!ds2.includes(d)) pick.day.delete(d); });
         $('sh-day').innerHTML = ds2.length ? ds2.map(d => `<button type="button" class="chip2" aria-pressed="${pick.day.has(d)}" data-v="${d}">${md(d)}</button>`).join('')
-          : `<p class="lede" style="margin:0">${moName(ym)}에 내일 이후 남은 훈련일 없음. 위에서 다음 달로 넘긴 뒤 알리기</p>`;
+          : `<p class="lede" style="margin:0">${moName(ym)}에 내일 이후 남은 훈련일 없음 · 다음 달로 넘긴 뒤 알리기</p>`;
         bind('sh-day', pick.day);
       };
       $('sh-who').querySelectorAll('.chip2').forEach(b => b.addEventListener('click', () => { drawDays(); sheetMsg(); }));
@@ -714,9 +715,9 @@
       if (!keepWant) wantChips();
       const n = pairs().length;
       const nd = new Set(pairs().map(x => x.d)).size, ns = new Set(pairs().map(x => x.s.id)).size;
-      $('sh-msg').textContent = !pick.who.size || !pick.day.size ? '과정과 날짜를 골라 주세요.'
-        : n ? `${nd}일 · 학생 ${ns}명을 ${AKRO[pick.kind]} 알려요 · ${(() => { const w = Object.entries(pick.wants).filter(([, v]) => v).sort(); return w.length ? '옮길 날 ' + w.map(([k, v]) => `${md(k)}→${md(v)}`).join(', ') + (w.length < pick.day.size ? ' (나머지는 센터가 정해요)' : '') : '옮길 날은 센터가 정해요'; })()}.`
-        : '고른 날짜에 그 과정 훈련이 없거나 이미 알린 날이에요.';
+      $('sh-msg').textContent = !pick.who.size || !pick.day.size ? '과정·날짜 고르기'
+        : n ? `${nd}일 · 학생 ${ns}명 · ${AK[pick.kind]} · ${(() => { const w = Object.entries(pick.wants).filter(([, v]) => v).sort(); return w.length ? '옮길 날 ' + w.map(([k, v]) => `${md(k)}→${md(v)}`).join(', ') + (w.length < pick.day.size ? ' (나머지는 센터가 정함)' : '') : '옮길 날은 센터가 정함'; })()}`
+        : '고른 날짜에 그 과정 훈련 없음 또는 이미 알림';
       $('sh-ok').disabled = !n;
     }
     $('sh-close').addEventListener('click', () => { $('veil').hidden = true; });

@@ -60,9 +60,9 @@
             <p class="w24-t">학습일지(학습활동서) 작성은 고용24에서</p>
             <p class="w24-path">로그인한 뒤 <b>마이페이지</b> › <b>일학습병행훈련</b> › <b>학습진행현황</b></p>
             <ul class="w24-form">
-              <li>첫 줄: <b>능력단위 - 능력단위요소 (n시간)</b> — 일정 달력에서 그 날을 누르면 문구를 복사할 수 있어요</li>
-              <li>본문: 그날 한 일을 자기 말로 (학습모듈·전날 내용 복사 금지)</li>
-              <li>능력단위가 두 개인 날은 두 항목으로 나눠 쓰기</li>
+              <li>첫 줄: <b>능력단위 - 능력단위요소 (n시간)</b> · 일정 달력에서 그 날 눌러 복사</li>
+              <li>본문: 그날 한 일을 자기 말로 · 학습모듈·전날 내용 복사 금지</li>
+              <li>능력단위 두 개인 날은 두 항목으로 나눠 쓰기</li>
             </ul>
             <a class="mju-btn mju-btn--full" href="https://www.work24.go.kr/cm/z/b/0210/openLginPage.do" target="_blank" rel="noopener">고용24 로그인 ↗</a>
           </div>
@@ -798,7 +798,7 @@
           return `<div class="ab-box done"><p class="ab-t">${AK[a.kind] || '휴가'} · ${a.moved_to ? mdS(a.moved_to) + '로 옮김' : '다른 날로 옮김'}${who}</p><p class="ab-s">바뀐 훈련 날짜는 달력에서 확인</p></div>`;
         if (a && a.state === 'open')
           return `<div class="ab-box on"><p class="ab-t">${AKRO[a.kind] || '휴가로'} 체크함${who}</p>` +
-            `<p class="ab-s">${a.moved_to ? mdS(a.moved_to) + '로 옮길 예정' : a.want_day ? '희망 날짜 ' + mdS(a.want_day) + ' · 센터 선생님이 옮길 예정' : '센터 선생님이 이 날 훈련을 다른 날로 옮길 예정'}${a.note ? ' 메모: ' + esc(a.note) : ''}</p>` +
+            `<p class="ab-s">${a.moved_to ? mdS(a.moved_to) + '로 옮길 예정' : a.want_day ? '희망 날짜 ' + mdS(a.want_day) + ' · 센터 선생님이 옮길 예정' : '센터 선생님이 다른 날로 옮길 예정'}${a.note ? ' 메모: ' + esc(a.note) : ''}</p>` +
             `<button type="button" class="ab-cancel" data-id="${esc(a.id)}">체크 취소</button></div>`;
         // (11/5 훈련품질관리) 원래 날짜 전날까지만 — 오늘·지난 날은 센터에 연락
         const _n = new Date(), _td = `${_n.getFullYear()}-${String(_n.getMonth() + 1).padStart(2, '0')}-${String(_n.getDate()).padStart(2, '0')}`;
@@ -806,7 +806,7 @@
         // (11/5 사용자) 학생 앱에서는 날짜를 못 옮김 — 훈련 일정은 회사(현장교사)가 정하고 과정 단위로 옮김. 알리기만
         const _mdS = `${Number(ds.slice(5, 7))}/${Number(ds.slice(8, 10))}`;
         return `<div class="ab-box"><p class="ab-t">이 날 못 나오면</p>` +
-          `<p class="ab-s">회사 담당자와 센터 선생님께 <b>전날까지</b> 알려 주세요. 다른 날로 옮기는 건 회사가 정해요.</p>` +
+          `<ul class="ab-list"><li>회사 담당자·센터 선생님께 <b>전날까지</b> 알리기</li><li>다른 날로 옮기기는 회사가 정함</li></ul>` +
           (a && a.state === 'rejected' ? `<p class="ab-s ab-warn">지난번 체크는 반려됨. 궁금한 점은 센터 문의</p>` : '') +
           `<a class="ab-msg" href="./chat.html?to=teacher&text=${encodeURIComponent(_mdS + ' 훈련에 못 나갈 것 같아요. (사유: )')}">센터 선생님께 알리기</a></div>`;
         return `<div class="ab-box"><p class="ab-t">이 날 휴가·출장인 경우</p>` +
@@ -910,7 +910,7 @@
             (x.src === 'teacher' ? `<span class="oj-u-meta">현장교사 수정${x.by ? ' · ' + esc(x.by) : ''}</span>` : '') + `</div>` +
             `<div class="ojd-row"><span class="ojd-line">${esc(diaryFirstLine(x.unit, '', x.hours))}</span><button type="button" class="ojd-copy">복사</button></div>` + opts + `</div>`;
         }).join('');
-        h += `<p class="oj-copy">학습일지 첫 줄은 위 문구, 본문은 그날 한 일을 <b>자기 말로</b>${us.length > 1 ? ' · 능력단위가 두 개인 날은 <b>두 항목</b>으로 나눠 쓰기' : ''}</p>`;
+        h += `<ul class="oj-copy ojd-list"><li>첫 줄은 위 문구</li><li>본문은 그날 한 일을 <b>자기 말로</b></li>${us.length > 1 ? '<li>능력단위 두 개인 날은 <b>두 항목</b>으로 나눠 쓰기</li>' : ''}</ul>`;
         return h;
       }
 
