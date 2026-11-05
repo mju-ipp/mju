@@ -30,7 +30,7 @@ const PREVIEW_READ_RPC = new Set([
   'my_attendance', 'my_attendance_days', 'my_absences', 'my_offjt_units',
   'my_targeted_calendar', 'my_targeted_calendar_from', 'my_task_checks', 'my_company_task_checks',
   'my_personal_notices', 'my_targeted_library', 'my_chats', 'my_chat_messages', 'my_chat_unread',
-  'company_home', 'my_company_info', 'my_company_stage',
+  'company_home', 'my_company_info', 'my_company_stage', 'my_ojt_daily_units', 'company_ojt_units',
 ]);
 const PREVIEW = (() => {
   if (/(^|\/)admin\.html$/.test(location.pathname)) return null;

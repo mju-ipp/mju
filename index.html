@@ -59,6 +59,11 @@
           <div class="w24">
             <p class="w24-t">학습일지(학습활동서) 작성은 고용24에서</p>
             <p class="w24-path">로그인한 뒤 <b>마이페이지</b> › <b>일학습병행훈련</b> › <b>학습진행현황</b></p>
+            <ul class="w24-form">
+              <li>첫 줄: <b>능력단위 - 능력단위요소 (n시간)</b> — 일정 달력에서 그 날을 누르면 문구를 복사할 수 있어요</li>
+              <li>본문: 그날 한 일을 자기 말로 (학습모듈·전날 내용 복사 금지)</li>
+              <li>능력단위가 두 개인 날은 두 항목으로 나눠 쓰기</li>
+            </ul>
             <a class="mju-btn mju-btn--full" href="https://www.work24.go.kr/cm/z/b/0210/openLginPage.do" target="_blank" rel="noopener">고용24 로그인 ↗</a>
           </div>
         </div>
@@ -378,10 +383,11 @@
       const args = { p_code: prof.code || null, p_token: prof.token || null };
       const wrap = p => Promise.resolve(p).catch(() => null);   // 빌더는 then 만 있어 Promise 로 감쌈
       _stuData = (async () => {
-        const [m, d0, u] = await Promise.all([
+        const [m, d0, u, od] = await Promise.all([
           wrap(supabase.rpc('my_attendance', args)),
           wrap(supabase.rpc('my_attendance_days', { ...args, p_month: 'all' })),
           wrap(supabase.rpc('my_offjt_units', args)),
+          wrap(supabase.rpc('my_ojt_daily_units', { ...args, p_month: 'all' })),   // [sql/89] 일별 능력단위 — 적용 전이면 null
         ]);
         let d = d0, all = true;
         if (!d || d.error) { d = await wrap(supabase.rpc('my_attendance_days', args)); all = false; }
@@ -390,9 +396,41 @@
           ok: good(m), rows: good(m) ? m.data.rows || [] : [],
           days: good(d) && Array.isArray(d.data.days) ? d.data.days : [], fetched: good(d) ? d.data.fetched_at : null, allDays: all,
           units: good(u) ? u.data.units || [] : [],
+          ...ojtDaily(good(od) ? od.data.months : null),
         };
       })();
       return _stuData;
+    }
+    // [sql/89] 일별 능력단위 → { dayUnits: { 'YYYY-MM-DD': [{unit, hours, src, by}] }, monthUnits: { 'YYYY-MM': [{unit, hours, days}] } }
+    //   행정지원시스템 시간표의 월별 능력단위 시간을 정규시간 날짜에 시간표 순서대로 나눈 것(현장교사가 고친 날은 src 'teacher')
+    function ojtDaily(months) {
+      const dayUnits = {}, monthUnits = {};
+      (months || []).forEach(mo => {
+        if (!mo || !mo.month) return;
+        if ((mo.units || []).length) monthUnits[mo.month] = mo.units;
+        (mo.days || []).forEach(d => { if ((d.units || []).length) dayUnits[d.day] = d.units; });
+      });
+      return { dayUnits, monthUnits };
+    }
+    // 학습일지 첫 줄 — '능력단위 - 능력단위요소 (n시간)'
+    function diaryFirstLine(unit, el, hours) { return `${unit} - ${el || '(능력단위요소)'} (${Number(hours) || 0}시간)`; }
+    // 첫 줄 상자: 요소 고르기 · 복사 (달력이 다시 그려져도 동작하게 문서에 한 번만 붙임)
+    if (!window._ojdWired) {
+      window._ojdWired = true;
+      document.addEventListener('change', ev => {
+        const sel = ev.target.closest && ev.target.closest('.ojd-sel');
+        if (!sel) return;
+        const box = sel.closest('.ojd-u').querySelector('.ojd-line');
+        box.textContent = diaryFirstLine(sel.dataset.u, sel.value, sel.dataset.h);
+      });
+      document.addEventListener('click', async ev => {
+        const b = ev.target.closest && ev.target.closest('.ojd-copy');
+        if (!b) return;
+        const txt = b.closest('.ojd-u').querySelector('.ojd-line').textContent;
+        try { await navigator.clipboard.writeText(txt); b.textContent = '복사됨'; }
+        catch (_) { const r = document.createRange(); r.selectNodeContents(b.closest('.ojd-u').querySelector('.ojd-line')); const s = getSelection(); s.removeAllRanges(); s.addRange(r); b.textContent = '길게 눌러 복사'; }
+        setTimeout(() => { b.textContent = '복사'; }, 1600);
+      });
     }
     // 수업일정 행 course '수업일정 · 과목·능력단위 / …' → [{ s, u }] (첫 '·' 에서 나눔)
     function offItems(c) {
@@ -419,25 +457,33 @@
       const unitsOf = r => [...new Set(String(r.units || '').split('·').map(x => x.trim()).filter(Boolean))];
       const cur = rows.find(r => String(r.month).slice(0, 7) === curYm) || rows.find(r => String(r.month).slice(0, 7) > curYm);
       const moName = ym => { const y = Number(ym.slice(0, 4)), m = Number(ym.slice(5)); return `${y !== _t.getFullYear() ? y + '년 ' : ''}${m}월`; };
+      const mUnits = ym => (sd.monthUnits || {})[ym] || null;   // [sql/89] 그 달 능력단위별 배정 시간
+      let bigYm = null;
       const big = u => {
         const i = info(u), els = (i && i.elements) || [];
-        return `<div class="op-big"><p class="op-bn">${e(u)}${i && i.hours != null ? `<span> · ${Number(i.hours)}시간</span>` : ''}</p>` +
+        const mu = bigYm && mUnits(bigYm) ? mUnits(bigYm).find(x => x.unit === u) : null;
+        const meta = mu ? `<span> · 이번 달 ${Number(mu.hours)}시간${mu.days ? ` · ${mu.days}일` : ''}</span>${i && i.hours != null ? `<small class="op-guide">학습안내서 ${Number(i.hours)}시간 중</small>` : ''}`
+          : (i && i.hours != null ? `<span> · ${Number(i.hours)}시간</span>` : '');
+        return `<div class="op-big"><p class="op-bn">${e(u)}${meta}</p>` +
           (els.length ? `<ol class="op-els">${els.map(el => `<li><details><summary>${e(el.name)}</summary><ul>${(el.tasks || []).map(t => `<li>${e(t)}</li>`).join('')}</ul></details></li>`).join('')}</ol>` : '') +
           `</div>`;
       };
       let h = '';
       if (cur) {
-        const ym = String(cur.month).slice(0, 7), us = unitsOf(cur);
+        const ym = String(cur.month).slice(0, 7);
+        bigYm = ym;
+        const us = mUnits(ym) ? mUnits(ym).map(x => x.unit) : unitsOf(cur);
         h += `<p class="menu-group-label" style="margin-top:14px">${ym === curYm ? '이번 달 OJT' : '다음 OJT'} · ${moName(ym)}${cur.planned != null ? ` 예정 ${Number(cur.planned)}시간` : ''}</p>` +
           `<div class="op-cur">` + (us.length ? us.map(big).join('') : `<p class="op-none">능력단위 아직 없음</p>`) +
           (us.some(u => ((info(u) || {}).elements || []).length) ? `<p class="oj-copy">참고만 하고 <b>자기 말로</b> 바꿔 쓰기 — 그대로 복사 시 공단 모니터링 대상</p>` : '') +
           `</div>`;
       }
       h += `<details class="op-all"><summary>전체 월 보기</summary><div class="op-list">` + rows.map(r => {
-        const ym = String(r.month).slice(0, 7), us = unitsOf(r);
+        const ym = String(r.month).slice(0, 7), mu = mUnits(ym), us = mu ? mu.map(x => x.unit) : unitsOf(r);
+        const hOf = u => { const x = mu && mu.find(y => y.unit === u); if (x) return Number(x.hours); const i = info(u); return i && i.hours != null ? Number(i.hours) : null; };
         return `<div class="op-row${ym === curYm ? ' now' : ym < curYm ? ' past' : ''}"><span class="op-mo">${moName(ym)}</span><span class="op-p">${r.planned != null ? Number(r.planned) + 'h' : '—'}</span>` +
-          `<span class="op-us">${us.map(u => { const i = info(u); return `<span>${e(u)}${i && i.hours != null ? ` <small>${Number(i.hours)}h</small>` : ''}</span>`; }).join('') || '—'}</span></div>`;
-      }).join('') + `</div><p class="op-note">h = 그 능력단위 전체 시간(학습안내서 기준)</p></details>`;
+          `<span class="op-us">${us.map(u => { const hh = hOf(u); return `<span>${e(u)}${hh != null ? ` <small>${hh}h</small>` : ''}</span>`; }).join('') || '—'}</span></div>`;
+      }).join('') + `</div><p class="op-note">${Object.keys(sd.monthUnits || {}).length ? 'h = 그 달 배정 시간(행정지원시스템 시간표) · 배정이 없는 달은 학습안내서 전체 시간' : 'h = 그 능력단위 전체 시간(학습안내서 기준)'}</p></details>`;
       const box = document.getElementById('ojt-plan');
       box.innerHTML = h;
       box.style.display = '';
@@ -841,6 +887,23 @@
         }).join('');
       }
 
+      // [sql/89] OJT 날 — 그날 능력단위·시간(자동 배분 또는 현장교사 수정) + 학습일지 첫 줄. 자료가 없으면 '' → 기존 월 능력단위
+      function ojtDayUnits(ds) {
+        const us = (sd && sd.dayUnits && sd.dayUnits[ds]) || null;
+        if (!us || !us.length) return '';
+        let h = `<p class="hc-sub" style="margin:10px 0 4px">이 날 능력단위</p>`;
+        h += us.map(x => {
+          const info = unitInfo('OJT', x.unit), els = (info && info.elements) || [];
+          const opts = els.length ? `<select class="ojd-sel" data-u="${esc(x.unit)}" data-h="${Number(x.hours)}"><option value="">능력단위요소 고르기</option>` +
+            els.map(el => `<option value="${esc(el.name)}">${esc(el.name)}</option>`).join('') + `</select>` : '';
+          return `<div class="oj-u ojd-u"><div class="ojd-head"><span class="oj-u-n">${esc(x.unit)}</span><span class="ojd-h">${Number(x.hours)}시간</span>` +
+            (x.src === 'teacher' ? `<span class="oj-u-meta">현장교사 수정${x.by ? ' · ' + esc(x.by) : ''}</span>` : '') + `</div>` +
+            `<div class="ojd-row"><span class="ojd-line">${esc(diaryFirstLine(x.unit, '', x.hours))}</span><button type="button" class="ojd-copy">복사</button></div>` + opts + `</div>`;
+        }).join('');
+        h += `<p class="oj-copy">학습일지 첫 줄은 위 문구, 본문은 그날 한 일을 <b>자기 말로</b>${us.length > 1 ? ' · 능력단위가 두 개인 날은 <b>두 항목</b>으로 나눠 쓰기' : ''}</p>`;
+        return h;
+      }
+
       // 날짜를 누르면 아래에 — 그날 수업(과목·능력단위 → 요소·수행과업) / 훈련(정규·인정) / 일정
       function dayDetail(ds) {
         const srs = sByDate[ds] || [], evts = byDate[ds] || [];
@@ -865,7 +928,7 @@
             `<span class="oj-u-n">${r.start ? `${esc(r.start)}–${esc(r.end)}` : '훈련'} · ${Number(r.planned) || 0}시간</span>` +
             `<span class="ojt-st ${st}" style="font-size:12.5px">${ST[st] || st}${st !== 'planned' && st !== 'none' ? ' ' + (Number(r.recognized) || 0) + '시간' : ''}</span></div>`;
           if (isOjtDay(r) && (st !== 'ok' || absOf(ds))) h += absBlock(ds);   // 인정된 날은 체크할 일이 없음(이미 체크한 건 보여 줌)
-          if (r.track !== 'offjt') h += ojtUnits(ds.slice(0, 7));
+          if (r.track !== 'offjt') h += ojtDayUnits(ds) || ojtUnits(ds.slice(0, 7));
         });
         evts.forEach(r => { h += `<div class="oj-u"><span class="oj-u-s">${esc(r.kind || '일정')}</span><span class="oj-u-n">${esc(r.title)}</span>${r.memo ? `<span class="oj-u-meta">${esc(r.memo)}</span>` : ''}</div>`; });
         return h + '</div>';

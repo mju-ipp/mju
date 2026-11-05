@@ -244,6 +244,15 @@
           </div>
           <p class="note" id="d-daily-preview" style="margin:6px 0 0"></p>
           <div class="status" id="d-daily-status"></div>
+          <!-- [sql/89] OJT 능력단위 시간표 — 행정지원시스템 시간표 다운로드(과정별 xlsx) → 날짜별 능력단위 자동 배분(docs/OJT_DAILY_UNITS.md) -->
+          <div class="trow" id="odu-card" style="margin-top:12px">
+            <div class="tl"><b>OJT 능력단위 시간표</b><span class="note">행정지원시스템 훈련실시조회 › 시간표보기 › 다운로드한 과정별 엑셀(여러 개 가능). 이번 달부터 올리면 학생·기업 화면에 날짜별 능력단위가 나와요</span></div>
+            <label class="phone-btn file-btn"><input type="file" id="odu-file" multiple accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" aria-label="OJT 시간표 엑셀" />파일 고르기</label>
+            <button class="mju-btn mju-btn--sm" id="odu-go" disabled>올리기</button>
+            <button class="mju-btn mju-btn--secondary mju-btn--sm" id="odu-rep">이번 달 배분 확인</button>
+          </div>
+          <div id="odu-preview" style="margin:6px 0 0"></div>
+          <div class="status" id="odu-status"></div>
         </section>
         <div class="card">
           <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
@@ -5209,6 +5218,126 @@ document.getElementById('out').innerHTML = h;
         dailyLastLoad(); dailyCache = null; attnCache = null; dashShortLoad(); attnLoad(true);
       });
     })();
+
+    // ===== [sql/89] OJT 능력단위 시간표 올리기 — 행정지원시스템 시간표(과정별 xlsx) → ojt_unit_month → 날짜별 배분(서버) =====
+    //   한 달에 능력단위가 여럿이면 순서 = 먼저 시작한 능력단위 → 내부평가 시기 빠른 것 → NO (파일에 순서가 없음, 11/5 확인)
+    //   과정 ↔ 학생 = 출결 결과(attendance_daily.course). 파일 이름으로 과정을 짐작하고, 틀리면 고르게.
+    let oduParsed = [], oduInfo = null;
+    const oduYm0 = () => ymdLocal(0).slice(0, 7);
+    const oduPrevYm = ym => { const d = new Date(+ym.slice(0, 4), +ym.slice(5) - 2, 1); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; };
+    async function oduLoadInfo() {
+      if (oduInfo) return oduInfo;
+      const from = oduPrevYm(oduYm0()) + '-01';
+      const [ad, am] = await Promise.all([
+        selAll(() => supabase.from('attendance_daily').select('name,course').eq('track', 'ojt').gte('day', from).order('id')),
+        selAll(() => supabase.from('attendance_monthly').select('name,month,planned_hours').eq('track', 'ojt').gte('month', oduYm0() + '-01').order('id')),
+      ]);
+      const byCourse = new Map();
+      (ad.data || []).forEach(r => { if (!r.course) return; if (!byCourse.has(r.course)) byCourse.set(r.course, new Set()); byCourse.get(r.course).add(String(r.name || '').trim()); });
+      const planned = new Map();   // 이름|YYYY-MM → 예정
+      (am.data || []).forEach(r => planned.set(String(r.name || '').replace(/\s+/g, '') + '|' + String(r.month).slice(0, 7), Number(r.planned_hours)));
+      oduInfo = { byCourse, planned };
+      return oduInfo;
+    }
+    function oduParse(XLSX, wb, fileName) {
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const g = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: null });
+      const hdr = (g[0] || []).map(x => String(x == null ? '' : x));
+      const col = n => hdr.findIndex(h => h.replace(/\s+/g, '') === n);
+      const cM = col('훈련방법'), cU = col('능력단위명'), cNo = col('NO'), cE = col('내부평가시기');
+      if (cM < 0 || cU < 0) return { file: fileName, error: '시간표 형식이 아니에요(훈련 방법·능력단위명 열 없음)' };
+      const months = hdr.map((h, i) => [i, (h.match(/^(\d{4}-\d{2})/) || [])[1]]).filter(x => x[1]);
+      const units = [];
+      g.slice(1).forEach(r => {
+        if (!r || String(r[cM] == null ? '' : r[cM]).trim() !== 'OJT') return;
+        const alloc = {};
+        months.forEach(([i, ym]) => { const v = Number(r[i]); if (v > 0) alloc[ym] = v; });
+        const ks = Object.keys(alloc).sort(); if (!ks.length) return;
+        const ev = String(r[cE] == null ? '' : r[cE]).trim();
+        units.push({ no: Number(r[cNo]) || 0, unit: String(r[cU]).trim(), alloc, start: ks[0], eval: /^\d{6}$/.test(ev) ? ev.slice(0, 4) + '-' + ev.slice(4) : null });
+      });
+      return { file: fileName, sheet: wb.SheetNames[0], units, course: '' };
+    }
+    function oduGuess(file, courses) {
+      const base = file.replace(/\.xlsx?$/i, ''), parts = base.split('_'), co = parts[0].replace(/\s+/g, ''), tag = parts.slice(1).join('_');
+      const cands = courses.filter(c => c.replace(/\s+/g, '').startsWith(co));
+      if (cands.length <= 1) return cands[0] || '';
+      if (/AI/i.test(tag)) return cands.find(c => /_AI\)/.test(c)) || '';
+      if (/융캡|융합/.test(tag)) return cands.find(c => !/_AI\)/.test(c)) || '';
+      return cands.find(c => tag && c.replace(/\s+/g, '').includes(tag.replace(/\s+/g, ''))) || '';
+    }
+    const oduMonthUnits = (f, ym) => f.units.filter(u => u.alloc[ym]).sort((a, b) =>
+      (a.start < b.start ? -1 : a.start > b.start ? 1 : 0) || String(a.eval || '9999').localeCompare(String(b.eval || '9999')) || a.no - b.no);
+    const oduMonths = f => [...new Set(f.units.flatMap(u => Object.keys(u.alloc)))].filter(ym => ym >= oduYm0()).sort();
+    function oduRender() {
+      const box = $('odu-preview');
+      if (!oduParsed.length) { box.innerHTML = ''; $('odu-go').disabled = true; return; }
+      const courses = [...oduInfo.byCourse.keys()].sort((a, b) => a.localeCompare(b, 'ko'));
+      let ready = 0;
+      box.innerHTML = '<table class="rep"><tr><th>파일</th><th>과정(학생)</th><th>올릴 달 · 능력단위 순서</th></tr>' + oduParsed.map((f, k) => {
+        if (f.error) return `<tr><td>${esc(f.file)}</td><td colspan="2"><span class="oj-warn">${esc(f.error)}</span></td></tr>`;
+        const studs = f.course ? [...(oduInfo.byCourse.get(f.course) || [])] : [];
+        if (f.course && studs.length) ready++;
+        const mons = oduMonths(f).map(ym => {
+          const us = oduMonthUnits(f, ym), tot = us.reduce((a, u) => a + u.alloc[ym], 0);
+          const bad = studs.filter(n => { const p = oduInfo.planned.get(n.replace(/\s+/g, '') + '|' + ym); return p != null && p !== tot; });
+          return `<div>${+ym.slice(5)}월 ${tot}h — ${us.map(u => `${esc(u.unit)} ${u.alloc[ym]}`).join(' → ')}${bad.length ? ` <span class="oj-warn">앱 예정시수와 다름(${esc(bad.join('·'))})</span>` : ''}</div>`;
+        }).join('') || '<span class="note">이번 달 이후 OJT 배정 없음</span>';
+        return `<tr><td>${esc(f.file)}</td><td><select class="ph-select" data-oduc="${k}"><option value="">과정 고르기</option>` +
+          courses.map(c => `<option value="${esc(c)}"${c === f.course ? ' selected' : ''}>${esc(c)}</option>`).join('') + `</select>` +
+          `<div class="note">${studs.length ? esc(studs.join(', ')) : f.course ? '이 과정 학생 없음' : ''}</div></td><td>${mons}</td></tr>`;
+      }).join('') + '</table>';
+      box.querySelectorAll('[data-oduc]').forEach(sel => sel.addEventListener('change', () => { oduParsed[+sel.dataset.oduc].course = sel.value; oduRender(); }));
+      $('odu-go').disabled = !ready;
+    }
+    $('odu-file').addEventListener('change', async ev => {
+      const files = [...(ev.target.files || [])];
+      oduParsed = []; setStatus($('odu-status'), '', '');
+      if (!files.length) { oduRender(); return; }
+      try {
+        const [XLSX, info] = await Promise.all([loadXlsx(), oduLoadInfo()]);
+        const courses = [...info.byCourse.keys()];
+        for (const f of files) {
+          const wb = XLSX.read(await f.arrayBuffer(), { type: 'array' });
+          const r = oduParse(XLSX, wb, f.name);
+          if (!r.error) r.course = oduGuess(f.name, courses);
+          oduParsed.push(r);
+        }
+      } catch (e) { setStatus($('odu-status'), '파일을 읽지 못했어요: ' + (e.message || e), 'err'); }
+      oduRender();
+    });
+    $('odu-go').addEventListener('click', async () => {
+      const rows = [];
+      oduParsed.filter(f => !f.error && f.course).forEach(f => {
+        const studs = [...(oduInfo.byCourse.get(f.course) || [])];
+        oduMonths(f).forEach(ym => oduMonthUnits(f, ym).forEach((u, i) => studs.forEach(n => rows.push({
+          name: n, month: ym, unit: u.unit, hours: u.alloc[ym], sort: i + 1, eval_month: u.eval, course: f.course }))));
+      });
+      if (!rows.length) return;
+      $('odu-go').disabled = true; setStatus($('odu-status'), '올리는 중…', '');
+      const { data, error } = await supabase.rpc('admin_upsert_unit_month', { p_rows: rows, p_by: null });
+      if (error || !data || data.ok !== true) {
+        setStatus($('odu-status'), /admin_upsert_unit_month|PGRST202|schema cache/i.test((error && error.message) || '') ? '서버 설정(sql/89) 적용 후 쓸 수 있어요.' : '올리지 못했어요: ' + ((error && error.message) || (data && data.reason) || ''), 'err');
+        $('odu-go').disabled = false; return;
+      }
+      const off = (data.built || []).filter(b => Number(b.planned) > 0 && Number(b.planned) !== Number(b.units));
+      const noPlan = (data.built || []).filter(b => !(Number(b.planned) > 0)).length;   // 정규시간을 아직 안 올린 달 — 올리면 다음 조회 때 자동 배분
+      setStatus($('odu-status'), `${data.rows}행 올림 · ${(data.built || []).length}건(학생×달) 배분` +
+        (off.length ? ` · 정규시간 합과 능력단위 합이 다른 곳 ${off.length}건: ${off.slice(0, 6).map(b => `${b.name} ${+b.month.slice(5)}월(정규 ${b.planned}/단위 ${b.units})`).join(', ')}${off.length > 6 ? ' 외' : ''}` : ' · 정규시간 합과 모두 일치') + (noPlan ? ` · 정규시간 아직 없는 달 ${noPlan}건(출결 올리면 자동 배분)` : ''), off.length ? 'err' : 'ok');
+      try { logAction('OJT 능력단위 시간표 올리기', `${data.rows}행 · ${(data.built || []).length}건`); } catch (_) {}
+    });
+    $('odu-rep').addEventListener('click', async () => {
+      const box = $('odu-preview'); setStatus($('odu-status'), '확인 중…', '');
+      const { data, error } = await supabase.rpc('admin_ojt_unit_report', { p_month: oduYm0() });
+      if (error || !data || data.ok !== true) {
+        setStatus($('odu-status'), /admin_ojt_unit_report|PGRST202|schema cache/i.test((error && error.message) || '') ? '서버 설정(sql/89) 적용 후 쓸 수 있어요.' : '확인하지 못했어요.', 'err'); return;
+      }
+      const ss = data.students || [];
+      setStatus($('odu-status'), ss.length ? `${+data.month.slice(5)}월 ${ss.length}명 · 정규시간 합과 다른 학생 ${ss.filter(x => !x.ok).length}명` : '이번 달 올린 능력단위 시간표가 없어요.', ss.some(x => !x.ok) ? 'err' : 'ok');
+      box.innerHTML = ss.length ? '<table class="rep"><tr><th>학생</th><th>정규시간 합</th><th>능력단위 합</th><th>능력단위별 배분/배정</th><th>현장교사 수정</th></tr>' + ss.map(x =>
+        `<tr><td>${esc(x.name)}</td><td>${x.planned}</td><td>${x.unit_total}${x.ok ? '' : ' <span class="oj-warn">다름</span>'}</td>` +
+        `<td>${(x.units || []).map(u => `${esc(u.unit)} ${u.daily_hours}/${u.hours}h`).join(' · ')}</td><td>${x.fixed_days ? x.fixed_days + '일' : '-'}</td></tr>`).join('') + '</table>' : '';
+    });
 
     // ===== [OFF-JT 새 3단계] 직무별 수업일정 엑셀 → offjt_schedule, 능력단위 시간표 → offjt_units (sql/62) =====
     //   엑셀 읽기 규칙은 offjt-xlsx.js(2026년 37개 파일로 node 시험). 올리기는 upload_offjt_schedule(고른 달만 교체).

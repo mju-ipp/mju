@@ -197,3 +197,14 @@ body{background:var(--v-bg); color:var(--v-ink); font-variant-numeric:tabular-nu
 .cal-dow{font-size:12px}
 .ojt-t,.ojt-st,.oj-s,.oj-star{font-size:12px}
 .mju-btn,.btn{border-radius:6px}
+
+/* [sql/89] 그날 능력단위·학습일지 첫 줄(달력 펼친 날) · 홈 이번 달 배정 시간 · 고용24 양식 안내 */
+.ojd-head{display:flex; align-items:baseline; gap:8px; flex-wrap:wrap}
+.ojd-h{font-weight:600; color:var(--v-accent, var(--brand, #2b4acb)); font-variant-numeric:tabular-nums}
+.ojd-row{display:flex; gap:6px; align-items:center; margin-top:6px}
+.ojd-line{flex:1; min-width:0; padding:7px 9px; border:1px solid var(--border-subtle, #e3e5ea); border-radius:8px; background:var(--surface-sunken, #f6f7f9); font-size:13px; line-height:1.4; word-break:keep-all; overflow-wrap:anywhere; user-select:all}
+.ojd-copy{flex:none; padding:7px 10px; border:1px solid var(--border-subtle, #e3e5ea); border-radius:8px; background:transparent; font-size:12.5px; color:inherit; cursor:pointer}
+.ojd-sel{margin-top:6px; width:100%; padding:6px 8px; border:1px solid var(--border-subtle, #e3e5ea); border-radius:8px; background:transparent; font-size:12.5px; color:inherit}
+.op-bn small.op-guide{display:block; margin-top:2px; font-size:12px; font-weight:400; color:var(--v-mute)}
+.w24-form{margin:8px 0 10px; padding-left:18px; font-size:12.5px; line-height:1.6; color:var(--v-mute)}
+.w24-form b{color:var(--v-ink, inherit)}

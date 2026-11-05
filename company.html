@@ -168,6 +168,21 @@
     .ab-x{border-color:var(--v-line); color:var(--v-mute); font-weight:500}
     .ab2 button:disabled{opacity:.5}
     .sel .sr{flex-wrap:wrap; row-gap:8px}
+  /* [sql/89] 그날 능력단위 고치기 */
+  .u-ed{display:inline-block; margin-top:4px; padding:0; border:0; background:none; color:var(--v-cobalt); font:inherit; font-size:13px; text-decoration:underline; cursor:pointer}
+  .ued{margin:4px 0 10px; padding:12px; border:1px solid var(--v-line); border-radius:10px; background:var(--v-paper)}
+  .ued-t{margin:0 0 8px; font-weight:600}
+  .ued-sum{margin-left:6px; font-size:13px; font-weight:500}
+  .ued-sum.ok{color:var(--v-ok, #1a7f4b)} .ued-sum.no{color:var(--v-warn, #b45309)}
+  .ued-r{display:flex; align-items:center; gap:8px; margin:6px 0; font-size:14px}
+  .ued-r span{flex:1; min-width:0} .ued-r small{display:block; font-size:12px; color:var(--v-mute)}
+  .ued-r input[type=number]{width:64px; min-height:36px; padding:0 8px; border:1px solid var(--v-line); border-radius:8px; font:inherit; text-align:right}
+  .ued-by input{flex:1.4; min-height:36px; padding:0 10px; border:1px solid var(--v-line); border-radius:8px; font:inherit}
+  .ued-msg{margin:6px 0; font-size:13px; color:var(--v-warn, #b45309)}
+  .ued-note{margin:6px 0 0; font-size:12px; color:var(--v-mute)}
+  .ued-b{display:flex; justify-content:flex-end; gap:6px; margin-top:10px}
+  .ued-save{min-height:36px; padding:0 14px; border:0; border-radius:8px; background:var(--v-cobalt); color:#fff; font:inherit; font-weight:600; cursor:pointer}
+  .ued-save:disabled{opacity:.45; cursor:default}
     .cal button .lb[title]{font-size:10.5px; font-weight:600; letter-spacing:-.05em; line-height:17px; padding:0 1px; text-overflow:clip}   /* 학생 칸: 이름 전체 + 시간(사용자: 크기 줄여도 풀네임) */
     .calcard{padding-left:4px; padding-right:4px}
     .cal button[aria-pressed="true"]{border-width:1px; padding:5px 1px; box-shadow:0 0 0 1px var(--v-cobalt)}   /* 고른 날 테두리가 칸 폭을 먹지 않게 */
@@ -276,7 +291,7 @@
       <h2 class="sec">더보기</h2>
       <div class="more card">
         <details id="stage-sec" hidden><summary>우리 회사 진행 현황 <span id="stage-now"></span></summary><div id="stage-view"></div></details>
-        <details><summary>능력단위 <span>달마다 배우는 내용</span></summary><p class="lede">실시신고 시간표의 달별 배정. 단위를 누르면 능력단위요소·수행과업 표시</p><div id="u-list"></div></details>
+        <details><summary>능력단위 <span>달마다 배우는 내용</span></summary><p class="lede">행정지원시스템 시간표의 달별 배정. 날짜별 능력단위는 위 달력에서 날짜를 누르면 보임</p><div id="u-list"></div></details>
         <details><summary>월별 출결 마감 <span>학습일지·출석확인</span></summary><div id="a-view"></div></details>
       </div>
     </section>
@@ -326,6 +341,23 @@
     const unitsOf = s => [...new Set(String(s || '').split('·').map(x => x.trim()).filter(Boolean))];
 
     let D = null, ym = null, thisYm = null, today = null, selDay = null, EV = [];
+    // [sql/89] 날짜별 능력단위 — 학생 id → { units:[{unit,hours,days,daily_hours}], byDay:{ 'YYYY-MM-DD': [{unit,hours,src,by}] } }. 적용 전이면 null
+    let OU = null, uEdit = null, uMsg = '';
+    async function loadOjtUnits(m) {
+      try {
+        const { data, error } = await supabase.rpc('company_ojt_units', { p_code: CODE, p_month: m });
+        if (error || !data || data.ok !== true) { OU = null; return; }
+        OU = {};
+        (data.students || []).forEach(st => putOU(st.id, st));
+      } catch (_) { OU = null; }
+    }
+    function putOU(id, mo) {
+      if (!OU) OU = {};
+      const byDay = {};
+      (mo.days || []).forEach(d => { byDay[d.day] = d.units || []; });
+      OU[id] = { units: mo.units || [], byDay };
+    }
+    const dayUnits = (s, ds) => (OU && OU[s.id] && OU[s.id].byDay[ds]) || null;
     // 센터 일정(행사·특강 등, 전체 대상)·기업 할 일(tasks 기업/전체) — 옛 홈 달력에 있던 것(첫 화면이 이 화면으로 바뀌어 여기로)
     async function loadEvents(m) {
       try {
@@ -359,7 +391,7 @@
       }
       if (!data || !data.ok) { fail('기업 코드를 확인하지 못했어요. 센터 담당 선생님께 문의해 주세요.'); return; }
       D = data; ym = data.month; today = data.today; thisYm = thisYm || today.slice(0, 7);
-      await loadEvents(ym);
+      await Promise.all([loadEvents(ym), loadOjtUnits(ym)]);
       $('msg').hidden = true;
       draw();
     }
@@ -469,14 +501,17 @@
       h += rows.map(({ s, d, a }) => {
         const st = a ? `<span class="st">${AK[a.kind]}${a.state === 'applied' ? ' · 옮김' : ''}</span>`
           : `<span class="st ${d.status}">${d.status === 'ok' || d.status === 'short' ? (Number(d.recognized) || 0) + 'h ' : ''}${ST[d.status] || ''}</span>`;
-        // 훈련날엔 그 학생의 그 달 OJT 능력단위(실시신고 시간표 월 배정, 사용자 10/22)
-        const us = unitsOf((monthRow(s, ds.slice(0, 7)) || {}).units);
+        // 훈련날엔 그 학생의 그날 능력단위·시간(sql/89, 행정지원시스템 시간표 → 날짜별 배분). 자료 없으면 그 달 능력단위(10/22)
+        const du = !a && dayUnits(s, ds);
+        const us = du ? du.map(x => `${x.unit} ${Number(x.hours)}h${x.src === 'teacher' ? ' (수정)' : ''}`) : unitsOf((monthRow(s, ds.slice(0, 7)) || {}).units);
+        const ed = du ? `<button type="button" class="u-ed" data-ued="${esc(s.id)}">능력단위 고치기</button>` : '';
         // (10/22 사용자) 휴가·출장은 학생 줄에서 버튼 한 번 — 오늘·앞으로의 훈련일만, 알린 건 [취소]
         // (10/23 점검) 취소는 기업이 알린 것만 — 학생·센터가 넣은 건 서버도 막음(sql/77)
         const act = ds < today ? '' : a ? (a.state === 'open' && a.by_role === 'company' ? `<button type="button" class="ab-x" data-cancel="${esc(a.id)}">취소</button>` : '')
           : `<span class="ab2"><button type="button" data-ab="leave" data-sid="${esc(s.id)}">휴가</button><button type="button" data-ab="trip" data-sid="${esc(s.id)}">출장</button></span>`;
         return `<div class="sr${a ? ' off' : ''}"><span class="n"><b>${esc(s.name)}</b>${mc && d.course ? `<span>${esc(d.course)}</span>` : ''}` +
-          `${us.length ? `<small class="u">${esc(us.join(' · '))}</small>` : ''}</span>${!a && ds >= today ? '' : st}${act}</div>`;   // 앞으로의 날은 '예정' 대신 버튼만
+          `${us.length ? `<small class="u">${esc(us.join(' · '))}</small>` : ''}${ed}</span>${!a && ds >= today ? '' : st}${act}</div>` +   // 앞으로의 날은 '예정' 대신 버튼만
+          (uEdit && uEdit.sid === s.id && uEdit.ds === ds ? unitEditor(s, d, ds) : '');
       }).join('');
       h += inf.evs.map(e => `<div class="sr tk"><span class="n"><b>${esc(e.kind)}</b><span>${esc(e.title)}${e.memo ? ' · ' + esc(e.memo) : ''}</span></span></div>`).join('');
       if (!rows.length && !inf.tasks.length && !inf.evs.length) h += `<p class="lede" style="margin:0">이 날은 OJT 훈련 없음</p>`;
@@ -484,6 +519,69 @@
       // (10/23 점검) 바로 접수하지 않고 알리기 시트를 그 학생·날짜·종류로 채워 엶 — 알리는 분 이름·과정 전체 이동 안내를 거치게
       $('m-day').querySelectorAll('[data-ab]').forEach(b => b.addEventListener('click', () => openSheet(ds, b.dataset.sid, b.dataset.ab)));
       $('m-day').querySelectorAll('[data-cancel]').forEach(b => b.addEventListener('click', () => cancel(b)));
+      $('m-day').querySelectorAll('[data-ued]').forEach(b => b.addEventListener('click', () => {
+        uEdit = uEdit && uEdit.sid === b.dataset.ued && uEdit.ds === ds ? null : { sid: b.dataset.ued, ds }; uMsg = ''; drawDay();
+      }));
+      wireUnitEditor();
+    }
+
+    // ---------- [sql/89] 그날 능력단위 고치기 — 합계 = 그날 정규시간, 능력단위별 월 합계가 바뀌면 서버가 저장 안 함 ----------
+    function unitEditor(s, d, ds) {
+      const mu = (OU && OU[s.id] && OU[s.id].units) || [], cur = dayUnits(s, ds) || [];
+      const hOf = u => { const x = cur.find(y => y.unit === u); return x ? Number(x.hours) : 0; };
+      const teacher = cur.some(x => x.src === 'teacher');
+      let by = ''; try { by = localStorage.getItem(BY_KEY) || ''; } catch (_) {}
+      return `<div class="ued" data-sid="${esc(s.id)}" data-ds="${ds}" data-plan="${Number(d.hours) || 0}">` +
+        `<p class="ued-t">${esc(s.name)} · ${md(ds)} 능력단위 <span class="ued-sum"></span></p>` +
+        mu.map(x => `<label class="ued-r"><span>${esc(x.unit)}<small>이번 달 ${Number(x.hours)}시간</small></span>` +
+          `<input type="number" inputmode="numeric" min="0" max="${Number(d.hours) || 0}" step="1" value="${hOf(x.unit)}" data-u="${esc(x.unit)}" />시간</label>`).join('') +
+        `<label class="ued-r ued-by"><span>고치는 분</span><input type="text" maxlength="40" placeholder="이름 (예: 홍길동 과장)" value="${esc(by)}" data-by /></label>` +
+        (uMsg ? `<p class="ued-msg">${esc(uMsg)}</p>` : '') +
+        `<p class="ued-note">한 능력단위 시간을 바꾸면 이번 달 다른 날이 자동으로 맞춰져요. 이번 달 능력단위별 합계가 바뀌는 수정은 저장되지 않아요.</p>` +
+        `<div class="ued-b">${teacher ? `<button type="button" class="ab-x" data-ureset>자동으로 되돌리기</button>` : ''}` +
+        `<button type="button" class="ab-x" data-uclose>닫기</button><button type="button" class="ued-save" data-usave>저장</button></div></div>`;
+    }
+    const UREASON = {
+      name: '고치는 분 이름을 적어 주세요.', day_total: '합계가 그날 정규 훈련시간과 같아야 해요.', hours: '시간은 1시간 단위로 적어 주세요.',
+      unit: '이번 달 배정에 없는 능력단위예요.', dup: '같은 능력단위가 두 번 들어갔어요.', no_plan: '이 날은 정규 훈련시간이 없어요.',
+      student: '이 학생을 확인하지 못했어요.', rate: '잠시 후 다시 시도해 주세요.', auth: '기업 코드를 확인하지 못했어요.', input: '입력을 확인해 주세요.',
+    };
+    function wireUnitEditor() {
+      const box = $('m-day').querySelector('.ued');
+      if (!box) return;
+      const plan = Number(box.dataset.plan) || 0, ins = [...box.querySelectorAll('input[data-u]')], save = box.querySelector('[data-usave]');
+      const sumEl = box.querySelector('.ued-sum'), byEl = box.querySelector('input[data-by]');
+      const upd = () => {
+        const sum = ins.reduce((a, i) => a + (Number(i.value) || 0), 0);
+        sumEl.textContent = `합계 ${sum} / 정규 ${plan}시간`; sumEl.className = 'ued-sum ' + (sum === plan ? 'ok' : 'no');
+        save.disabled = sum !== plan || !byEl.value.trim();
+      };
+      ins.concat(byEl).forEach(i => i.addEventListener('input', upd)); upd();
+      box.querySelector('[data-uclose]').addEventListener('click', () => { uEdit = null; uMsg = ''; drawDay(); });
+      const after = (data, error) => {
+        if (error) { uMsg = errText(error); drawDay(); return; }
+        if (!data || data.ok !== true) {
+          const r = (data && data.reason) || '';
+          uMsg = r === 'month_total'
+            ? `이렇게 바꾸면 ${data.unit} 능력단위가 이번 달 ${Number(data.limit)}시간에서 ${Number(data.got)}시간으로 바뀌어요. 다른 날 시간을 같이 조정해 주세요.`
+            : (UREASON[r] || '저장하지 못했어요.');
+          drawDay(); return;
+        }
+        putOU(box.dataset.sid, data); uEdit = null; uMsg = ''; drawMonth();
+      };
+      save.addEventListener('click', async () => {
+        save.disabled = true;
+        const by = byEl.value.trim(); try { localStorage.setItem(BY_KEY, by); } catch (_) {}
+        const units = ins.filter(i => Number(i.value) > 0).map(i => ({ unit: i.dataset.u, hours: Number(i.value) }));
+        let res = {}; try { res = await supabase.rpc('company_set_daily_units', { p_code: CODE, p_student: box.dataset.sid, p_day: box.dataset.ds, p_units: units, p_by_name: by }); } catch (e) { res = { error: e }; }
+        after(res.data, res.error);
+      });
+      const rs = box.querySelector('[data-ureset]');
+      if (rs) rs.addEventListener('click', async () => {
+        rs.disabled = true;
+        let res = {}; try { res = await supabase.rpc('company_reset_daily_units', { p_code: CODE, p_student: box.dataset.sid, p_day: box.dataset.ds }); } catch (e) { res = { error: e }; }
+        after(res.data, res.error);
+      });
     }
 
     // ---------- 이번 달 할 일 — 내부평가·면담일지 마감 · 인정 모자란 날 ----------
