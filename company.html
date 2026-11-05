@@ -183,6 +183,8 @@
   .ued-b{display:flex; justify-content:flex-end; gap:6px; margin-top:10px}
   .ued-save{min-height:36px; padding:0 14px; border:0; border-radius:8px; background:var(--v-cobalt); color:#fff; font:inherit; font-weight:600; cursor:pointer}
   .ued-save:disabled{opacity:.45; cursor:default}
+  .sr.ca{margin-top:6px; padding:8px; background:var(--v-paper); border:1px dashed var(--v-line)}
+  #sh-who .chip2 small{font-weight:400; opacity:.75; margin-left:4px}
   .wrow + .wrow{margin-top:10px} .wrow-h{margin:0 0 6px; font-size:13px; font-weight:600; color:var(--v-ink)}
     .cal button .lb[title]{font-size:10.5px; font-weight:600; letter-spacing:-.05em; line-height:17px; padding:0 1px; text-overflow:clip}   /* 학생 칸: 이름 전체 + 시간(사용자: 크기 줄여도 풀네임) */
     .calcard{padding-left:4px; padding-right:4px}
@@ -310,7 +312,7 @@
     <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sh-t">
       <h3 id="sh-t">다른 날로 옮기기</h3>
       <p class="lede">휴가·출장·회사 일정으로 훈련을 못 하는 날을 알리면 센터가 옮겨요 · 원래 날짜 <b>전날까지</b></p>
-      <p class="q">누가 <span>(여러 명 가능)</span></p><div class="chips" id="sh-who"></div>
+      <p class="q">과정 <span>(같은 과정 학생은 함께 옮겨져요)</span></p><div class="chips" id="sh-who"></div>
       <p class="q">언제 <span>(훈련일만, 여러 날 가능)</span></p><div class="chips" id="sh-day"></div>
       <p class="q">무엇</p><div class="seg" id="sh-kind"><button type="button" aria-pressed="true" data-k="leave">휴가</button><button type="button" aria-pressed="false" data-k="trip">출장</button><button type="button" aria-pressed="false" data-k="sched">회사 일정</button></div>
       <p class="q">옮길 날 <span>(고른 날마다, 선택)</span></p><div id="sh-want"></div>
@@ -404,6 +406,9 @@
     const studs = () => D.students || [];
     const courseOf = s => ((s.days || []).find(d => d.course) || {}).course || '';
     const multiCourse = () => new Set(studs().map(courseOf).filter(Boolean)).size > 1;
+    // (11/5 사용자) 옮기기는 과정 단위 — 같은 과정 학생은 정규시간이 같아 함께 옮김. 과정을 모르면 학생 하나를 한 묶음으로
+    const ckey = s => courseOf(s) || ('학생 ' + s.name);
+    const courseKeys = () => [...new Set(studs().map(ckey))];
     const monthRow = (s, m) => (s.months || []).find(x => x.month === m) || null;
     const liveAbs = s => (s.absences || []).filter(a => a.state === 'open' || a.state === 'applied');
     const absOn = (s, day) => { const xs = (s.absences || []).filter(a => a.day === day); return xs.find(a => a.state !== 'rejected') || null; };
@@ -512,18 +517,28 @@
         // (10/22 사용자) 휴가·출장은 학생 줄에서 버튼 한 번 — 오늘·앞으로의 훈련일만, 알린 건 [취소]
         // (10/23 점검) 취소는 기업이 알린 것만 — 학생·센터가 넣은 건 서버도 막음(sql/77)
         // (11/5 훈련품질관리) 원래 날짜 전날까지 — 오늘·지난 날은 버튼 없음(센터에 연락)
-        const act = ds <= today ? '' : a ? (a.state === 'open' && a.by_role === 'company' ? `<button type="button" class="ab-x" data-cancel="${esc(a.id)}">취소</button>` : '')
-          : `<span class="ab2"><button type="button" data-ab="leave" data-sid="${esc(s.id)}">다른 날로</button></span>`;
+        const act = '';   // (11/5 사용자) 학생마다가 아니라 과정 줄에서 옮김 — 아래 과정 줄
         return `<div class="sr${a ? ' off' : ''}"><span class="n"><b>${esc(s.name)}</b>${mc && d.course ? `<span>${esc(d.course)}</span>` : ''}` +
           `${us.length ? `<small class="u">${esc(us.join(' · '))}</small>` : ''}${ed}</span>${!a && ds >= today ? '' : st}${act}</div>` +   // 앞으로의 날은 '예정' 대신 버튼만
           '';
       }).join('');
+      // 과정 줄 — 원래 날짜 전날까지만. 아직 안 알린 학생이 있으면 [다른 날로], 기업이 알린 건이 있으면 [알린 것 취소]
+      if (ds > today) {
+        const byC = new Map();
+        rows.forEach(({ s, a }) => { const k = ckey(s); if (!byC.has(k)) byC.set(k, { free: [], mine: [], n: 0 }); const g = byC.get(k); g.n++; if (!a) g.free.push(s); else if (a.state === 'open' && a.by_role === 'company') g.mine.push(a); });
+        byC.forEach((g, k) => {
+          const n = g.n;
+          h += `<div class="sr ca"><span class="n"><b>${mc || byC.size > 1 ? esc(k) : '이 날 훈련'}</b><span>학생 ${n}명 함께</span></span>` +
+            (g.free.length ? `<span class="ab2"><button type="button" data-abc="${esc(k)}">다른 날로</button></span>` : '') +
+            (g.mine.length ? `<button type="button" class="ab-x" data-cancels="${esc(g.mine.map(a => a.id).join(','))}">알린 것 취소</button>` : '') + `</div>`;
+        });
+      } else if (rows.length) h += `<p class="lede" style="margin:6px 0 0">오늘·지난 날 변경은 센터 담당 선생님께 연락해 주세요</p>`;
       h += inf.evs.map(e => `<div class="sr tk"><span class="n"><b>${esc(e.kind)}</b><span>${esc(e.title)}${e.memo ? ' · ' + esc(e.memo) : ''}</span></span></div>`).join('');
       if (!rows.length && !inf.tasks.length && !inf.evs.length) h += `<p class="lede" style="margin:0">이 날은 OJT 훈련 없음</p>`;
       $('m-day').innerHTML = h + `</div>`;
       // (10/23 점검) 바로 접수하지 않고 알리기 시트를 그 학생·날짜·종류로 채워 엶 — 알리는 분 이름·과정 전체 이동 안내를 거치게
-      $('m-day').querySelectorAll('[data-ab]').forEach(b => b.addEventListener('click', () => openSheet(ds, b.dataset.sid, b.dataset.ab)));
-      $('m-day').querySelectorAll('[data-cancel]').forEach(b => b.addEventListener('click', () => cancel(b)));
+      $('m-day').querySelectorAll('[data-abc]').forEach(b => b.addEventListener('click', () => openSheet(ds, b.dataset.abc, 'leave')));
+      $('m-day').querySelectorAll('[data-cancel],[data-cancels]').forEach(b => b.addEventListener('click', () => cancel(b)));
       $('m-day').querySelectorAll('[data-ued]').forEach(b => b.addEventListener('click', () => {
         uEdit = uEdit && uEdit.sid === b.dataset.ued && uEdit.ds === ds ? null : { sid: b.dataset.ued, ds }; uMsg = ''; drawDay();
       }));
@@ -608,16 +623,22 @@
     }
     // 알린 휴가·출장 — 취소 가능. 알리기는 달력에서 날짜를 고른 뒤(아래 버튼은 중복이라 뺌, 사용자 10/22)
     function drawAbs() {
-      const list = studs().flatMap(s => liveAbs(s).map(a => ({ s, a }))).filter(x => x.a.day >= ymAdd(thisYm, -1) + '-01').sort((x, y) => (x.a.day < y.a.day ? -1 : 1));
-      $('m-abs').innerHTML = `<p class="sec-sub">알리면 센터가 그 날 훈련을 다른 날로 옮김 · 옮긴 날의 능력단위는 시간표 순서대로 자동</p><div class="box">` +
-        (list.length ? list.map(({ s, a }) => {
+      const list = studs().flatMap(s => liveAbs(s).map(a => ({ s, a }))).filter(x => x.a.day >= ymAdd(thisYm, -1) + '-01');
+      const g = new Map();   // 과정|날짜 → [{ s, a }]
+      list.forEach(x => { const k = ckey(x.s) + '|' + x.a.day; if (!g.has(k)) g.set(k, []); g.get(k).push(x); });
+      const groups = [...g.entries()].sort((x, y) => (x[0].split('|')[1] < y[0].split('|')[1] ? -1 : 1));
+      $('m-abs').innerHTML = `<p class="sec-sub">과정 단위로 옮김 · 원래 날짜 전날까지 · 옮긴 날의 능력단위는 시간표 순서대로 자동</p><div class="box">` +
+        (groups.length ? groups.map(([k, xs]) => {
+          const [ck, day] = k.split('|'), a = xs[0].a;
           const who = a.by_role === 'company' || a.by_role === 'teacher' ? (a.by_name || '기업 담당자') : a.by_role === 'admin' ? '센터' : '학생 본인';
-          const to = a.moved_to ? ` → ${md(a.moved_to)}` : a.want_day ? ` → 희망 ${md(a.want_day)}` : '';
-          return `<div class="bi"><span class="k${a.kind === 'trip' ? ' trip' : ''}">${AK[a.kind] || '휴가'}</span><span class="wh"><b>${md(a.day)}${esc(to)} ${esc(s.name)}</b>` +
-            `<span>${esc(who)}${a.note ? ' · ' + esc(a.note) : ''}</span></span>` +
-            (a.state === 'applied' ? `<span class="r">${a.moved_to ? '옮김' : '다른 날로 옮김'}</span>` : a.moved_to ? `<span class="r">옮길 예정</span>` : a.by_role === 'company' ? `<button type="button" class="lnk" data-cancel="${esc(a.id)}">취소</button>` : `<span class="r">센터에 문의</span>`) + `</div>`;
-        }).join('') : `<p class="empty">아직 없음. 달력에서 날짜를 누르고 학생 옆 [다른 날로] 누르기 (원래 날짜 전날까지)</p>`) + `</div>`;
-      $('m-abs').querySelectorAll('[data-cancel]').forEach(b => b.addEventListener('click', () => cancel(b)));
+          const mv = xs.map(x => x.a.moved_to).find(Boolean), wd = xs.map(x => x.a.want_day).find(Boolean);
+          const to = mv ? ` → ${md(mv)}` : wd ? ` → 희망 ${md(wd)}` : '';
+          const allApplied = xs.every(x => x.a.state === 'applied'), mine = xs.filter(x => x.a.state === 'open' && x.a.by_role === 'company');
+          return `<div class="bi"><span class="k${a.kind === 'trip' ? ' trip' : ''}">${AK[a.kind] || '휴가'}</span><span class="wh"><b>${md(day)}${esc(to)}${multiCourse() ? ' ' + esc(ck) : ''}</b>` +
+            `<span>${esc(xs.map(x => x.s.name).join('·'))} · ${esc(who)}${a.note ? ' · ' + esc(a.note) : ''}</span></span>` +
+            (allApplied ? `<span class="r">옮김</span>` : mv ? `<span class="r">옮길 예정</span>` : mine.length && day > today ? `<button type="button" class="lnk" data-cancels="${esc(mine.map(x => x.a.id).join(','))}">취소</button>` : `<span class="r">센터에 문의</span>`) + `</div>`;
+        }).join('') : `<p class="empty">아직 없음. 달력에서 날짜를 누르고 [다른 날로] 누르기 (원래 날짜 전날까지)</p>`) + `</div>`;
+      $('m-abs').querySelectorAll('[data-cancels]').forEach(b => b.addEventListener('click', () => cancel(b)));
     }
 
     // ---------- 알리기 시트 — 학생(여러 명) × 앞으로의 훈련일(여러 날) × 휴가/출장 ----------
@@ -627,8 +648,8 @@
     function wantChips() {
       const box = $('sh-want'), days = [...pick.day].sort();
       Object.keys(pick.wants).forEach(d => { if (!pick.day.has(d)) delete pick.wants[d]; });
-      if (!days.length || !pick.who.size) { box.innerHTML = `<p class="lede" style="margin:0">학생과 날짜를 먼저 골라 주세요</p>`; return; }
-      const who = studs().filter(s => pick.who.has(s.id));
+      if (!days.length || !pick.who.size) { box.innerHTML = `<p class="lede" style="margin:0">과정과 날짜를 먼저 골라 주세요</p>`; return; }
+      const who = studs().filter(s => pick.who.has(ckey(s)));
       const hrs = (s, ds) => (s.days || []).filter(x => x.day === ds).reduce((t, x) => t + (Number(x.hours) || 0), 0);
       const cands = d0 => {
         const m = d0.slice(0, 7), last = new Date(+m.slice(0, 4), +m.slice(5), 0).getDate(), c = [];
@@ -652,10 +673,12 @@
         wantChips(); sheetMsg(true);
       }));
     }
-    function openSheet(preDay, preWho, preKind) {   // preDay: 달력에서 고른 날, preWho: 학생 id, preKind: leave|trip(미리 눌러 둠)
+    function openSheet(preDay, preWho, preKind) {   // preDay: 달력에서 고른 날, preWho: 과정 키, preKind: leave|trip|sched
       pick.who.clear(); pick.day.clear(); pick.kind = ['trip', 'sched'].includes(preKind) ? preKind : 'leave'; pick.wants = {};
       const days = [...new Set(studs().flatMap(s => (s.days || []).filter(d => d.day > today).map(d => d.day)))].sort();
-      $('sh-who').innerHTML = studs().map(s => `<button type="button" class="chip2" aria-pressed="false" data-v="${esc(s.id)}">${esc(s.name)}</button>`).join('');
+      const cks = courseKeys();
+      $('sh-who').innerHTML = cks.map(k => `<button type="button" class="chip2" aria-pressed="false" data-v="${esc(k)}">${esc(k)} <small>${esc(studs().filter(s => ckey(s) === k).map(s => s.name).join('·'))}</small></button>`).join('');
+      if (!preWho && cks.length === 1) preWho = cks[0];
       $('sh-day').innerHTML = days.length ? days.map(d => `<button type="button" class="chip2" aria-pressed="false" data-v="${d}">${md(d)}</button>`).join('')
         : `<p class="lede" style="margin:0">${moName(ym)}에 내일 이후 남은 훈련일 없음. 위에서 다음 달로 넘긴 뒤 알리기</p>`;
       const bind = (id, set) => $(id).querySelectorAll('.chip2').forEach(b => b.addEventListener('click', () => {
@@ -674,13 +697,14 @@
       sheetMsg(); $('veil').hidden = false;
     }
     // 고른 학생 × 날짜 중 그 학생에게 실제 훈련일인 것만
-    const pairs = () => studs().filter(s => pick.who.has(s.id)).flatMap(s => [...pick.day].filter(d => (s.days || []).some(x => x.day === d) && !absOn(s, d)).map(d => ({ s, d })));
+    const pairs = () => studs().filter(s => pick.who.has(ckey(s))).flatMap(s => [...pick.day].filter(d => (s.days || []).some(x => x.day === d) && !absOn(s, d)).map(d => ({ s, d })));
     function sheetMsg(keepWant) {
       if (!keepWant) wantChips();
       const n = pairs().length;
-      $('sh-msg').textContent = !pick.who.size || !pick.day.size ? '학생과 날짜를 골라 주세요.'
-        : n ? `${n}건을 ${AKRO[pick.kind]} 알려요 · ${(() => { const w = Object.entries(pick.wants).filter(([, v]) => v).sort(); return w.length ? '옮길 날 ' + w.map(([k, v]) => `${md(k)}→${md(v)}`).join(', ') + (w.length < pick.day.size ? ' (나머지는 센터가 정해요)' : '') : '옮길 날은 센터가 정해요'; })()}. 같은 과정 학생이 함께 훈련하는 날은 과정 전체가 옮겨져요.`
-        : '고른 날짜에 그 학생의 훈련이 없거나 이미 알린 날이에요.';
+      const nd = new Set(pairs().map(x => x.d)).size, ns = new Set(pairs().map(x => x.s.id)).size;
+      $('sh-msg').textContent = !pick.who.size || !pick.day.size ? '과정과 날짜를 골라 주세요.'
+        : n ? `${nd}일 · 학생 ${ns}명을 ${AKRO[pick.kind]} 알려요 · ${(() => { const w = Object.entries(pick.wants).filter(([, v]) => v).sort(); return w.length ? '옮길 날 ' + w.map(([k, v]) => `${md(k)}→${md(v)}`).join(', ') + (w.length < pick.day.size ? ' (나머지는 센터가 정해요)' : '') : '옮길 날은 센터가 정해요'; })()}.`
+        : '고른 날짜에 그 과정 훈련이 없거나 이미 알린 날이에요.';
       $('sh-ok').disabled = !n;
     }
     $('sh-close').addEventListener('click', () => { $('veil').hidden = true; });
@@ -706,14 +730,17 @@
       load(ym);
     });
     async function cancel(b) {
-      if (!confirm('이 휴가·출장을 취소할까요?')) return;
-      b.disabled = true;
-      try {
-        const { data, error } = await supabase.rpc('company_absence_cancel', { p_code: CODE, p_id: b.dataset.cancel });
-        if (error) alert(errText(error));
-        else if (!data || !data.ok) alert(data && data.reason === 'applied' ? '이미 다른 날로 옮긴 날이라 취소할 수 없어요. 센터에 문의해 주세요.'
-          : data && data.reason === 'not_mine' ? '학생이나 센터가 알린 건이라 여기서 취소할 수 없어요. 센터에 문의해 주세요.' : '처리하지 못했어요.');
-      } catch (_) { alert('연결이 불안정해요. 잠시 후 다시 시도해 주세요.'); }
+      const ids = String(b.dataset.cancels || b.dataset.cancel || '').split(',').filter(Boolean);
+      if (!ids.length || !confirm(ids.length > 1 ? `이 날 알린 ${ids.length}명을 모두 취소할까요?` : '알린 것을 취소할까요?')) return;
+      b.disabled = true; const bad = [];
+      for (const id of ids) {
+        try {
+          const { data, error } = await supabase.rpc('company_absence_cancel', { p_code: CODE, p_id: id });
+          if (error) bad.push(errText(error));
+          else if (!data || !data.ok) bad.push(data && data.reason === 'applied' ? '이미 옮긴 날이라 취소 불가(센터에 문의)' : data && data.reason === 'not_mine' ? '학생·센터가 알린 건(센터에 문의)' : '처리 못 함');
+        } catch (_) { bad.push('연결 불안정'); }
+      }
+      if (bad.length) alert(`취소하지 못한 건이 있어요: ${[...new Set(bad)].join(', ')}`);
       load(ym);
     }
 
