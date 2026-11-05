@@ -183,6 +183,7 @@
   .ued-b{display:flex; justify-content:flex-end; gap:6px; margin-top:10px}
   .ued-save{min-height:36px; padding:0 14px; border:0; border-radius:8px; background:var(--v-cobalt); color:#fff; font:inherit; font-weight:600; cursor:pointer}
   .ued-save:disabled{opacity:.45; cursor:default}
+  .wrow + .wrow{margin-top:10px} .wrow-h{margin:0 0 6px; font-size:13px; font-weight:600; color:var(--v-ink)}
     .cal button .lb[title]{font-size:10.5px; font-weight:600; letter-spacing:-.05em; line-height:17px; padding:0 1px; text-overflow:clip}   /* 학생 칸: 이름 전체 + 시간(사용자: 크기 줄여도 풀네임) */
     .calcard{padding-left:4px; padding-right:4px}
     .cal button[aria-pressed="true"]{border-width:1px; padding:5px 1px; box-shadow:0 0 0 1px var(--v-cobalt)}   /* 고른 날 테두리가 칸 폭을 먹지 않게 */
@@ -312,7 +313,7 @@
       <p class="q">누가 <span>(여러 명 가능)</span></p><div class="chips" id="sh-who"></div>
       <p class="q">언제 <span>(훈련일만, 여러 날 가능)</span></p><div class="chips" id="sh-day"></div>
       <p class="q">무엇</p><div class="seg" id="sh-kind"><button type="button" aria-pressed="true" data-k="leave">휴가</button><button type="button" aria-pressed="false" data-k="trip">출장</button><button type="button" aria-pressed="false" data-k="sched">회사 일정</button></div>
-      <p class="q">옮길 날 <span>(날짜를 하나만 골랐을 때)</span></p><div class="chips" id="sh-want"></div>
+      <p class="q">옮길 날 <span>(고른 날마다, 선택)</span></p><div id="sh-want"></div>
       <p class="q">메모 <span>(선택)</span></p><input id="sh-note" maxlength="300" placeholder="예: 고객사 현장 지원" />
       <p class="q">알리는 분</p><input id="sh-by" maxlength="40" placeholder="이름 (예: 홍길동 과장)" autocomplete="name" />
       <p class="sm" id="sh-msg"></p>
@@ -620,28 +621,39 @@
     }
 
     // ---------- 알리기 시트 — 학생(여러 명) × 앞으로의 훈련일(여러 날) × 휴가/출장 ----------
-    const pick = { who: new Set(), day: new Set(), kind: 'leave', want: '' };
-    // 옮길 날 후보 — 고른 날짜가 하나일 때, 그 달 평일·내일 이후·공휴일 아님·고른 학생 모두 그날 정규시간 6시간 미만
+    const pick = { who: new Set(), day: new Set(), kind: 'leave', wants: {} };   // wants: 원래 날 → 옮길 날('' = 센터에 맡기기)
+    // 옮길 날 후보 — 고른 날마다 한 줄. 그 달 평일·내일 이후·공휴일 아님·고른 날 아님·고른 학생 모두 그날 정규시간 6시간 미만.
+    //   (11/5 사용자) 여러 날을 골라도 회사가 날마다 고를 수 있게. 다른 줄에서 이미 고른 날은 빼서 한 날에 몰리지 않게.
     function wantChips() {
-      const box = $('sh-want'); pick.want = '';
-      const days = [...pick.day];
-      if (days.length !== 1 || !pick.who.size) { box.innerHTML = `<p class="lede" style="margin:0">${days.length > 1 ? '여러 날을 고르면 센터가 정해요' : '학생과 날짜를 먼저 골라 주세요'}</p>`; return; }
-      const d0 = days[0], m = d0.slice(0, 7), last = new Date(+m.slice(0, 4), +m.slice(5), 0).getDate();
+      const box = $('sh-want'), days = [...pick.day].sort();
+      Object.keys(pick.wants).forEach(d => { if (!pick.day.has(d)) delete pick.wants[d]; });
+      if (!days.length || !pick.who.size) { box.innerHTML = `<p class="lede" style="margin:0">학생과 날짜를 먼저 골라 주세요</p>`; return; }
       const who = studs().filter(s => pick.who.has(s.id));
       const hrs = (s, ds) => (s.days || []).filter(x => x.day === ds).reduce((t, x) => t + (Number(x.hours) || 0), 0);
-      const c = [];
-      for (let i = 1; i <= last; i++) {
-        const ds = `${m}-${pad(i)}`, w = new Date(ds + 'T00:00:00').getDay();
-        if (ds <= today || ds === d0 || w === 0 || w === 6 || HOLI.has(ds)) continue;
-        if (who.every(s => hrs(s, ds) < 6)) c.push(ds);
-      }
-      box.innerHTML = `<button type="button" class="chip2" aria-pressed="true" data-v="">센터에 맡기기</button>` + c.map(ds => `<button type="button" class="chip2" aria-pressed="false" data-v="${ds}">${md(ds)}</button>`).join('');
-      box.querySelectorAll('.chip2').forEach(b => b.addEventListener('click', () => {
-        pick.want = b.dataset.v; box.querySelectorAll('.chip2').forEach(x => x.setAttribute('aria-pressed', x === b)); sheetMsg(true);
+      const cands = d0 => {
+        const m = d0.slice(0, 7), last = new Date(+m.slice(0, 4), +m.slice(5), 0).getDate(), c = [];
+        for (let i = 1; i <= last; i++) {
+          const ds = `${m}-${pad(i)}`, w = new Date(ds + 'T00:00:00').getDay();
+          if (ds <= today || pick.day.has(ds) || w === 0 || w === 6 || HOLI.has(ds)) continue;
+          if (who.every(s => hrs(s, ds) < 6)) c.push(ds);
+        }
+        return c;
+      };
+      box.innerHTML = days.map(d0 => {
+        const cur = pick.wants[d0] || '', used = new Set(Object.entries(pick.wants).filter(([k, v]) => k !== d0 && v).map(([, v]) => v));
+        const c = cands(d0).filter(ds => !used.has(ds));
+        return `<div class="wrow">${days.length > 1 ? `<p class="wrow-h">${md(d0)} →</p>` : ''}<div class="chips" data-wd="${d0}">` +
+          `<button type="button" class="chip2" aria-pressed="${!cur}" data-v="">센터에 맡기기</button>` +
+          c.map(ds => `<button type="button" class="chip2" aria-pressed="${ds === cur}" data-v="${ds}">${md(ds)}</button>`).join('') + `</div></div>`;
+      }).join('');
+      box.querySelectorAll('[data-wd] .chip2').forEach(b => b.addEventListener('click', () => {
+        const d0 = b.closest('[data-wd]').dataset.wd;
+        if (b.dataset.v) pick.wants[d0] = b.dataset.v; else delete pick.wants[d0];
+        wantChips(); sheetMsg(true);
       }));
     }
     function openSheet(preDay, preWho, preKind) {   // preDay: 달력에서 고른 날, preWho: 학생 id, preKind: leave|trip(미리 눌러 둠)
-      pick.who.clear(); pick.day.clear(); pick.kind = ['trip', 'sched'].includes(preKind) ? preKind : 'leave'; pick.want = '';
+      pick.who.clear(); pick.day.clear(); pick.kind = ['trip', 'sched'].includes(preKind) ? preKind : 'leave'; pick.wants = {};
       const days = [...new Set(studs().flatMap(s => (s.days || []).filter(d => d.day > today).map(d => d.day)))].sort();
       $('sh-who').innerHTML = studs().map(s => `<button type="button" class="chip2" aria-pressed="false" data-v="${esc(s.id)}">${esc(s.name)}</button>`).join('');
       $('sh-day').innerHTML = days.length ? days.map(d => `<button type="button" class="chip2" aria-pressed="false" data-v="${d}">${md(d)}</button>`).join('')
@@ -667,7 +679,7 @@
       if (!keepWant) wantChips();
       const n = pairs().length;
       $('sh-msg').textContent = !pick.who.size || !pick.day.size ? '학생과 날짜를 골라 주세요.'
-        : n ? `${n}건을 ${AKRO[pick.kind]} 알려요${pick.want ? ` · 옮길 날 ${md(pick.want)}` : ' · 옮길 날은 센터가 정해요'}. 같은 과정 학생이 함께 훈련하는 날은 과정 전체가 옮겨져요.`
+        : n ? `${n}건을 ${AKRO[pick.kind]} 알려요 · ${(() => { const w = Object.entries(pick.wants).filter(([, v]) => v).sort(); return w.length ? '옮길 날 ' + w.map(([k, v]) => `${md(k)}→${md(v)}`).join(', ') + (w.length < pick.day.size ? ' (나머지는 센터가 정해요)' : '') : '옮길 날은 센터가 정해요'; })()}. 같은 과정 학생이 함께 훈련하는 날은 과정 전체가 옮겨져요.`
         : '고른 날짜에 그 학생의 훈련이 없거나 이미 알린 날이에요.';
       $('sh-ok').disabled = !n;
     }
@@ -683,7 +695,7 @@
       for (const { s, d } of pairs()) {
         try {
           // [sql/90] 옮길 날까지 — 함수가 없으면(적용 전) 옛 함수로
-          let { data, error } = await supabase.rpc('company_absence_move', { p_code: CODE, p_student: s.id, p_day: d, p_kind: pick.kind, p_note: note, p_by_name: by, p_want: pick.want || null });
+          let { data, error } = await supabase.rpc('company_absence_move', { p_code: CODE, p_student: s.id, p_day: d, p_kind: pick.kind, p_note: note, p_by_name: by, p_want: pick.wants[d] || null });
           if (error && /company_absence_move|PGRST202|schema cache/i.test(error.message || '')) ({ data, error } = await supabase.rpc('company_absence', { p_code: CODE, p_student: s.id, p_day: d, p_kind: pick.kind === 'sched' ? 'leave' : pick.kind, p_note: note, p_by_name: by }));
           const why = { too_late: '오늘·지난 날은 센터에 연락', want_day: '옮길 날 확인', want_full: '옮길 날이 이미 6시간' };
           if (error || !data || !data.ok) bad.push(`${md(d)} ${s.name}${data && why[data.reason] ? '(' + why[data.reason] + ')' : ''}`); else okN++;

@@ -16,7 +16,7 @@
  *   따라서 './firebase-messaging-sw.js' 를 다시 등록하는 코드를 넣지 말 것.
  *
  * 코드를 고친 뒤 반영이 안 되면 CACHE 버전 숫자를 올리세요(브라우저 캐시 갱신). */
-const CACHE = 'ilhak-v95';   // 기업 '다른 날로 옮기기' 창이 아래 탭에 가려지던 것 /   // [sql/90] 다른 날로 옮기기(회사 일정·옮길 날)·전날까지, 능력단위 고치기 뺌
+const CACHE = 'ilhak-v96';   // 여러 날을 골라도 날마다 옮길 날 고르기 /   // 기업 '다른 날로 옮기기' 창이 아래 탭에 가려지던 것 /   // [sql/90] 다른 날로 옮기기(회사 일정·옮길 날)·전날까지, 능력단위 고치기 뺌
 const ASSETS = ['./', './index.html', './install.html', './notice.html', './library.html', './calendar.html',
   './consult.html', './chat.html', './survey.html', './company-survey.html', './faq.html', './privacy.html',
   './qna.html', './mycompany.html',
