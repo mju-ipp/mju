@@ -4724,9 +4724,11 @@ document.getElementById('out').innerHTML = h;
       if (cwSelDay && cwSelDay.slice(0, 7) !== ym) cwSelDay = null;
       cwDrawCal();   // 달력 기업(cwCalCo) 기본값이 여기서 정해짐 → 건수·목록은 그 뒤에 같은 기준으로(10/23 점검)
       const coName = cwCalCo ? label(cwCalCo) : '';
-      const all = tasks.filter(t => (t.month.slice(0, 7) === ym || (t.month.slice(0, 7) < ym && !t.done_on)) && (!cwCalCo || t.company_key === cwCalCo));
+      // (11/5 사용자) 마감이 지난 건(안 받음)은 목록에서 뺌 — 메일로도 안내하니 앱에는 남기지 않음. 지난달 미완료 넘겨 보이기도 뺌
+      const gone = t => !t.done_on && t.due_on && t.due_on < ymdLocal(0);
+      const all = tasks.filter(t => t.month.slice(0, 7) === ym && !gone(t) && (!cwCalCo || t.company_key === cwCalCo));
       $('cw-task-n').textContent = all.length ? `${coName ? coName + ' · ' : ''}${all.filter(t => !t.done_on).length}건 남음 / ${all.length}건` : '';
-      const rows = cwSelDay ? tasks.filter(t => t.due_on === cwSelDay && (!cwCalCo || t.company_key === cwCalCo)) : all;
+      const rows = cwSelDay ? tasks.filter(t => t.due_on === cwSelDay && !gone(t) && (!cwCalCo || t.company_key === cwCalCo)) : all;
       $('cw-cal-sel').innerHTML = cwSelDay ? `<b>${esc(mdOf(cwSelDay))} 마감</b> ${rows.length}건 · 받음 ${rows.filter(t => t.done_on).length} · 아래 칸에 제목을 쓰고 [넣기]하면 이 날 마감으로 들어가요 <button type="button" class="phone-btn" id="cw-cal-all">${moOf(ym)} 전체 보기</button>` : '';
       if (cwSelDay) $('cw-cal-all').addEventListener('click', () => { cwSelDay = null; cwDrawTasks(); });
       $('cw-task-list').innerHTML = rows.length ? rows.map(t => {
