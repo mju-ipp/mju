@@ -187,8 +187,12 @@
       if (!configReady()) { fail('연결 설정이 필요해요.'); return; }
       $('list').innerHTML = `<p class="cv-empty">불러오는 중…</p>`;
       if (!(await loadRooms())) return;
-      const want = new URLSearchParams(location.search).get('room');
-      if (want && rooms.some(r => r.id === want)) openRoom(want); else drawList();
+      const qs = new URLSearchParams(location.search), want = qs.get('room');
+      // (11/5) 학생 앱 '센터 선생님께 알리기' — ?to=teacher 면 1:1 선생님 방, &text= 는 입력칸에 미리 적어 둠(보내기는 학생이)
+      const direct = qs.get('to') === 'teacher' ? (rooms.find(r => r.kind === 'direct') || {}).id : null;
+      const pre = (qs.get('text') || '').slice(0, 300);
+      if (want && rooms.some(r => r.id === want)) openRoom(want); else if (direct) openRoom(direct); else drawList();
+      if (pre && (want || direct)) setTimeout(() => { const t = $('cv-text'); if (t && !t.value) { t.value = pre; t.dispatchEvent(new Event('input')); } }, 400);
     })();
   </script>
 </body>

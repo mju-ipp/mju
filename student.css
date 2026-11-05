@@ -208,3 +208,6 @@ body{background:var(--v-bg); color:var(--v-ink); font-variant-numeric:tabular-nu
 .op-bn small.op-guide{display:block; margin-top:2px; font-size:12px; font-weight:400; color:var(--v-mute)}
 .w24-form{margin:8px 0 10px; padding-left:18px; font-size:12.5px; line-height:1.6; color:var(--v-mute)}
 .w24-form b{color:var(--v-ink, inherit)}
+/* (11/5) 학생 앱 '센터 선생님께 알리기' — 대화방 링크 버튼 */
+.ab-msg{display:flex; align-items:center; justify-content:center; min-height:40px; margin-top:8px; border-radius:6px; background:var(--v-cobalt); color:#fff; font-size:14px; font-weight:600; text-decoration:none}
+.ab-msg:active{background:var(--v-cobalt-d)}

@@ -803,6 +803,12 @@
         // (11/5 훈련품질관리) 원래 날짜 전날까지만 — 오늘·지난 날은 센터에 연락
         const _n = new Date(), _td = `${_n.getFullYear()}-${String(_n.getMonth() + 1).padStart(2, '0')}-${String(_n.getDate()).padStart(2, '0')}`;
         if (ds <= _td) return a && a.state === 'rejected' ? `<div class="ab-box"><p class="ab-s ab-warn">지난번 체크는 반려됨. 궁금한 점은 센터 문의</p></div>` : '';
+        // (11/5 사용자) 학생 앱에서는 날짜를 못 옮김 — 훈련 일정은 회사(현장교사)가 정하고 과정 단위로 옮김. 알리기만
+        const _mdS = `${Number(ds.slice(5, 7))}/${Number(ds.slice(8, 10))}`;
+        return `<div class="ab-box"><p class="ab-t">이 날 못 나오면</p>` +
+          `<p class="ab-s">회사 담당자와 센터 선생님께 <b>전날까지</b> 알려 주세요. 다른 날로 옮기는 건 회사가 정해요.</p>` +
+          (a && a.state === 'rejected' ? `<p class="ab-s ab-warn">지난번 체크는 반려됨. 궁금한 점은 센터 문의</p>` : '') +
+          `<a class="ab-msg" href="./chat.html?to=teacher&text=${encodeURIComponent(_mdS + ' 훈련에 못 나갈 것 같아요. (사유: )')}">센터 선생님께 알리기</a></div>`;
         return `<div class="ab-box"><p class="ab-t">이 날 휴가·출장인 경우</p>` +
           `<p class="ab-s">체크 시 센터 선생님이 이 날 훈련을 다른 날로 옮김 · <b>전날까지</b> 체크` +
           (m.size > 1 ? ` 같은 과정 학생 ${m.size}명이 함께 훈련 중이라 <b>이 날은 과정 전체 이동</b>` : '') + `</p>` +
